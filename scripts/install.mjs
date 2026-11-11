@@ -1,15 +1,19 @@
 // Installs Dumbo for the current user — no compiled/unsigned .exe involved, so Smart App Control stays happy:
-//   %LOCALAPPDATA%\Dumbo\runtime\Dumbo.exe   ← the stock Electron runtime (byte-identical, just renamed)
-//   %LOCALAPPDATA%\Dumbo\app\                ← our code (built pages + host scripts)
+//   %USERPROFILE%\Apps\Dumbo\runtime\Dumbo.exe   ← the stock Electron runtime (byte-identical, just renamed)
+//   %USERPROFILE%\Apps\Dumbo\app\                ← our code (built pages + host scripts)
 // plus Desktop and Start Menu shortcuts. Re-run any time to update (your settings are kept).
+// Deliberately NOT under AppData: when this runs from a packaged (MSIX) app such as the Claude desktop
+// app, Windows silently redirects AppData writes into that app's private cache, so the shortcut would
+// point at a folder that doesn't exist for you ("Unable to find Electron app").
 import { build } from 'vite';
 import { execFileSync, spawn } from 'child_process';
 import { cpSync, rmSync, mkdirSync, writeFileSync, readFileSync, renameSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import os from 'os';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const target = path.join(process.env.LOCALAPPDATA, 'Dumbo');
+const target = path.join(os.homedir(), 'Apps', 'Dumbo');
 const runtime = path.join(target, 'runtime');
 const appDir = path.join(target, 'app');
 const exe = path.join(runtime, 'Dumbo.exe');
@@ -47,4 +51,5 @@ for (const lnk of [path.join(desktop, 'Dumbo.lnk'), path.join(startMenu, 'Dumbo.
 }
 
 console.log(`\nInstalled to ${target}\nStarting Dumbo…`);
-spawn(exe, [appDir], { detached: true, stdio: 'ignore' }).unref();
+// Launch through Explorer so Dumbo runs as a normal app, outside whatever started this script.
+spawn('explorer.exe', [path.join(desktop, 'Dumbo.lnk')], { detached: true, stdio: 'ignore' }).unref();

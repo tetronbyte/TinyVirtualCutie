@@ -15,7 +15,15 @@ if (!app.requestSingleInstanceLock()) { app.quit(); return; }
 const DEV_URL = process.env.DUMBO_DEV_URL; // set by scripts/dev.mjs
 const ROOT = path.join(__dirname, '..');
 const ICON = path.join(ROOT, 'assets', 'icon.ico');
-const STATE_FILE = () => path.join(app.getPath('userData'), 'state.json');
+// Settings live next to the installed app (%USERPROFILE%\Apps\Dumbo\state.json), not in AppData:
+// packaged apps (e.g. a terminal inside the Claude desktop app) get AppData silently redirected,
+// which split settings between two invisible copies. One file, same for dev and installed runs.
+const STATE_DIR = path.join(require('os').homedir(), 'Apps', 'Dumbo');
+const STATE_FILE = () => path.join(STATE_DIR, 'state.json');
+function migrateState() {
+  const old = path.join(app.getPath('userData'), 'state.json');
+  if (!fs.existsSync(STATE_FILE()) && fs.existsSync(old)) { try { fs.mkdirSync(STATE_DIR, { recursive: true }); fs.copyFileSync(old, STATE_FILE()); } catch {} }
+}
 
 // Base window size in DIPs at size scale 1. The pet itself is drawn 120×116 at the bottom-centre;
 // the rest is transparent, click-through room for speech bubbles and jumps.
@@ -24,6 +32,7 @@ const BASE_W = 240, BASE_H = 220;
 /** @type {BrowserWindow} */ let pet;
 /** @type {BrowserWindow|null} */ let settingsWin = null;
 let tray;
+migrateState();
 let state = loadState();
 
 function loadState() {
@@ -96,8 +105,9 @@ function applySettings(next) {
 }
 
 function setAutostart(on) {
-  // process.execPath = the electron runtime; app path passed as arg so it boots Dumbo, not the default app.
-  const args = app.isPackaged ? [] : [path.resolve(ROOT)];
+  // process.execPath = the stock runtime (renamed Dumbo.exe, so Electron thinks it's "packaged");
+  // the app folder must always be passed or it boots Electron's default app instead of Dumbo.
+  const args = [path.resolve(ROOT)];
   app.setLoginItemSettings({ openAtLogin: on, path: process.execPath, args, name: 'Dumbo' });
 }
 
@@ -174,7 +184,12 @@ app.whenReady().then(() => {
   tray.setToolTip(settings().name);
   tray.on('click', togglePet);
   buildTrayMenu();
-  if (settings().startWithWindows) setAutostart(true);
+  setAutostart(settings().startWithWindows); // always reconcile: repairs or removes stale entries from older installs
+  // Boot report next to the app, so problems can be diagnosed without the console.
+  try {
+    const li = app.getLoginItemSettings({ path: process.execPath, args: [path.resolve(ROOT)] });
+    fs.writeFileSync(path.join(STATE_DIR, 'boot.json'), JSON.stringify({ at: new Date().toISOString(), exe: process.execPath, app: path.resolve(ROOT), dev: !!DEV_URL, startWithWindows: settings().startWithWindows, loginItem: { openAtLogin: li.openAtLogin, executableWillLaunchAtLogin: li.executableWillLaunchAtLogin, launchItems: li.launchItems } }, null, 2));
+  } catch (e) { console.error(e); }
 });
 app.on('second-instance', () => pet?.showInactive());
 app.on('window-all-closed', () => app.quit());
