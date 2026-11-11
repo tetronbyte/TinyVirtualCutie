@@ -13,7 +13,6 @@ Source material: owner's handwritten notes (2026-11-11), `suggestions_idea.txt` 
 - State: `%USERPROFILE%\Apps\Dumbo\state.json` (settings + position), shared by dev and installed copies; `boot.json` there = last boot report (exe, app path, autostart status).
 - **Portable package (shareable)**: `npm run package` → `release/Dumbo/` (229 MB: stock `electron.exe` renamed `Dumbo.exe` 180 MB, byte-identical; `resources/app.asar` 0.4 MB = Dumbo; `resources/dumbo.ico`; en-US locale only) + `release/Dumbo-<ver>-win-x64.zip` (~100 MB). Friends unzip and run `Dumbo.exe`; first run creates Desktop + Start Menu shortcuts. No compiled/modified exe → Smart App Control friendly; the .exe icon stays Electron's atom (changing it = modifying the binary). Shortcuts/tray/window use Dumbo's icon.
 - Owner install: `npm run install-app` → packages, then copies to `%USERPROFILE%\Apps\Dumbo\Dumbo\` (state.json/boot.json stay in `%USERPROFILE%\Apps\Dumbo\`) and launches via Explorer. NOT under AppData: the Claude desktop app is MSIX-packaged and its child processes get AppData/HKCU writes redirected into `AppData\Local\Packages\Claude_*\LocalCache` (caused the 2026-11-12 'Unable to find Electron app' bug).
-untime\Dumbo.exe` + `%LOCALAPPDATA%\Dumbopp\`, shortcuts on Desktop + Start Menu. Start with Windows = HKCU Run entry via Electron login items.
 - Commands: see `AGENTS.md` (`npm run dev`, `npm run install-app`, bench/snap tools).
 
 ## 3. Structure
