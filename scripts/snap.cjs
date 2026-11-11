@@ -6,7 +6,7 @@ const [inFile, outFile, w = '1200', h = '900'] = process.argv.slice(2).filter(a 
 app.disableHardwareAcceleration();
 app.whenReady().then(async () => {
   const win = new BrowserWindow({ width: +w, height: +h, show: false, webPreferences: { offscreen: true } });
-  try { await win.loadFile(inFile); } catch (e) { console.error(e); app.exit(1); return; }
+  try { await win.loadFile(require('path').resolve(process.cwd(), inFile)); } catch (e) { console.error(e); app.exit(1); return; }
   await new Promise(r => setTimeout(r, 600));
   const img = await win.webContents.capturePage();
   fs.writeFileSync(outFile, img.toPNG());

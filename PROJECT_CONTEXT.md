@@ -8,31 +8,28 @@ Tiny on-screen desktop pet ("TinyCutie") for Windows. Lives on desktop by itself
 Source material: owner's handwritten notes (2026-11-11), `suggestions_idea.txt` (brainstorm), Q&A answers (2026-11-11, recorded below).
 
 ## 2. Tech stack & how to run
-- **Tauri 2 (Rust) + WebView2**, frontend = Vite + TypeScript, no UI framework. Fallback if too heavy: pure Rust + Win32 layered window.
-- Animation: **Claude Design's parametric pose generator** (`src/art/dumbo.js`) builds SVG from pose params; `Animator` tweens params between keyframes. No Rive, no sprite sheets.
-- State: JSON at `%APPDATA%\dev.tinyvirtualcutie.dumbo\state.json` (position, theme). AI later = local model, on demand only.
-- Exact commands: see `AGENTS.md` (`npm install`, `npm run app:dev`, `npm run app:build`, preview at `/preview.html`).
-- Toolchain on owner PC: Node 20, Rust 1.99 (installed 2026-11-11 via winget rustup), VS 2026 Build Tools (MSVC), WebView2 157.
+- **Electron 33 on the stock, unmodified runtime** (renamed `Dumbo.exe`) + Vite + TypeScript, no UI framework. Chosen because Windows Smart App Control (must stay ON per owner) blocks any freshly compiled/unsigned exe — Tauri/Rust builds were blocked. The stock Electron binary is already trusted, and our code is just JS/HTML it loads.
+- Art: Claude Design generators run at runtime: `src/art/dumbo.js` (side-view poses) + `src/art/face.js` (3/4 head expressions) composed into a front-facing sitting Dumbo by `src/art/front.js`.
+- State: `%APPDATA%\Dumbo\state.json` (settings + position), shared by dev and installed copies.
+- Installed copy: `%LOCALAPPDATA%\Dumbountime\Dumbo.exe` + `%LOCALAPPDATA%\Dumbopp\`, shortcuts on Desktop + Start Menu. Start with Windows = HKCU Run entry via Electron login items.
+- Commands: see `AGENTS.md` (`npm run dev`, `npm run install-app`, bench/snap tools).
 
 ## 3. Structure
-- `src/main.ts` — pet brain: behaviour state machine (idle/sit/walk/sleep/busy/held), interactions (click, drag/scruff, petting, tickling), tray events, theme, persistence, boot.
-- `src/engine/animator.ts` — `Animator` (event-driven render, stops when idle), `blend()` pose tween, `frame(set,i)` lookup, `VIEWBOX` crop (must match window aspect 120×116).
-- `src/engine/clips.ts` — named clips built from design pose frames (blink, earflap, wave, walk, run, sit/stand, fallAsleep/wakeUp, dangle, petted, tickled, happyBounce).
-- `src/art/dumbo.js` (+ `.d.ts`) — generator copied verbatim from `design/.../Dumbo Poses.dc.html`; local fix: round linejoin on rim glow (dark-mode hair spike).
-- `index.html` — pet window (#pet flip → #breath CSS breathing → #art SVG). `preview.html` — browser-only animation tester.
-- `src-tauri/` — `src/lib.rs` (tray menu: show/hide, sleep, wake, theme auto/light/dark, quit; `load_state`/`save_state` commands), `tauri.conf.json` (transparent, frameless, always-on-top, no taskbar, 120×116), `capabilities/default.json`, `icons/` (generated from Light.png).
+- `electron/main.cjs` — host: transparent always-on-top click-through pet window (240×220 × size; pet drawn 120×116 bottom-centre, rest is room for bubbles/jumps), tray menu (show/hide, sleep, wake, theme, settings, start with Windows, quit), settings window, drag-follow-cursor, cursor tracking (4 Hz, only while facing you), battery presence check (WMI via powershell), state file, single instance. Dev-only env hooks: `DUMBO_DEV_URL`, `DUMBO_BENCH`, `DUMBO_FLAGS`, `DUMBO_OPAQUE`, `DUMBO_NOFWD`.
+- `electron/preload.cjs` — narrow `window.host` bridge. `src/host.ts` — typed wrapper (+ no-op fallback for plain browser).
+- `src/main.ts` — Dumbo's brain: modes front/side/sleep/held/busy; looks at you (gaze + head tilt + turns toward your side), blinks, idle expression changes, decisions (walk, ear flap, wave, coding in hoodie, push-ups, skipping rope, trip after walks), sleep (doze facing you or curl up; night schedule; sleepiness), click (laugh bounce / wake), drag (dangle, pouts if busy/asleep) + gravity fall to taskbar, petting (slow hover), tickling (fast rubbing), speech bubbles, battery reactions, settings live-apply, dev perf log + bench modes.
+- `src/engine/animator.ts` — event-driven renderer with two views (side clips / front tweens), stops when idle. `src/engine/clips.ts` — side clips from design pose frames.
+- `src/art/*` — generators (see above) + `.d.ts`. `src/settings.ts` + `settings.html` — settings page.
+- `index.html` (pet page: bubble + stage), `preview.html` (browser animation tester), `vite.config.ts` (3 pages, `base: './'`).
+- `scripts/dev.mjs`, `scripts/install.mjs`, `scripts/bench.sh`, `scripts/snap.cjs`. `assets/` icons.
 - `design/Dumbo Desktop Pet Mascot/` — owner's Claude Design export (source art; don't edit).
-- `DESIGN_PROMPT.md`, `suggestions_idea.txt` — design/brainstorm history.
 
-## 4. Current status
-Phase: **MVP build, step 1** (2026-11-11).
-- Done: project scaffold; art generator ported; animator + clips; preview verified in browser (light + dark, sleep sequence renders correctly, dark hair spike fixed).
-- Built behaviours: hello earflap on start, blinking, CSS breathing, random walk along screen (moves window, flips facing, stops at edges), sit/stand, earflap, wave, falls asleep after ~1.5–4 min awake (naps 5–15 min, slower breathing), click = happy bounce / wakes him, drag = dangling by scruff (pouts if he was busy/asleep), hover = petted, fast rubbing = tickled, tray menu, theme auto + override, position remembered.
-- Build/run status (2026-11-11): debug build compiles and runs; window shows bottom-right on the taskbar, boot logs "boot ok", walking moves the window. Measured (debug, dev server): idle CPU ~0% after making #breath its own GPU layer (was ~31% of a core before the fix); RAM ~240 MB private across 8 processes (WebView2 cost, well above the 10–15 MB native target).
-- **Blocker: Windows Smart App Control (enforce mode) blocks unsigned freshly-built exes** (cargo build scripts, `target/debug/tinyvirtualcutie.exe` when launched by cargo). Release build fails consistently on `serde`/`icu_properties_data` build scripts. A direct `Start-Process` of the existing debug exe works. Owner must decide: turn SAC off (Windows Security → App & browser control → Smart App Control; can't be turned back on without resetting Windows) or keep dev-only.
-- Visual check pending: GDI screen capture can't see WebView2/DirectComposition windows, so the on-desktop look is unverified by agent; owner to confirm.
-- Not yet: settings window, autostart, battery reactions, coding/hoodie, exercises, trip, window awareness (peek/eat/push/sit on windows), taskbar-aware walking, speech bubbles, S/M/L size, click-through on transparent pixels, front/3-4 views (runtime uses side view only).
-- Design files: rig/turnaround/expression SVGs + hoodie/expression sheets in `design/` — runtime currently only uses the Poses generator (side view). Remaining art nit: some 3/4 expressions have trunk overlapping far eye (not used yet).
+## 4. Current status (2026-11-12)
+- **Working & installed**: standalone Dumbo runs from Desktop/Start shortcut with Smart App Control ON (no blocks). Boot verified ("boot ok").
+- Built: front-facing view that looks at you (eyes follow cursor, head tilts, turns to your side), 15 expressions, blinks, click-through on transparent pixels, drag + fall to taskbar, petting/tickling, speech bubbles, walking/running along the taskbar, coding in hoodie (hood up when focused), push-ups, skipping rope, tripping, flex "unplug me" (≤3 times), tired "charge me pls", charger-plugged excitement + run, sleep (doze/curl, night schedule), tray, settings window, start with Windows, themes.
+- Perf (measured with perf counters, % of ONE core; machine has 22 threads): still/asleep ≈0.5%; awake & active ≈15–20% during the first busy minute (≈1% of whole CPU in Task Manager terms). Root cause: each drawn frame costs ~10–30 ms (SVG re-raster + window present), so no continuous animation (breathing removed) and low-fps clips. RAM ≈320 MB (GPU process ~180 MB). Earlier "0% CPU" Tauri numbers were a measurement bug.
+- Not verified by agent: on-desktop look/feel (agent can't screenshot the pet window); battery reactions on real plug/unplug; start-with-Windows on real reboot.
+- Not built yet: window awareness (peek/eat/fake-push/sit on windows), app-triggered reactions, coding sync with real editor activity, "let's stretch" nudge after long sessions, multi-monitor, AI.
 
 ## 5. Locked feature spec (MVP unless marked later)
 **Platform/app**
@@ -73,28 +70,26 @@ Phase: **MVP build, step 1** (2026-11-11).
 - 2026-11-11 — Q&A round 2: battery thresholds, auto theme, shadow rule, 2D-with-soft-shading style confirmed. New 2D references (outlined chibi elephant, light pink + dark neon) → DESIGN_PROMPT.md rewritten with trunk/eye focus. Hoodie outfit added (mainly while coding).
 - 2026-11-11 — Design delivered (manual export into `design/`). Reviewed: complete set — rig, turnaround, 15 expressions ×2 themes, hoodie (lilac/mint/peach + dark neon, hood up/down, pull-on), ~60 pose keyframes incl. coding w/ hoodie, charge/flex, window eat/push/sit. Pose sheet is parametric → chosen animation approach.
 - 2026-11-11 — MVP step 1 built: Tauri scaffold, ported generator, animator/clips, behaviours, drag, tray, theme, persistence, browser preview.
+- 2026-11-12 — Smart App Control blocked Tauri builds → moved host to stock Electron runtime + per-user install script (works with SAC on). Git repo created (owner: commit continuously). Front-facing "looks at you" view from the design's expression generator (no new art needed). Added click-through, gravity, battery reactions, coding/hoodie, exercises, trip, bubbles, settings window, autostart. Perf investigation: per-frame cost dominates → removed breathing, low-fps clips, saccade gaze.
 
 ## 7. Decisions & rationale
-- Tauri first for dev speed; measure RAM/CPU; switch to native Rust/Win32 if too heavy.
-- Reuse Claude Design's parametric generator at runtime instead of Rive/sprites: tiny, crisp at any size, poses tween smoothly, theme swap is free.
-- Render only while a clip plays (rAF stops after); breathing = CSS transform on a wrapper (compositor, ~0 CPU). Walking moves the OS window via setPosition every 50 ms only while walking.
-- Drag uses native `startDragging()`; "drop" detected as window stopped moving for 280 ms.
-- Runtime crop `VIEWBOX = '0 -66 540 522'` of design canvas so the pet is ~96 px tall in a 120×116 window.
-- Pet's basic life never depends on AI/network. AI local + on demand + permission-gated.
-- Characters data-driven (art + trait config) so new animals reuse behaviours.
-- "Push window" is fake: pet animates pushing, window never moves.
-- Light hoodie default = lilac (configurable later). Dark headphones: optional, not in MVP.
+- Smart App Control stays ON (owner) → no compiled exe ever; Electron stock runtime + JS. Tauri removed (in git history: commit 49bfdb2).
+- Reuse Claude Design's parametric generators at runtime instead of Rive/sprites: tiny, crisp at any size, poses tween, theme swap free, no new art for new behaviours.
+- Home state = front 3/4 sitting view facing the user (owner wanted it to look at them); side view only for movement/actions.
+- Every frame costs CPU → event-driven, no continuous animation, low fps (8–14), eye saccades; cursor polled at 4 Hz only while facing you.
+- Click-through via `setIgnoreMouseEvents(true, {forward:true})` + per-pixel hit test of the SVG.
+- Dropped mid-air → falls to the taskbar (gravity); walking is along the taskbar.
+- Battery presence via WMI once at start; levels via `navigator.getBattery()`.
+- "Push window" will be fake: pet animates pushing, window never moves.
+- Light hoodie = lilac (design default). Dark headphones not used.
 
 ## 8. Next steps / TODO
-1. Owner tests `npm run app:dev`; measure idle CPU/RAM in Task Manager (targets: ~0% CPU idle, RAM as low as WebView2 allows).
-2. Click-through on transparent pixels (toggle `setIgnoreCursorEvents` by hit-testing) so the window box doesn't block clicks.
-3. Walk along taskbar / screen bottom (snap y to work-area bottom), screen-edge awareness.
-4. Battery reactions (low ≤30% tired + "charge me pls", charger plugged → bounce+run, ≥90% flex + "unplug me" ×3) — needs Rust battery query.
-5. Coding + hoodie clip, push-ups/skipping, trip-over-trunk, speech bubbles (generator has `bubble` prop).
-6. Settings window (name, size S/M/L/custom, thresholds, sleep schedule, theme, autostart) + autostart plugin.
-7. Window awareness: peek / eat / push (fake) / sit on top of windows; active app name → app-triggered reactions (later phase).
+1. Owner feedback on look/feel on the real desktop (size, pace, how often he naps, bubbles).
+2. Perf phase 2 if needed: layered front view (static body/head layers, eyes/ears/blink via GPU transforms) to cut per-frame raster cost; consider fewer SVG blur filters while moving.
+3. Window awareness: find window rects (Win32 via PowerShell/ffi-free approach) → peek / eat corner / fake push / sit on top of windows.
+4. App-triggered reactions (configurable app → action mapping in settings) + coding sync (editor focused).
+5. "Let's stretch" nudge after long active sessions.
+6. Multi-monitor; more characters (owl, eagle) via data-driven art.
 
 ## 9. Open questions / blockers
-- Smart App Control blocks Rust builds (see status). Owner decision needed.
-- Owner to report how Dumbo looks/feels on the real desktop (agent can't screenshot WebView2 windows).
-- RAM ~240 MB with WebView2: acceptable, or move to native Rust/Win32 renderer?
+- None blocking. Owner to judge cuteness/pace and acceptable CPU/RAM.

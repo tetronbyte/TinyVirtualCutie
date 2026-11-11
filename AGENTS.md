@@ -2,27 +2,31 @@
 
 **First: read `PROJECT_CONTEXT.md`.** Keep it updated after every meaningful change (feature, fix, decision, dependency, structure change) and before ending any session that changed files. Rewrite stale parts; no secrets.
 
-## Commands (Windows, run from repo root)
-- Install JS deps: `npm install`
-- Run app (dev, hot reload): `npm run app:dev`  (= `tauri dev`; starts Vite on :1420 + Rust app)
-- Build installer: `npm run app:build`  (NSIS → `src-tauri/target/release/bundle/nsis/`)
-- Typecheck frontend: `npx tsc --noEmit`
-- Rust only: `cd src-tauri && cargo build`
-- Animation preview in a normal browser (no Tauri): `npm run dev` → http://localhost:1420/preview.html
-- Rust lives in `%USERPROFILE%\.cargo\bin` — add to PATH in Git Bash: `export PATH="$HOME/.cargo/bin:$PATH"`
+## Commands (Windows, repo root)
+- Install deps: `npm install`
+- Run in dev (Vite hot reload + Electron): `npm run dev`
+- Typecheck: `npm run typecheck`
+- Build pages: `npm run build` (→ `dist/`)
+- Install/update the standalone app for this user: `npm run install-app`
+  (→ `%LOCALAPPDATA%\Dumbo\{runtime,app}` + Desktop/Start Menu shortcuts, then launches it; settings kept)
+- Animation preview in a normal browser: `npx vite` → http://localhost:1420/preview.html
+- Perf benchmark: `scripts/bench.sh live|idle|f10|s10` (avg % of one core, 60 s; Git Bash)
+- Offscreen screenshot of any HTML: `npx electron scripts/snap.cjs <in.html> <out.png> [w] [h]`
 
 ## Gotchas
-- Smart App Control is ON on the owner PC: it may block freshly built unsigned exes / cargo build scripts ("An Application Control policy has blocked this file", os error 4551). If `tauri dev` can't launch the exe, run `npx vite` and start `src-tauri/target/debug/tinyvirtualcutie.exe` directly. Never change security settings yourself.
-- Page errors are forwarded to stdout as `[pet] ...` via the `log` command; capture with `Start-Process ... -RedirectStandardOutput`.
-- Screen capture via GDI can't see the WebView2 window; ask the owner for visual checks.
+- **Smart App Control is ON** on the owner PC and must stay on. It blocks any freshly compiled/unsigned exe. That's why the app runs on the stock Electron runtime (byte-identical, just renamed `Dumbo.exe`). Never add a build step that produces or modifies an .exe (no electron-builder/packager, no rcedit, no Rust/Tauri). Never change security settings.
+- Every drawn frame costs ~10–30 ms CPU in Electron (SVG redraw + transparent window present). Don't add continuous animations (no CSS infinite animations, no always-on rAF). Keep clips at 8–14 fps; eyes jump in single-frame saccades.
+- Measure CPU with `Get-Counter '\Process(electron*)\% Processor Time'` (bench script). `Get-Process` CPU deltas gave wrong (zero) numbers.
+- The Browser pane can stall when the app window is hidden; use `scripts/snap.cjs` for visual checks. GDI screen capture can't see the pet window.
+- Renderer errors and `host.log()` print to the Electron main stdout as `[pet] ...`.
 
 ## Rules
-- Pet core must run without any LLM/network. AI features are opt-in, on demand, permission-gated (file deletes, shell commands, external sends need owner approval).
-- Performance first: no rAF/render loop when idle. Animator only draws while a clip plays; idle breathing is a CSS animation. Never add polling timers that run forever at high frequency.
+- Pet core must run without LLM/network. AI features later: opt-in, on demand, permission-gated (file deletes, shell commands, external sends need owner approval).
 - Characters must be data-driven so new animals reuse the same behaviours.
-- `src/art/dumbo.js` is the Claude Design generator copied verbatim from `design/.../Dumbo Poses.dc.html`. Don't hand-edit geometry; any local fix must be listed in its header comment.
+- `src/art/dumbo.js` and `src/art/face.js` are Claude Design generators copied from `design/.../Dumbo Poses.dc.html` and `Dumbo Expressions.dc.html`. Don't hand-edit geometry; list every local patch in the file header.
 - Never move/resize other apps' windows (the "push window" action is fake).
-- Don't touch `design/` (owner's exported source art).
+- Don't edit `design/` (owner's exported source art).
+- Commit after each meaningful step (owner asked for continuous commits). End commit messages with the Co-Authored-By line given by the harness.
 
 ## Code style
-TypeScript strict, ES modules, no UI framework in the pet window (keep it light). Rust: Tauri 2, keep `lib.rs` small; frontend owns state schema, Rust just stores the JSON.
+TypeScript strict, ES modules, no UI framework. Electron main/preload are CommonJS (`.cjs`). Keep the preload bridge narrow and explicit.
