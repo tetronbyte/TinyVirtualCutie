@@ -11,7 +11,8 @@ Source material: owner's handwritten notes (2026-11-11), `suggestions_idea.txt` 
 - **Electron 33 on the stock, unmodified runtime** (renamed `Dumbo.exe`) + Vite + TypeScript, no UI framework. Chosen because Windows Smart App Control (must stay ON per owner) blocks any freshly compiled/unsigned exe — Tauri/Rust builds were blocked. The stock Electron binary is already trusted, and our code is just JS/HTML it loads.
 - Art: Claude Design generators run at runtime: `src/art/dumbo.js` (side-view poses) + `src/art/face.js` (3/4 head expressions) composed into a front-facing sitting Dumbo by `src/art/front.js`.
 - State: `%APPDATA%\Dumbo\state.json` (settings + position), shared by dev and installed copies.
-- Installed copy: `%LOCALAPPDATA%\Dumbountime\Dumbo.exe` + `%LOCALAPPDATA%\Dumbopp\`, shortcuts on Desktop + Start Menu. Start with Windows = HKCU Run entry via Electron login items.
+- Installed copy: `%LOCALAPPDATA%\Dumbo\runtime\Dumbo.exe` + `%LOCALAPPDATA%\Dumbo\app\`, shortcuts on Desktop + Start Menu. Start with Windows = HKCU Run entry via Electron login items.
+untime\Dumbo.exe` + `%LOCALAPPDATA%\Dumbopp\`, shortcuts on Desktop + Start Menu. Start with Windows = HKCU Run entry via Electron login items.
 - Commands: see `AGENTS.md` (`npm run dev`, `npm run install-app`, bench/snap tools).
 
 ## 3. Structure
