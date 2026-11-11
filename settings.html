@@ -28,6 +28,10 @@
       .seg { display: flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
       .seg button { font: inherit; border: 0; background: transparent; color: var(--ink); padding: 6px 10px; cursor: pointer; }
       .seg button[aria-pressed=true] { background: var(--accent); color: var(--accent-ink); }
+      .react { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+      .react input { flex: 1; min-width: 0; width: auto !important; }
+      .react button, .add { font: inherit; border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 8px; padding: 5px 10px; cursor: pointer; }
+      .add { margin-top: 10px; }
       .saved { color: var(--muted); font-size: 12px; text-align: center; min-height: 1.4em; }
     </style>
   </head>
@@ -59,6 +63,15 @@
         <h2>Battery</h2>
         <div class="row"><label for="batteryLow">Feels tired below<small>Asks you to charge</small></label><input id="batteryLow" type="range" min="5" max="60" step="1" /><output id="lowOut"></output></div>
         <div class="row"><label for="batteryHigh">Flexes above<small>Asks you to unplug (3 times max)</small></label><input id="batteryHigh" type="range" min="60" max="100" step="1" /><output id="highOut"></output></div>
+      </section>
+
+      <section>
+        <h2>Your windows &amp; apps</h2>
+        <div class="row"><label for="visitWindows">Visit windows<small>Hops onto, peeks at, nibbles and (pretends to) push your windows</small></label><input id="visitWindows" type="checkbox" /></div>
+        <div class="row"><label for="stretchEvery">Stretch reminder<small>After this many active minutes (0 = off)</small></label><input id="stretchEvery" type="range" min="0" max="120" step="5" /><output id="stretchOut"></output></div>
+        <div class="row" style="display:block"><label>When you open an app…<small>App = its process name, e.g. Code, chrome, Spotify, Discord</small></label>
+          <div id="reactions"></div>
+          <button id="addReaction" class="add">+ Add app</button></div>
       </section>
 
       <section>

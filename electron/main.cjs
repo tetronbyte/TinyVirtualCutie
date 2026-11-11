@@ -1,7 +1,8 @@
 // Dumbo host process (Electron).
 // Runs on the stock, already-trusted electron.exe so Windows Smart App Control doesn't block it —
 // we never compile our own .exe. All pet logic lives in the renderer (src/).
-const { app, BrowserWindow, Tray, Menu, ipcMain, screen, nativeImage, nativeTheme } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, screen, nativeImage, nativeTheme, powerMonitor } = require('electron');
+const { WinWatch } = require('./winwatch.cjs');
 const path = require('path');
 const fs = require('fs');
 const { execFile } = require('child_process');
@@ -44,6 +45,12 @@ function saveState() {
 const settings = () => ({
   name: 'Dumbo', theme: 'auto', size: 1, startWithWindows: false,
   batteryLow: 30, batteryHigh: 90, sleepStart: '23:00', sleepEnd: '07:00', sleepiness: 0.6,
+  visitWindows: true, stretchEvery: 50,
+  appReactions: [
+    { app: 'Code', action: 'coding' }, { app: 'Cursor', action: 'coding' }, { app: 'devenv', action: 'coding' },
+    { app: 'idea64', action: 'coding' }, { app: 'WindowsTerminal', action: 'coding' },
+    { app: 'Spotify', action: 'dance' }, { app: 'Discord', action: 'wave' },
+  ],
   ...(state.settings || {}),
 });
 
@@ -137,19 +144,32 @@ ipcMain.handle('settings:get', () => settings());
 ipcMain.on('settings:set', (_e, next) => applySettings(next));
 ipcMain.on('log', (_e, msg) => console.log('[pet]', msg));
 ipcMain.on('mouse:ignore', (_e, ignore) => { if (!process.env.DUMBO_NOFWD) pet.setIgnoreMouseEvents(ignore, { forward: true }); });
-ipcMain.handle('win:info', () => ({ bounds: pet.getBounds(), workArea: screen.getDisplayMatching(pet.getBounds()).workArea }));
-ipcMain.on('win:move', (_e, x, y) => { const b = pet.getBounds(); pet.setBounds({ x: Math.round(x), y: Math.round(y), width: b.width, height: b.height }); });
+ipcMain.handle('win:info', () => { const b = pet.getBounds(); return { bounds: { x: b.x, y: b.y, ...petSize() }, workArea: screen.getDisplayMatching(b).workArea }; });
+// Always pass the intended size: reusing getBounds() size on scaled displays (150%) lets rounding
+// grow the window a few px on every move.
+const moveTo = (x, y) => pet.setBounds({ x: Math.round(x), y: Math.round(y), ...petSize() });
+ipcMain.on('win:move', (_e, x, y) => moveTo(x, y));
 ipcMain.on('win:save', () => { const b = pet.getBounds(); state.pos = { x: b.x, y: b.y }; saveState(); });
 ipcMain.on('open:settings', openSettings);
+
+// Foreground app (name + rect in DIPs). Never titles or content. Our own windows are ignored.
+const winWatch = new WinWatch();
+ipcMain.handle('fg:get', async () => {
+  const r = await winWatch.foreground();
+  if (!r.name || r.pid === process.pid || /^(Dumbo|electron)$/i.test(r.name)) return null;
+  const d = screen.screenToDipRect(null, { x: r.x, y: r.y, width: r.w, height: r.h });
+  return { name: r.name, x: d.x, y: d.y, w: d.width, h: d.height, max: !!r.max };
+});
+// Seconds since the last keyboard/mouse input anywhere (no key logging — just a timestamp from Windows).
+ipcMain.handle('idle:get', () => powerMonitor.getSystemIdleTime());
 
 // Drag: renderer reports grab offset; we follow the cursor until it says stop.
 let dragTimer = null;
 ipcMain.on('drag:start', (_e, ox, oy) => {
   clearInterval(dragTimer);
-  const b = pet.getBounds();
   dragTimer = setInterval(() => {
     const c = screen.getCursorScreenPoint();
-    pet.setBounds({ x: c.x - ox, y: c.y - oy, width: b.width, height: b.height });
+    moveTo(c.x - ox, c.y - oy);
   }, 16);
 });
 ipcMain.on('drag:end', () => { clearInterval(dragTimer); dragTimer = null; });
@@ -193,3 +213,4 @@ app.whenReady().then(() => {
 });
 app.on('second-instance', () => pet?.showInactive());
 app.on('window-all-closed', () => app.quit());
+app.on('will-quit', () => winWatch.stop());

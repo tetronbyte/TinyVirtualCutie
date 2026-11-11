@@ -1,7 +1,7 @@
 import type { Theme } from './art/dumbo.js';
 import { Animator, FRONT_REST, type FrontState } from './engine/animator';
 import { clips, STAND, SIT } from './engine/clips';
-import { host, type Settings, type Cursor } from './host';
+import { host, type Settings, type Cursor, type Foreground, type ReactionAction } from './host';
 
 // ======================================================================
 //  Dumbo's brain. Event-driven: timers + input events, no polling loops.
@@ -60,6 +60,22 @@ const LINES = {
   lowBattery: ['charge me pls 🥺', 'so… sleepy… need power', 'battery low…'],
   charged: ['yay, power!', 'zoom zoom!', 'thank youuu ⚡'],
   full: ["unplug me, I'm full! 💪", 'all charged! unplug pls'],
+  perch: ['nice view up here', 'my window now', 'wheee up!'],
+  nibble: ['nom nom', 'tastes like pixels', '*crunch*'],
+  peek: ["what's in here?", 'ooh', 'sniff sniff'],
+  push: ['hnnngh!', "it won't budge…", 'so heavy…'],
+  stretch: ["let's stretch! 🙆", 'break time! move with me', 'stretchy time!'],
+  stretchDone: ['your turn! 🙆', 'feels good right?'],
+  welcome: ['welcome back!', "you're back! 🥰", 'missed you'],
+};
+const appName = (n: string) => n.replace(/\.exe$/i, '').replace(/^\w/, c => c.toUpperCase());
+const REACT_LINES: Record<ReactionAction, (a: string) => string[]> = {
+  coding: a => [`${a}! let's code 💻`, 'coding time!', "I'll code too!"],
+  dance: a => [`${a}! 🎶`, 'music!! 🎵', 'dance time!'],
+  wave: a => [`hi ${a} friends! 👋`, 'say hi from me!'],
+  exercise: () => ['workout time! 💪'],
+  run: () => ['zoom zoom!'],
+  none: () => [],
 };
 
 // ---------- modes ----------
@@ -81,7 +97,7 @@ async function toFront(expr = 'smile') {
   if (anim.view === 'side') {
     if (anim.side.base !== 'sit') await anim.play(clips.sitDown());
   }
-  anim.setFront({ ...FRONT_REST, expr });
+  anim.setFront({ ...FRONT_REST, expr, shadow: !perch });
   mode = 'front';
   host.track(true);
   scheduleBlink();
@@ -164,6 +180,7 @@ function isNight() {
 async function decide() {
   if (mode === 'held' || mode === 'busy' || mode === 'side') return schedule(rand(3000, 6000));
   if (mode === 'sleep') {
+    if (stretchDue && !isNight()) { await wake(true); return schedule(500); }
     if (isNight()) return schedule(rand(600_000, 1_200_000));
     await wake(false);
     return schedule(rand(6000, 12000));
@@ -173,6 +190,23 @@ async function decide() {
   if (awakeFor > awakeBudget && Date.now() - lastInteraction > 20_000) return sleep();
 
   if (await batteryCheck()) return schedule(rand(8000, 15000));
+  if (await stretchCheck()) return schedule(rand(10_000, 20_000));
+
+  if (perch) {
+    // Up on a window: look around, peek over the edge, nibble the corner, then hop down.
+    const p = Date.now() - perch.since > perch.stay ? 'down' : pickW<string>([['nothing', 4], ['peek', 2], ['nibble', 1.5], ['stroll', 1.5]]);
+    if (p === 'down') await hopDown();
+    else if (p === 'peek') { say(pick(LINES.peek), 2200); await perchedAction(clips.peek()); }
+    else if (p === 'nibble') await nibbleCorner();
+    else if (p === 'stroll') await walk(rand(2000, 5000), 30);
+    return schedule(rand(8000, 18_000));
+  }
+
+  if (S.visitWindows && !lowBattery && chance(0.35)) {
+    const fg = await getFg();
+    if (fg && await canPerch(fg) && chance(0.6)) { await hopOnto(fg); return schedule(rand(8000, 15_000)); }
+    if (fg && await canPush(fg) && chance(0.5)) { await pushWindow(fg); return schedule(rand(10_000, 20_000)); }
+  }
 
   const next = lowBattery
     ? pickW<string>([['nothing', 6], ['walk', 1]])
@@ -240,15 +274,17 @@ async function wake(byUser: boolean) {
 
 // ---------- walking / running along the ground ----------
 let walkStop: (() => void) | null = null;
-async function walk(ms: number, speed = 36, clip = clips.walk()) {
+async function walk(ms: number, speed = 36, clip = clips.walk(), targetX?: number, thenFront = true) {
   mode = 'side';
   await toSide(true);
   if (mode !== 'side') return;
   const { bounds, workArea } = await host.winInfo();
-  const minX = workArea.x - bounds.width * 0.25, maxX = workArea.x + workArea.width - bounds.width * 0.75;
+  // On the taskbar: whole screen width. Perched: stay on the window's top edge.
+  const minX = perch ? perch.x - bounds.width * 0.3 : workArea.x - bounds.width * 0.25;
+  const maxX = perch ? perch.x + perch.w - bounds.width * 0.7 : workArea.x + workArea.width - bounds.width * 0.75;
   let x = bounds.x;
-  const y = Math.min(bounds.y, workArea.y + workArea.height - bounds.height);
-  let dir = x <= minX + 20 ? 1 : x >= maxX - 20 ? -1 : chance(0.5) ? 1 : -1;
+  const y = perch ? perchY(bounds) : Math.min(bounds.y, workArea.y + workArea.height - bounds.height);
+  const dir = targetX !== undefined ? (targetX > x ? 1 : -1) : x <= minX + 20 ? 1 : x >= maxX - 20 ? -1 : chance(0.5) ? 1 : -1;
   setFacing(dir < 0);
   anim.play(clip);
   let last = performance.now();
@@ -258,6 +294,7 @@ async function walk(ms: number, speed = 36, clip = clips.walk()) {
       x += dir * speed * (now - last) / 1000;
       last = now;
       if (x <= minX || x >= maxX) { x = clamp(x, minX, maxX); end(); }
+      if (targetX !== undefined && (dir > 0 ? x >= targetX : x <= targetX)) { x = targetX; end(); }
       host.move(x, y);
     }, 40);
     const to = window.setTimeout(end, ms);
@@ -266,7 +303,8 @@ async function walk(ms: number, speed = 36, clip = clips.walk()) {
   });
   host.savePos();
   if (mode !== 'side') return;
-  if (!lowBattery && chance(0.12)) { say(pick(LINES.trip)); await anim.play(clips.trip()); }
+  if (!thenFront) { await anim.play(clips.toStand()); return; }
+  if (!lowBattery && !perch && chance(0.12)) { say(pick(LINES.trip)); await anim.play(clips.trip()); }
   else await anim.play(clips.toStand());
   if (mode !== 'side') return;
   mode = 'busy';
@@ -276,7 +314,7 @@ async function walk(ms: number, speed = 36, clip = clips.walk()) {
 // ---------- gravity: dropped mid-air → falls to the taskbar ----------
 async function fallToGround() {
   const { bounds, workArea } = await host.winInfo();
-  const groundY = workArea.y + workArea.height - bounds.height;
+  const groundY = perch ? perchY(bounds) : workArea.y + workArea.height - bounds.height;
   if (bounds.y >= groundY - 3) return false;
   // Clamp horizontally inside the screen too.
   const x = clamp(bounds.x, workArea.x - bounds.width * 0.25, workArea.x + workArea.width - bounds.width * 0.75);
@@ -292,6 +330,231 @@ async function fallToGround() {
     }, 16);
   });
   await anim.play(clips.land());
+  return true;
+}
+
+// ---------- windows: perch on top, peek, nibble, fake-push ----------
+/** Foreground app source (swappable by the dev 'perch' scenario test). */
+let getFg = () => host.foreground();
+interface Perch { name: string; x: number; y: number; w: number; h: number; since: number; stay: number }
+let perch: Perch | null = null;
+let perchWatch = 0;
+/** Window y that puts Dumbo's feet on the perched window's top edge. */
+const perchY = (b: { height: number }) => (perch ? perch.y - b.height + 3 : 0);
+const sameRect = (a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }) =>
+  Math.abs(a.x - b.x) + Math.abs(a.y - b.y) + Math.abs(a.w - b.w) + Math.abs(a.h - b.h) < 6;
+
+async function canPerch(fg: Foreground) {
+  const { bounds, workArea } = await host.winInfo();
+  return !fg.max && fg.w >= 260 && fg.h >= 120 && fg.y - bounds.height * 0.55 > workArea.y && fg.y < workArea.y + workArea.height - 140
+    && fg.x + 60 > workArea.x && fg.x + fg.w - 60 < workArea.x + workArea.width;
+}
+async function canPush(fg: Foreground) {
+  const { workArea } = await host.winInfo();
+  // Only windows that come down to the taskbar, so he can lean on their side.
+  return !fg.max && fg.y + fg.h > workArea.y + workArea.height - 60 && fg.w < workArea.width - 200;
+}
+
+/** Arc the pet window from where it is to (tx, ty), showing the airborne pose. */
+async function jumpTo(tx: number, ty: number, ms = 750) {
+  const { bounds } = await host.winInfo();
+  const x0 = bounds.x, y0 = bounds.y, peak = Math.min(y0, ty) - 70;
+  setFacing(tx < x0);
+  anim.play(clips.hop());
+  const t0 = performance.now();
+  await new Promise<void>(resolve => {
+    const iv = window.setInterval(() => {
+      const t = Math.min(1, (performance.now() - t0) / ms);
+      const x = x0 + (tx - x0) * t;
+      const y = (1 - t) * (1 - t) * y0 + 2 * (1 - t) * t * peak + t * t * ty; // quadratic Bézier through the peak
+      host.move(x, y);
+      if (t >= 1) { clearInterval(iv); resolve(); }
+    }, 16);
+  });
+  await anim.play(clips.land());
+}
+
+async function hopOnto(fg: Foreground) {
+  mode = 'side';
+  await toSide(true);
+  if (mode !== 'side') return;
+  const { bounds } = await host.winInfo();
+  perch = { ...fg, since: Date.now(), stay: rand(40_000, 120_000) };
+  const cx = fg.x + rand(80, fg.w - 80);
+  await jumpTo(cx - bounds.width / 2, perchY(bounds));
+  host.savePos();
+  if (mode !== 'side') return;
+  say(pick(LINES.perch), 2400);
+  mode = 'busy';
+  await toFront('happy');
+  watchPerch();
+}
+
+function watchPerch() {
+  clearInterval(perchWatch);
+  perchWatch = window.setInterval(async () => {
+    if (!perch) return clearInterval(perchWatch);
+    if (mode === 'held') return;
+    const fg = await getFg();
+    // The window moved, resized, maximized, closed or you switched away → he loses his footing.
+    if (!fg || fg.name !== perch.name || fg.max || !sameRect(fg, perch)) {
+      clearInterval(perchWatch);
+      perch = null;
+      walkStop?.();
+      if (mode === 'sleep') await wake(false);
+      mode = 'busy';
+      anim.setSide(STAND);
+      await fallToGround();
+      const e = chance(0.5) ? 'confused' : 'pout';
+      await toFront(e);
+      setExpr(e, 2500);
+      host.savePos();
+    }
+  }, 2000);
+}
+
+async function hopDown() {
+  if (!perch) return;
+  mode = 'side';
+  await toSide(true);
+  clearInterval(perchWatch);
+  perch = null;
+  const { bounds } = await host.winInfo();
+  anim.play(clips.hop());
+  host.move(bounds.x + (chance(0.5) ? 40 : -40), bounds.y - 30);
+  await fallToGround();
+  host.savePos();
+  mode = 'busy';
+  await toFront('smile');
+}
+
+async function perchedAction(clip: ReturnType<typeof clips.wave>) {
+  mode = 'side';
+  await toSide(true);
+  if (mode !== 'side') return;
+  setFacing(chance(0.5));
+  await anim.play(clip);
+  if (mode !== 'side') return;
+  mode = 'busy';
+  await toFront('smile');
+}
+
+async function nibbleCorner() {
+  if (!perch) return;
+  const { bounds } = await host.winInfo();
+  const right = chance(0.5);
+  const tx = right ? perch.x + perch.w - bounds.width * 0.7 : perch.x - bounds.width * 0.3; // his face reaches the corner
+  await walk(15_000, 40, clips.walk(), tx, false);
+  if (mode !== 'side' || !perch) return;
+  setFacing(!right);
+  say(pick(LINES.nibble), 2200);
+  await anim.play(clips.nibble());
+  if (mode !== 'side') return;
+  mode = 'busy';
+  await toFront('happy');
+}
+
+async function pushWindow(fg: Foreground) {
+  const { bounds } = await host.winInfo();
+  const fromLeft = bounds.x + bounds.width / 2 < fg.x + fg.w / 2;
+  // His nose touches the window's side. The window itself never moves.
+  const tx = fromLeft ? fg.x - bounds.width * 0.68 : fg.x + fg.w - bounds.width * 0.32;
+  await walk(20_000, 40, clips.walk(), tx, false);
+  if (mode !== 'side') return;
+  setFacing(!fromLeft);
+  say(pick(LINES.push), 2500);
+  await anim.play(clips.push(2 + Math.floor(rand(0, 2))));
+  if (mode !== 'side') return;
+  mode = 'busy';
+  await toFront('pout');
+  setExpr('pout', 2500);
+}
+
+// ---------- apps you open: curious glances + configurable reactions ----------
+let lastApp = '';
+const reactedAt: Record<string, number> = {};
+let appTimer = 0;
+function watchApps() {
+  clearTimeout(appTimer);
+  appTimer = window.setTimeout(async () => {
+    if (mode !== 'sleep' && mode !== 'held') {
+      const fg = await getFg();
+      if (fg && fg.name !== lastApp) { const prev = lastApp; lastApp = fg.name; if (import.meta.env.DEV) host.log(`app: ${fg.name} ${Math.round(fg.x)},${Math.round(fg.y)} ${Math.round(fg.w)}x${Math.round(fg.h)}${fg.max ? ' max' : ''}`); if (prev) await onAppSwitch(fg); }
+    }
+    watchApps();
+  }, mode === 'sleep' ? 15_000 : 5000);
+}
+
+async function onAppSwitch(fg: Foreground) {
+  const rule = S.appReactions.find(r => r.app && r.app.toLowerCase() === fg.name.toLowerCase());
+  const now = Date.now();
+  if (rule && rule.action !== 'none' && mode === 'front' && now - (reactedAt[fg.name] ?? 0) > 10 * 60_000) {
+    reactedAt[fg.name] = now;
+    return appReaction(rule.action, appName(fg.name));
+  }
+  // Otherwise: a curious glance toward the window you just switched to.
+  if (mode !== 'front' || anim.busy) return;
+  const { bounds } = await host.winInfo();
+  const dx = fg.x + fg.w / 2 - (bounds.x + bounds.width / 2), dy = fg.y + fg.h / 2 - (bounds.y + bounds.height / 2);
+  const d = Math.hypot(dx, dy) || 1;
+  const gx = ((facingLeft ? -dx : dx) / d) * 13, gy = (dy / d) * 9;
+  anim.setFront({ expr: 'curious', gaze: [gx, gy], tilt: clamp(gx / 2, -6, 6) });
+  setExpr('curious', 2200);
+}
+
+async function appReaction(action: ReactionAction, app: string) {
+  clearTimeout(decideTimer);
+  mode = 'busy';
+  say(pick(REACT_LINES[action](app)), 2800);
+  const hop = [{ s: { bounce: 16, earAdd: [16, -16] as [number, number] }, ms: 160 }, { s: { bounce: 0, earAdd: [0, 0] as [number, number] }, ms: 160 }];
+  await anim.face([{ s: { expr: 'excited' }, ms: 1 }, ...hop, ...hop]);
+  if (mode !== 'busy') return;
+  mode = 'front';
+  switch (action) {
+    case 'coding': await sideAction(clips.coding(3), false); break;
+    case 'dance': await dance(); break;
+    case 'wave': await sideAction(clips.wave()); break;
+    case 'exercise': await sideAction(chance(0.5) ? clips.pushups(6) : clips.rope(8)); break;
+    case 'run': await walk(rand(3000, 5000), 110, clips.run()); break;
+  }
+  schedule(rand(10_000, 20_000));
+}
+
+async function dance() {
+  mode = 'busy';
+  const sway = (t: number, e: [number, number]) => ({ s: { expr: 'laugh', tilt: t, earAdd: e, bounce: Math.abs(t) }, ms: 300 });
+  const beat = [sway(9, [18, -4]), sway(-9, [-4, 18])];
+  await anim.face([...beat, ...beat, ...beat, ...beat, { s: { tilt: 0, earAdd: [0, 0] as [number, number], bounce: 0, expr: 'happy' }, ms: 250 }]);
+  if (mode === 'busy') { mode = 'front'; setExpr('happy', 2000); }
+}
+
+// ---------- your activity: "let's stretch" + "welcome back" ----------
+// Uses only Windows' "seconds since last input" — no keys or clicks are recorded.
+let activeMin = 0, wasAway = false, stretchDue = false;
+function watchActivity() {
+  setInterval(async () => {
+    const idle = await host.idleSeconds();
+    if (idle >= 300) { activeMin = 0; wasAway = true; return; }
+    if (idle < 120) activeMin++;
+    if (S.stretchEvery > 0 && activeMin >= S.stretchEvery) { stretchDue = true; activeMin = 0; if (mode === 'front' || mode === 'sleep') schedule(300); }
+  }, 60_000);
+  // Notice you coming back (only checks while you're away).
+  setInterval(async () => {
+    if (!wasAway) return;
+    if ((await host.idleSeconds()) < 5) {
+      wasAway = false;
+      if (mode === 'sleep' && chance(0.5)) { await wake(true); schedule(rand(6000, 12000)); }
+      if (mode === 'front') { say(pick(LINES.welcome), 2600); frontEarFlap(); }
+    }
+  }, 4000);
+}
+
+async function stretchCheck(): Promise<boolean> {
+  if (!stretchDue) return false;
+  stretchDue = false;
+  say(pick(LINES.stretch), 3500);
+  await sideAction(chance(0.5) ? clips.rope(6) : clips.pushups(5));
+  say(pick(LINES.stretchDone), 3000);
   return true;
 }
 
@@ -386,6 +649,17 @@ async function endDrag() {
   host.dragEnd();
   lastInteraction = Date.now();
   mode = 'busy';
+  // Dropped onto the top edge of the window you're using? He sits on it.
+  perch = null; clearInterval(perchWatch);
+  if (S.visitWindows) {
+    const [fg, { bounds }] = await Promise.all([getFg(), host.winInfo()]);
+    const feetY = bounds.y + bounds.height - 3, cx = bounds.x + bounds.width / 2;
+    if (fg && !fg.max && cx > fg.x + 20 && cx < fg.x + fg.w - 20 && feetY > fg.y - 70 && feetY < fg.y + 25) {
+      perch = { ...fg, since: Date.now(), stay: rand(60_000, 180_000) };
+      host.move(bounds.x, perchY(bounds));
+      watchPerch();
+    }
+  }
   const fell = await fallToGround();
   if (fell && !grumpy && chance(0.5)) say(pick(LINES.happyDrop), 1800);
   if (!fell) await anim.play(clips.toStand());
@@ -477,11 +751,28 @@ async function boot() {
   await toFront('happy');
   say(pick(LINES.hello()), 2800);
   await frontEarFlap();
+  watchApps();
+  watchActivity();
   schedule(rand(6000, 12000));
 }
 const BENCH = (window.host as any)?.bench as string | null;
 if (BENCH) {
   // Perf benchmarks (scripts/bench.sh): 'idle' = static pose, no timers; 'fN'/'sN' = N front/side redraws per second.
+  if (BENCH === 'perch') {
+    // Scenario test: a simulated 500×300 window; Dumbo hops on, nibbles, gets knocked off when it "moves".
+    let fake: Foreground | null = { name: 'FakeApp', x: 400, y: 380, w: 500, h: 300, max: false };
+    getFg = async () => fake;
+    const where = async (tag: string) => { const { bounds } = await host.winInfo(); host.log(`${tag}: pet x=${bounds.x} y=${bounds.y} feet=${bounds.y + bounds.height - 3} perch=${perch ? perch.y : 'none'} mode=${mode}`); };
+    (async () => {
+      const st = await host.getState(); S = st.settings; applyTheme(); anim.setFront({ ...FRONT_REST }); mode = 'front';
+      await fallToGround(); await where('start');
+      host.log(`canPerch=${await canPerch(fake!)}`);
+      await hopOnto(fake!); await where('perched');
+      await nibbleCorner(); await where('after nibble');
+      fake = { ...fake!, x: 300 }; await new Promise(r => setTimeout(r, 4500)); await where('after window moved');
+      host.log('perch scenario done');
+    })().catch(e => host.log(`scenario failed: ${e?.stack || e}`));
+  } else
   host.getState().then(st => {
     S = st.settings; applyTheme(); anim.setFront({ ...FRONT_REST });
     const m = /^([fs])(\d+)$/.exec(BENCH);

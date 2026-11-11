@@ -56,5 +56,10 @@ export const clips = {
   /** "Unplug me, I'm full!" — up on back legs flexing, bubble is drawn by the page (not the art). */
   flex: (): Clip => ({ keys: [k(f('flex', 0, false), 500), ...repeat([k(f('flex', 1), 420), k(f('flex', 0), 420)], 3), k(STAND, 500)] }),
   tired: (): Clip => ({ fps: 8, keys: [k(f('tired', 0), 900), k(f('tired', 1), 1800), k(f('tired', 0), 1400)] }),
+  /** Airborne (hopping up onto a window / jumping off). */
+  hop: (): Clip => ({ keys: [k({ ...f('run', 3), eyes: 'happy', mouth: 'laugh' }, 140)] }),
+  peek: (): Clip => ({ keys: [k(f('peek', 0), 450), ...repeat([k(f('peek', 1), 380), k(f('peek', 0), 380)], 2), k(f('peek', 0), 600), k(STAND, 400)] }),
+  nibble: (): Clip => ({ keys: [...repeat([k(f('eatwindow', 0), 260), k(f('eatwindow', 1), 300)], 3), k(STAND, 400)] }),
+  push: (n = 2): Clip => ({ fps: 10, keys: [...repeat([k(f('push', 0), 420), k(f('push', 0), 500), k(f('push', 1), 380), k(f('push', 1), 420)], n), k({ ...SIT, brows: 'worried', mouth: 'pout', blush: 1 }, 500)] }),
   chargedBounce: (): Clip => ({ keys: repeat([k(f('charged', 0), 220), k(f('charged', 1), 200)], 3) }),
 };

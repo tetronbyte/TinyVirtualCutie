@@ -10,15 +10,16 @@ Source material: owner's handwritten notes (2026-11-11), `suggestions_idea.txt` 
 ## 2. Tech stack & how to run
 - **Electron 33 on the stock, unmodified runtime** (renamed `Dumbo.exe`) + Vite + TypeScript, no UI framework. Chosen because Windows Smart App Control (must stay ON per owner) blocks any freshly compiled/unsigned exe — Tauri/Rust builds were blocked. The stock Electron binary is already trusted, and our code is just JS/HTML it loads.
 - Art: Claude Design generators run at runtime: `src/art/dumbo.js` (side-view poses) + `src/art/face.js` (3/4 head expressions) composed into a front-facing sitting Dumbo by `src/art/front.js`.
-- State: `%APPDATA%\Dumbo\state.json` (settings + position), shared by dev and installed copies.
-- Installed copy: `%LOCALAPPDATA%\Dumbo\runtime\Dumbo.exe` + `%LOCALAPPDATA%\Dumbo\app\`, shortcuts on Desktop + Start Menu. Start with Windows = HKCU Run entry via Electron login items.
+- State: `%USERPROFILE%\Apps\Dumbo\state.json` (settings + position), shared by dev and installed copies; `boot.json` there = last boot report (exe, app path, autostart status).
+- Installed copy: `%USERPROFILE%\Apps\Dumbo\runtime\Dumbo.exe` + `...\Apps\Dumbo\app\`, shortcuts on Desktop + Start Menu. Start with Windows = HKCU Run entry (exe + app folder arg), reconciled on every start. NOT under AppData: the Claude desktop app is MSIX-packaged and its child processes get AppData/HKCU writes redirected into `AppData\Local\Packages\Claude_*\LocalCache` (caused the 2026-11-12 'Unable to find Electron app' bug).
 untime\Dumbo.exe` + `%LOCALAPPDATA%\Dumbopp\`, shortcuts on Desktop + Start Menu. Start with Windows = HKCU Run entry via Electron login items.
 - Commands: see `AGENTS.md` (`npm run dev`, `npm run install-app`, bench/snap tools).
 
 ## 3. Structure
 - `electron/main.cjs` — host: transparent always-on-top click-through pet window (240×220 × size; pet drawn 120×116 bottom-centre, rest is room for bubbles/jumps), tray menu (show/hide, sleep, wake, theme, settings, start with Windows, quit), settings window, drag-follow-cursor, cursor tracking (4 Hz, only while facing you), battery presence check (WMI via powershell), state file, single instance. Dev-only env hooks: `DUMBO_DEV_URL`, `DUMBO_BENCH`, `DUMBO_FLAGS`, `DUMBO_OPAQUE`, `DUMBO_NOFWD`.
+- `electron/winwatch.cjs` — foreground app watcher: one long-lived PowerShell using Microsoft-signed UI Automation; returns process name + rect + maximized only (never titles/content).
 - `electron/preload.cjs` — narrow `window.host` bridge. `src/host.ts` — typed wrapper (+ no-op fallback for plain browser).
-- `src/main.ts` — Dumbo's brain: modes front/side/sleep/held/busy; looks at you (gaze + head tilt + turns toward your side), blinks, idle expression changes, decisions (walk, ear flap, wave, coding in hoodie, push-ups, skipping rope, trip after walks), sleep (doze facing you or curl up; night schedule; sleepiness), click (laugh bounce / wake), drag (dangle, pouts if busy/asleep) + gravity fall to taskbar, petting (slow hover), tickling (fast rubbing), speech bubbles, battery reactions, settings live-apply, dev perf log + bench modes.
+- `src/main.ts` — Dumbo's brain: modes front/side/sleep/held/busy; looks at you (gaze + head tilt + turns toward your side), blinks, idle expression changes, decisions (walk, ear flap, wave, coding in hoodie, push-ups, skipping rope, trip after walks), sleep (doze facing you or curl up; night schedule; sleepiness), click (laugh bounce / wake), drag (dangle, pouts if busy/asleep) + gravity fall to taskbar, petting (slow hover), tickling (fast rubbing), speech bubbles, battery reactions, settings live-apply, window perching (hop onto foreground window, peek, stroll, nibble corner, fall off when window changes, drop him on a window edge), fake push of windows touching the taskbar, curious glance on app switch, configurable app reactions, stretch nudge + welcome back (system idle time only), dev perf log + bench/scenario modes (`DUMBO_BENCH=perch`).
 - `src/engine/animator.ts` — event-driven renderer with two views (side clips / front tweens), stops when idle. `src/engine/clips.ts` — side clips from design pose frames.
 - `src/art/*` — generators (see above) + `.d.ts`. `src/settings.ts` + `settings.html` — settings page.
 - `index.html` (pet page: bubble + stage), `preview.html` (browser animation tester), `vite.config.ts` (3 pages, `base: './'`).
@@ -30,7 +31,8 @@ untime\Dumbo.exe` + `%LOCALAPPDATA%\Dumbopp\`, shortcuts on Desktop + Start Men
 - Built: front-facing view that looks at you (eyes follow cursor, head tilts, turns to your side), 15 expressions, blinks, click-through on transparent pixels, drag + fall to taskbar, petting/tickling, speech bubbles, walking/running along the taskbar, coding in hoodie (hood up when focused), push-ups, skipping rope, tripping, flex "unplug me" (≤3 times), tired "charge me pls", charger-plugged excitement + run, sleep (doze/curl, night schedule), tray, settings window, start with Windows, themes.
 - Perf (measured with perf counters, % of ONE core; machine has 22 threads): still/asleep ≈0.5%; awake & active ≈15–20% during the first busy minute (≈1% of whole CPU in Task Manager terms). Root cause: each drawn frame costs ~10–30 ms (SVG re-raster + window present), so no continuous animation (breathing removed) and low-fps clips. RAM ≈320 MB (GPU process ~180 MB). Earlier "0% CPU" Tauri numbers were a measurement bug.
 - Not verified by agent: on-desktop look/feel (agent can't screenshot the pet window); battery reactions on real plug/unplug; start-with-Windows on real reboot.
-- Not built yet: window awareness (peek/eat/fake-push/sit on windows), app-triggered reactions, coding sync with real editor activity, "let's stretch" nudge after long sessions, multi-monitor, AI.
+- 2026-11-12 later: window awareness, app reactions, stretch nudge built. Perch logic verified with a simulated window (feet land on the edge, falls when it moves); not yet seen on a real window by the agent.
+- Not built yet: multi-monitor, more characters, AI, smarter coding sync (currently: reaction when an editor becomes the foreground app).
 
 ## 5. Locked feature spec (MVP unless marked later)
 **Platform/app**
@@ -71,6 +73,7 @@ untime\Dumbo.exe` + `%LOCALAPPDATA%\Dumbopp\`, shortcuts on Desktop + Start Men
 - 2026-11-11 — Q&A round 2: battery thresholds, auto theme, shadow rule, 2D-with-soft-shading style confirmed. New 2D references (outlined chibi elephant, light pink + dark neon) → DESIGN_PROMPT.md rewritten with trunk/eye focus. Hoodie outfit added (mainly while coding).
 - 2026-11-11 — Design delivered (manual export into `design/`). Reviewed: complete set — rig, turnaround, 15 expressions ×2 themes, hoodie (lilac/mint/peach + dark neon, hood up/down, pull-on), ~60 pose keyframes incl. coding w/ hoodie, charge/flex, window eat/push/sit. Pose sheet is parametric → chosen animation approach.
 - 2026-11-11 — MVP step 1 built: Tauri scaffold, ported generator, animator/clips, behaviours, drag, tray, theme, persistence, browser preview.
+- 2026-11-12 — Fixed launch error: installer had run inside Claude's MSIX sandbox so AppData writes were redirected; install moved to `%USERPROFILE%\Apps\Dumbo`, autostart always passes app path, state beside app, boot report. Fixed pet window growing on each move (Electron rounding at 150% scale). Added window perching/peek/nibble/fake push, app reactions (settings editor), stretch reminder, welcome back.
 - 2026-11-12 — Smart App Control blocked Tauri builds → moved host to stock Electron runtime + per-user install script (works with SAC on). Git repo created (owner: commit continuously). Front-facing "looks at you" view from the design's expression generator (no new art needed). Added click-through, gravity, battery reactions, coding/hoodie, exercises, trip, bubbles, settings window, autostart. Perf investigation: per-frame cost dominates → removed breathing, low-fps clips, saccade gaze.
 
 ## 7. Decisions & rationale
@@ -87,10 +90,9 @@ untime\Dumbo.exe` + `%LOCALAPPDATA%\Dumbopp\`, shortcuts on Desktop + Start Men
 ## 8. Next steps / TODO
 1. Owner feedback on look/feel on the real desktop (size, pace, how often he naps, bubbles).
 2. Perf phase 2 if needed: layered front view (static body/head layers, eyes/ears/blink via GPU transforms) to cut per-frame raster cost; consider fewer SVG blur filters while moving.
-3. Window awareness: find window rects (Win32 via PowerShell/ffi-free approach) → peek / eat corner / fake push / sit on top of windows.
-4. App-triggered reactions (configurable app → action mapping in settings) + coding sync (editor focused).
-5. "Let's stretch" nudge after long active sessions.
-6. Multi-monitor; more characters (owl, eagle) via data-driven art.
+3. Tune window visits on real windows (owner feedback): perch frequency, nibble/push placement.
+4. Multi-monitor; more characters (owl, eagle) via data-driven art.
+5. AI phase (local model, on demand, permission-gated).
 
 ## 9. Open questions / blockers
 - None blocking. Owner to judge cuteness/pace and acceptable CPU/RAM.

@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld('host', {
   dragEnd: () => ipcRenderer.send('drag:end'),
   track: (on) => ipcRenderer.send('track', !!on),
   openSettings: () => ipcRenderer.send('open:settings'),
+  foreground: () => ipcRenderer.invoke('fg:get'),
+  idleSeconds: () => ipcRenderer.invoke('idle:get'),
   onCursor: on('cursor'),
   onAction: on('action'),
   onSettings: on('settings'),

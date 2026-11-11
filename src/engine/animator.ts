@@ -19,8 +19,9 @@ export interface FrontState {
   head: [number, number];
   earAdd: [number, number];
   bounce: number;
+  shadow: boolean;
 }
-export const FRONT_REST: FrontState = { expr: 'neutral', gaze: [0, 0], blink: 0, tilt: 0, head: [0, 0], earAdd: [0, 0], bounce: 0 };
+export const FRONT_REST: FrontState = { expr: 'neutral', gaze: [0, 0], blink: 0, tilt: 0, head: [0, 0], earAdd: [0, 0], bounce: 0, shadow: true };
 
 /** Side-view crop of the design canvas (aspect matches the 120×116 pet stage). */
 export const SIDE_VIEWBOX = '0 -66 540 522';
@@ -50,7 +51,7 @@ export function blend(a: PoseParams, b: PoseParams, t: number): PoseParams {
 function blendFront(a: FrontState, b: FrontState, t: number): FrontState {
   const l2 = (x: [number, number], y: [number, number]): [number, number] => [lerp(x[0], y[0], t), lerp(x[1], y[1], t)];
   return {
-    expr: t < 0.5 ? a.expr : b.expr,
+    expr: t < 0.5 ? a.expr : b.expr, shadow: b.shadow,
     gaze: l2(a.gaze, b.gaze), head: l2(a.head, b.head), earAdd: l2(a.earAdd, b.earAdd),
     blink: lerp(a.blink, b.blink, t), tilt: lerp(a.tilt, b.tilt, t), bounce: lerp(a.bounce, b.bounce, t),
   };
