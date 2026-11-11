@@ -1,20 +1,20 @@
 {
   "name": "tinyvirtualcutie",
+  "productName": "Dumbo",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
+  "description": "Dumbo — a tiny desktop pet",
+  "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/dev.mjs",
+    "vite": "vite",
     "build": "tsc --noEmit && vite build",
-    "tauri": "tauri",
-    "app:dev": "tauri dev",
-    "app:build": "tauri build"
-  },
-  "dependencies": {
-    "@tauri-apps/api": "^2.1.1"
+    "typecheck": "tsc --noEmit",
+    "install-app": "node scripts/install.mjs"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.1.0",
+    "electron": "^33.4.11",
     "typescript": "^5.6.3",
     "vite": "^5.4.11"
   }

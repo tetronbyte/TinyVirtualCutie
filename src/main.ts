@@ -1,256 +1,497 @@
-import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
-import { getCurrentWindow, LogicalPosition, PhysicalPosition } from '@tauri-apps/api/window';
 import type { Theme } from './art/dumbo.js';
-import { Animator } from './engine/animator';
-import { clips, STAND, SIT, ASLEEP } from './engine/clips';
+import { Animator, FRONT_REST, type FrontState } from './engine/animator';
+import { clips, STAND, SIT } from './engine/clips';
+import { host, type Settings, type Cursor } from './host';
 
-// ---------- diagnostics: page errors → terminal ----------
-const log = (msg: string) => invoke('log', { msg }).catch(() => {});
-window.addEventListener('error', e => log(`error: ${e.message} @ ${e.filename}:${e.lineno}`));
-window.addEventListener('unhandledrejection', e => log(`unhandled: ${String(e.reason)}`));
+// ======================================================================
+//  Dumbo's brain. Event-driven: timers + input events, no polling loops.
+// ======================================================================
 
-// ---------- persisted state ----------
-type ThemePref = 'auto' | Theme;
-interface Saved { x?: number; y?: number; theme?: ThemePref; name?: string }
-let saved: Saved = {};
-const persist = () => invoke('save_state', { json: JSON.stringify(saved) }).catch(() => {});
+window.addEventListener('error', e => host.log(`error: ${e.message} @ ${e.filename}:${e.lineno}`));
+window.addEventListener('unhandledrejection', e => host.log(`unhandled: ${String(e.reason)}`));
 
-// ---------- setup ----------
-const win = getCurrentWindow();
-const petEl = document.getElementById('pet')!;
-const breathEl = document.getElementById('breath')!;
-const anim = new Animator(document.getElementById('art')!);
+const stage = document.getElementById('stage')!;
+const art = document.getElementById('art')!;
+const bubbleEl = document.getElementById('bubble')!;
+const anim = new Animator(art);
+
+let S: Settings;
+let hasBattery = false;
 
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
-const pick = <T>(xs: Array<[T, number]>): T => {
+const chance = (p: number) => Math.random() < p;
+const pickW = <T>(xs: Array<[T, number]>): T => {
   let r = Math.random() * xs.reduce((s, x) => s + x[1], 0);
   for (const [v, w] of xs) if ((r -= w) <= 0) return v;
   return xs[0][0];
 };
+const pick = <T>(xs: T[]) => xs[Math.floor(Math.random() * xs.length)];
+const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
+const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
-// ---------- theme: follow Windows unless overridden from tray ----------
+// ---------- theme ----------
 const darkMq = window.matchMedia('(prefers-color-scheme: dark)');
-const applyTheme = () => {
-  const pref = saved.theme ?? 'auto';
-  anim.setTheme(pref === 'auto' ? (darkMq.matches ? 'dark' : 'light') : pref);
+function applyTheme() {
+  const theme: Theme = S.theme === 'auto' ? (darkMq.matches ? 'dark' : 'light') : S.theme;
+  anim.setTheme(theme);
+  document.body.classList.toggle('dark', theme === 'dark');
+}
+darkMq.addEventListener('change', () => S && applyTheme());
+
+// ---------- speech bubble ----------
+let bubbleTimer = 0;
+function say(text: string, ms = 3200) {
+  bubbleEl.textContent = text;
+  bubbleEl.classList.add('show');
+  clearTimeout(bubbleTimer);
+  bubbleTimer = window.setTimeout(() => bubbleEl.classList.remove('show'), ms);
+}
+const LINES = {
+  hello: () => [`hi! I'm ${S.name}`, 'hello hello!', 'hiii 👋'],
+  wake: ['*yawn*', 'mm… morning?', '5 more minutes…'],
+  petted: ['hehe', 'more pls 🥰', 'mmm nice'],
+  tickled: ['hehehe stop!', 'ahaha!', 'tickles!!'],
+  click: ['hi!', 'boop!', 'hehe', '?'],
+  pout: ['hmph!', 'I was busy…', 'put me down!'],
+  happyDrop: ['wheee!', 'again again!'],
+  coding: ['tap tap tap', 'shipping it 🚀', 'one more bug…'],
+  exercise: ['1… 2… 3…', 'getting strong!', 'huff puff'],
+  trip: ['oops…', 'I meant to do that'],
+  lowBattery: ['charge me pls 🥺', 'so… sleepy… need power', 'battery low…'],
+  charged: ['yay, power!', 'zoom zoom!', 'thank youuu ⚡'],
+  full: ["unplug me, I'm full! 💪", 'all charged! unplug pls'],
 };
-darkMq.addEventListener('change', applyTheme);
 
-// ---------- behaviour state machine ----------
-type Mode = 'idle' | 'sitting' | 'walking' | 'sleeping' | 'busy' | 'held';
-let mode: Mode = 'idle';
-let decideTimer = 0;
-let blinkTimer = 0;
+// ---------- modes ----------
+// front: sitting, facing you (idle home state) · side: doing a side-view action
+// sleep: napping · held: being dragged · busy: transition/one-off
+type Mode = 'front' | 'side' | 'sleep' | 'held' | 'busy';
+let mode: Mode = 'busy';
+let sleepStyle: 'doze' | 'curl' = 'doze';
+let facingLeft = false;
+let decideTimer = 0, blinkTimer = 0, exprTimer = 0;
 let awakeSince = Date.now();
-let facing: 1 | -1 = 1;
+let lastInteraction = Date.now();
 
-/** Finish a busy step only if nothing (e.g. a drag) took over meanwhile. */
-const settle = (m: Mode) => { if (mode === 'busy') mode = m; };
 const schedule = (ms: number) => { clearTimeout(decideTimer); decideTimer = window.setTimeout(decide, ms); };
-const restPose = () => (mode === 'sitting' ? SIT : mode === 'sleeping' ? ASLEEP : STAND);
+function setFacing(left: boolean) { facingLeft = left; stage.classList.toggle('left', left); }
+
+/** Make sure we are sitting and facing the user. */
+async function toFront(expr = 'smile') {
+  if (anim.view === 'side') {
+    if (anim.side.base !== 'sit') await anim.play(clips.sitDown());
+  }
+  anim.setFront({ ...FRONT_REST, expr });
+  mode = 'front';
+  host.track(true);
+  scheduleBlink();
+  idleExprLater();
+}
+
+/** Switch to the side view, standing (or sitting) and ready for an action. */
+async function toSide(stand = true) {
+  host.track(false);
+  clearTimeout(exprTimer);
+  if (anim.view === 'front') anim.setSide(SIT);
+  if (stand && anim.side.base === 'sit') await anim.play(clips.standUp());
+}
+
+// ---------- the eyes: looking at you ----------
+let gazeTarget: Partial<FrontState> | null = null;
+host.onCursor(c => lookAt(c));
+
+function lookAt(c: Cursor) {
+  if (mode !== 'front') return;
+  // Head centre of the 3/4 view inside the window (stage = bottom-centre 50% × 52.7%).
+  const hx = c.w / 2, hy = c.h - c.h * 0.527 * 0.62;
+  let dx = c.x - hx;
+  const dy = c.y - hy;
+  // Turn the whole body toward the side you're on (with hysteresis).
+  if (!facingLeft && dx < -c.w * 0.9) setFacing(true);
+  else if (facingLeft && dx > c.w * 0.9) setFacing(false);
+  if (facingLeft) dx = -dx;
+  const dist = Math.hypot(dx, dy);
+  const nx = dx / Math.max(dist, 1), ny = dy / Math.max(dist, 1);
+  const reach = clamp(dist / 120, 0, 1); // far away = full eye travel
+  gazeTarget = {
+    gaze: [nx * 13 * reach, ny * 9 * reach],
+    tilt: clamp(dx / 60, -7, 7),
+    head: [clamp(dx / 40, -6, 6), clamp(dy / 60, -4, 5)],
+  };
+  // Very close and moving = curious.
+  if (dist < c.h * 0.45 && anim.front.expr === 'neutral' && !anim.busy) setExpr('curious', 2500);
+  // Eyes jump (saccade) in a single redraw instead of gliding: every drawn frame costs CPU.
+  const g = anim.front.gaze, moved = Math.abs(g[0] - gazeTarget.gaze![0]) + Math.abs(g[1] - gazeTarget.gaze![1]);
+  if (!anim.busy && moved > 2.5) anim.setFront(gazeTarget);
+}
 
 function scheduleBlink() {
   clearTimeout(blinkTimer);
   blinkTimer = window.setTimeout(async () => {
-    if ((mode === 'idle' || mode === 'sitting') && !anim.busy) await anim.play(clips.blink(restPose()));
-    scheduleBlink();
-  }, rand(2500, 6500));
+    if (mode === 'front' && !anim.busy) await anim.face([{ s: { blink: 1 }, ms: 70 }, { s: { blink: 1 }, ms: 50 }, { s: { blink: 0 }, ms: 90 }], false, 15);
+    if (mode === 'front') scheduleBlink();
+  }, rand(2200, 6000) * (chance(0.15) ? 0.1 : 1)); // sometimes a double blink
 }
 
-/** Pick the next thing to do. Dumbo mostly sleeps; when awake he potters around. */
+function setExpr(expr: string, ms = 3000) {
+  anim.setFront({ expr });
+  clearTimeout(exprTimer);
+  exprTimer = window.setTimeout(() => { if (mode === 'front' && !anim.busy) { anim.setFront({ expr: baseExpr() }); idleExprLater(); } }, ms);
+}
+const baseExpr = () => (lowBattery ? 'tired' : 'neutral');
+
+/** Little face changes while idling so he never looks frozen. */
+function idleExprLater() {
+  clearTimeout(exprTimer);
+  exprTimer = window.setTimeout(() => {
+    if (mode !== 'front' || anim.busy) return idleExprLater();
+    const e = lowBattery ? pick(['tired', 'sad', 'tired']) : pickW<string>([['smile', 4], ['happy', 1.5], ['thinking', 1.5], ['curious', 1], ['neutral', 3]]);
+    if (e === 'thinking') anim.setFront({ expr: e, gaze: [4, -7] });
+    else anim.setFront({ expr: e });
+    setTimeout(() => { if (mode === 'front' && !anim.busy) anim.setFront({ expr: baseExpr() }); }, rand(1800, 4000));
+    idleExprLater();
+  }, rand(5000, 12000));
+}
+
+// ---------- decisions ----------
+function isNight() {
+  const now = new Date(), m = now.getHours() * 60 + now.getMinutes();
+  const [sh, sm] = S.sleepStart.split(':').map(Number), [eh, em] = S.sleepEnd.split(':').map(Number);
+  const a = sh * 60 + sm, b = eh * 60 + em;
+  return a <= b ? m >= a && m < b : m >= a || m < b;
+}
+
 async function decide() {
-  if (mode === 'held' || mode === 'busy' || mode === 'walking') return;
-  if (mode === 'sleeping') { await wake(); return schedule(rand(4000, 9000)); }
-
-  const awakeFor = Date.now() - awakeSince;
-  const sleepy = awakeFor > rand(90_000, 240_000);
-  const next = sleepy ? 'sleep' : pick<string>([
-    ['walk', 4], ['earflap', 2], ['wave', 1.5], [mode === 'sitting' ? 'stand' : 'sit', 2], ['nothing', 3],
-  ]);
-
-  switch (next) {
-    case 'sleep': return sleep();
-    case 'walk': await walk(rand(2500, 7000)); break;
-    case 'earflap': await act(clips.earflap()); break;
-    case 'wave': await act(clips.wave()); break;
-    case 'sit': mode = 'busy'; await anim.play(clips.sitDown()); settle('sitting'); break;
-    case 'stand': mode = 'busy'; await anim.play(clips.standUp()); settle('idle'); break;
+  if (mode === 'held' || mode === 'busy' || mode === 'side') return schedule(rand(3000, 6000));
+  if (mode === 'sleep') {
+    if (isNight()) return schedule(rand(600_000, 1_200_000));
+    await wake(false);
+    return schedule(rand(6000, 12000));
   }
-  schedule(rand(5000, 14000));
+  const awakeFor = Date.now() - awakeSince;
+  const awakeBudget = (isNight() ? 45_000 : rand(90_000, 240_000) * (1.4 - S.sleepiness));
+  if (awakeFor > awakeBudget && Date.now() - lastInteraction > 20_000) return sleep();
+
+  if (await batteryCheck()) return schedule(rand(8000, 15000));
+
+  const next = lowBattery
+    ? pickW<string>([['nothing', 6], ['walk', 1]])
+    : pickW<string>([['nothing', 6], ['walk', 3], ['earflap', 1.5], ['wave', 1], ['coding', 1.6], ['pushups', .7], ['rope', .7]]);
+  switch (next) {
+    case 'walk': await walk(rand(3000, 8000)); break;
+    case 'earflap': await frontEarFlap(); break;
+    case 'wave': await sideAction(clips.wave()); break;
+    case 'coding': say(pick(LINES.coding)); await sideAction(clips.coding(1 + Math.floor(rand(0, 3))), false); break;
+    case 'pushups': say(pick(LINES.exercise)); await sideAction(clips.pushups(4 + Math.floor(rand(0, 4)))); break;
+    case 'rope': say(pick(LINES.exercise)); await sideAction(clips.rope(5 + Math.floor(rand(0, 5)))); break;
+  }
+  schedule(rand(10_000, 25_000)); // calm pace: every drawn frame costs CPU
 }
 
-/** Play a one-off action from standing, then return to idle. */
-async function act(clip: ReturnType<typeof clips.wave>) {
-  if (mode === 'sitting') { mode = 'busy'; await anim.play(clips.standUp()); }
-  mode = 'busy';
+async function sideAction(clip: ReturnType<typeof clips.wave>, stand = true) {
+  mode = 'side';
+  await toSide(stand);
+  if (mode !== 'side') return;
   await anim.play(clip);
-  settle('idle');
+  if (mode !== 'side') return;
+  mode = 'busy';
+  await toFront('smile');
 }
 
+async function frontEarFlap() {
+  mode = 'busy';
+  anim.setFront({ expr: 'laugh' });
+  const flap = [{ s: { earAdd: [22, -22] as [number, number], bounce: 8 }, ms: 160 }, { s: { earAdd: [-6, 6] as [number, number], bounce: 0 }, ms: 160 }];
+  await anim.face([...flap, ...flap, ...flap, { s: { earAdd: [0, 0] as [number, number], expr: 'happy' }, ms: 200 }]);
+  if (mode !== 'busy') return;
+  mode = 'front';
+  setExpr('happy', 2000);
+}
+
+// ---------- sleep ----------
 async function sleep() {
-  if (mode === 'sitting') anim.set(SIT);
   mode = 'busy';
-  await anim.play(clips.fallAsleep());
-  if (mode !== 'busy') return; // interrupted (e.g. picked up)
-  mode = 'sleeping';
-  breathEl.classList.add('sleep');
-  schedule(rand(300_000, 900_000)); // nap 5–15 min
+  host.track(false);
+  clearTimeout(exprTimer); clearTimeout(blinkTimer);
+  sleepStyle = chance(0.6) ? 'doze' : 'curl';
+  if (sleepStyle === 'doze') {
+    if (anim.view !== 'front') await toFront('neutral');
+    host.track(false);
+    await anim.face([{ s: { expr: 'tired', gaze: [0, 3], blink: 0 }, ms: 700 }, { s: { blink: 1 }, ms: 900 }, { s: { blink: .4 }, ms: 500 }, { s: { blink: 1, expr: 'sleeping', tilt: 9, head: [-2, 10], earAdd: [-6, 6] }, ms: 1400 }], false, 10);
+  } else {
+    await toSide(false);
+    await anim.play(clips.curlUp());
+  }
+  if (mode !== 'busy') return;
+  mode = 'sleep';
+  schedule(isNight() ? rand(600_000, 1_200_000) : rand(180_000, 600_000) * (0.5 + S.sleepiness));
 }
 
-async function wake() {
-  breathEl.classList.remove('sleep');
+async function wake(byUser: boolean) {
   mode = 'busy';
-  await anim.play(clips.wakeUp());
-  settle('idle');
+  if (anim.view === 'side') { await anim.play(clips.uncurl()); }
+  anim.setFront({ ...FRONT_REST, expr: 'sleeping' });
+  await anim.face([{ s: { expr: 'tired', blink: .5 }, ms: 500 }, { s: { blink: 0, expr: byUser ? 'happy' : 'smile' }, ms: 400 }]);
+  if (byUser) say(pick(LINES.wake));
   awakeSince = Date.now();
+  mode = 'front';
+  await toFront(byUser ? 'happy' : 'smile');
 }
 
-// ---------- walking: moves the real window along the screen ----------
+// ---------- walking / running along the ground ----------
 let walkStop: (() => void) | null = null;
-async function walk(ms: number) {
-  if (mode === 'sitting') { mode = 'busy'; await anim.play(clips.standUp()); }
-  mode = 'walking';
-  const scale = await win.scaleFactor();
-  const pos = await win.outerPosition();
-  const maxX = (screen.availWidth - window.innerWidth) * scale;
-  if (pos.x <= 10) facing = 1; else if (pos.x >= maxX - 10) facing = -1; else if (Math.random() < 0.5) facing = facing === 1 ? -1 : 1;
-  petEl.classList.toggle('left', facing === -1);
-
-  const speed = 38 * scale; // px per second
-  let x = pos.x;
+async function walk(ms: number, speed = 36, clip = clips.walk()) {
+  mode = 'side';
+  await toSide(true);
+  if (mode !== 'side') return;
+  const { bounds, workArea } = await host.winInfo();
+  const minX = workArea.x - bounds.width * 0.25, maxX = workArea.x + workArea.width - bounds.width * 0.75;
+  let x = bounds.x;
+  const y = Math.min(bounds.y, workArea.y + workArea.height - bounds.height);
+  let dir = x <= minX + 20 ? 1 : x >= maxX - 20 ? -1 : chance(0.5) ? 1 : -1;
+  setFacing(dir < 0);
+  anim.play(clip);
   let last = performance.now();
-  anim.play(clips.walk());
   await new Promise<void>(resolve => {
     const iv = window.setInterval(() => {
       const now = performance.now();
-      x += facing * speed * (now - last) / 1000;
+      x += dir * speed * (now - last) / 1000;
       last = now;
-      if (x <= 0 || x >= maxX) { x = Math.max(0, Math.min(maxX, x)); end(); }
-      win.setPosition(new PhysicalPosition(Math.round(x), pos.y));
-    }, 50);
+      if (x <= minX || x >= maxX) { x = clamp(x, minX, maxX); end(); }
+      host.move(x, y);
+    }, 40);
     const to = window.setTimeout(end, ms);
     function end() { clearInterval(iv); clearTimeout(to); walkStop = null; resolve(); }
     walkStop = end;
   });
-  if (mode !== 'walking') return;
+  host.savePos();
+  if (mode !== 'side') return;
+  if (!lowBattery && chance(0.12)) { say(pick(LINES.trip)); await anim.play(clips.trip()); }
+  else await anim.play(clips.toStand());
+  if (mode !== 'side') return;
   mode = 'busy';
-  await anim.play(clips.toStand());
-  settle('idle');
-  savePosition();
+  await toFront('smile');
 }
 
-async function savePosition() {
-  const p = await win.outerPosition();
-  saved.x = p.x; saved.y = p.y;
-  persist();
+// ---------- gravity: dropped mid-air → falls to the taskbar ----------
+async function fallToGround() {
+  const { bounds, workArea } = await host.winInfo();
+  const groundY = workArea.y + workArea.height - bounds.height;
+  if (bounds.y >= groundY - 3) return false;
+  // Clamp horizontally inside the screen too.
+  const x = clamp(bounds.x, workArea.x - bounds.width * 0.25, workArea.x + workArea.width - bounds.width * 0.75);
+  anim.play(clips.fall());
+  let y = bounds.y, v = 0, last = performance.now();
+  await new Promise<void>(resolve => {
+    const iv = window.setInterval(() => {
+      const now = performance.now(), dt = (now - last) / 1000; last = now;
+      v = Math.min(v + 2600 * dt, 1800);
+      y = Math.min(groundY, y + v * dt);
+      host.move(x, y);
+      if (y >= groundY) { clearInterval(iv); resolve(); }
+    }, 16);
+  });
+  await anim.play(clips.land());
+  return true;
 }
 
-// ---------- interactions: click, drag (scruff), petting, tickling ----------
+// ---------- interactions ----------
+// Click-through: the window ignores the mouse except over Dumbo's actual pixels.
+let overPet = false;
+const hitPet = (x: number, y: number) => { const el = document.elementFromPoint(x, y); return !!el && el !== art && art.contains(el) && el.tagName !== 'svg'; };
+function setOver(v: boolean) { if (v !== overPet) { overPet = v; host.ignoreMouse(!v); } }
+
 let down: { x: number; y: number } | null = null;
 let dragging = false;
-let moveEndTimer = 0;
-const recentX: Array<{ x: number; t: number }> = [];
-let hoverStart = 0;
-let reactCooldown = 0;
+let hoverStart = 0, reactUntil = 0;
+const rub: Array<{ x: number; t: number }> = [];
 
-petEl.addEventListener('mousedown', e => { if (e.button === 0) down = { x: e.screenX, y: e.screenY }; });
-
-petEl.addEventListener('mousemove', e => {
-  if (down && (e.buttons & 1) && !dragging && Math.hypot(e.screenX - down.x, e.screenY - down.y) > 4) {
-    startDrag();
-    return;
-  }
-  if (e.buttons) return;
-  // Petting = slow hover; tickling = fast back-and-forth rubbing.
+let moveEvents = 0;
+document.addEventListener('mousemove', e => {
+  moveEvents++;
+  if (dragging) return;
+  if (down && (e.buttons & 1) && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 4) { startDrag(down.x, down.y); return; }
+  const hit = hitPet(e.clientX, e.clientY);
+  setOver(hit || !!down);
+  if (!hit || e.buttons) { hoverStart = 0; rub.length = 0; return; }
+  lastInteraction = Date.now();
+  // Petting = slow hover. Tickling = fast back-and-forth rubbing.
   const now = performance.now();
-  recentX.push({ x: e.screenX, t: now });
-  while (recentX.length && now - recentX[0].t > 700) recentX.shift();
+  rub.push({ x: e.clientX, t: now });
+  while (rub.length && now - rub[0].t > 700) rub.shift();
   if (!hoverStart) hoverStart = now;
-  if (now < reactCooldown || mode === 'held' || mode === 'busy' || mode === 'walking') return;
+  if (now < reactUntil || mode !== 'front') return;
   let flips = 0;
-  for (let i = 2; i < recentX.length; i++) {
-    const a = recentX[i - 1].x - recentX[i - 2].x, b = recentX[i].x - recentX[i - 1].x;
-    if (a * b < 0 && Math.abs(b) > 2) flips++;
-  }
-  if (flips >= 5 && mode !== 'sleeping') { reactCooldown = now + 4000; react(clips.tickled()); }
-  else if (now - hoverStart > 1600 && mode !== 'sleeping') { reactCooldown = now + 6000; hoverStart = 0; react(clips.petted()); }
+  for (let i = 2; i < rub.length; i++) { const a = rub[i - 1].x - rub[i - 2].x, b = rub[i].x - rub[i - 1].x; if (a * b < 0 && Math.abs(b) > 1) flips++; }
+  if (flips >= 4) { reactUntil = now + 3500; tickled(); }
+  else if (now - hoverStart > 1500) { reactUntil = now + 5000; hoverStart = 0; petted(); }
 });
-petEl.addEventListener('mouseleave', () => { hoverStart = 0; recentX.length = 0; });
+document.addEventListener('mouseleave', () => { if (!dragging && !down) setOver(false); });
 
-petEl.addEventListener('mouseup', e => {
-  if (e.button !== 0 || !down || dragging) return;
+document.addEventListener('mousedown', e => {
+  if (e.button === 0 && hitPet(e.clientX, e.clientY)) down = { x: e.clientX, y: e.clientY };
+  if (e.button === 2 && hitPet(e.clientX, e.clientY)) host.openSettings();
+});
+document.addEventListener('mouseup', e => {
+  if (e.button !== 0) return;
+  if (dragging) { endDrag(); return; }
+  if (!down) return;
   down = null;
-  if (mode === 'sleeping') { wake().then(() => schedule(rand(4000, 9000))); return; }
-  if (mode === 'idle' || mode === 'sitting') react(clips.happyBounce());
+  lastInteraction = Date.now();
+  clicked();
 });
 
-async function react(clip: ReturnType<typeof clips.wave>) {
-  const wasSitting = mode === 'sitting';
+async function clicked() {
+  if (mode === 'sleep') { await wake(true); return schedule(rand(6000, 12000)); }
+  if (mode !== 'front') return;
   mode = 'busy';
-  await anim.play(clip);
-  if (mode !== 'busy') return;
-  mode = 'idle';
-  if (wasSitting) anim.set(STAND);
-  schedule(rand(5000, 12000));
+  if (chance(0.3)) say(pick(LINES.click), 1800);
+  await anim.face([{ s: { expr: 'laugh', bounce: 16, earAdd: [14, -14] }, ms: 150 }, { s: { bounce: 0, earAdd: [0, 0] }, ms: 170 }, { s: { bounce: 8 }, ms: 120 }, { s: { bounce: 0 }, ms: 140 }]);
+  if (mode === 'busy') { mode = 'front'; setExpr('happy', 2200); }
 }
 
-async function startDrag() {
+async function petted() {
+  mode = 'busy';
+  say(pick(LINES.petted), 2200);
+  await anim.face([{ s: { expr: 'laugh', tilt: -6, head: [-3, 3], earAdd: [-10, 10] }, ms: 350 }, { s: { tilt: -9 }, ms: 1200 }, { s: { tilt: 0, head: [0, 0], earAdd: [0, 0], expr: 'happy' }, ms: 400 }]);
+  if (mode === 'busy') { mode = 'front'; setExpr('happy', 2500); }
+}
+
+async function tickled() {
+  mode = 'busy';
+  say(pick(LINES.tickled), 2200);
+  const w = (t: number) => ({ s: { expr: 'giggle', tilt: t, bounce: Math.abs(t) / 2 }, ms: 120 });
+  await anim.face([w(8), w(-8), w(8), w(-8), w(6), w(-6), { s: { tilt: 0, bounce: 0, expr: 'laugh' }, ms: 200 }]);
+  if (mode === 'busy') { mode = 'front'; setExpr('happy', 2500); }
+}
+
+let grumpy = false;
+function startDrag(ox: number, oy: number) {
   dragging = true;
-  const grumpy = mode === 'sleeping' || mode === 'busy' || mode === 'walking';
+  grumpy = mode === 'sleep' || mode === 'side' || mode === 'busy';
   walkStop?.();
-  clearTimeout(decideTimer);
-  breathEl.classList.remove('sleep');
-  breathEl.classList.add('still');
+  clearTimeout(decideTimer); clearTimeout(exprTimer); clearTimeout(blinkTimer);
+  host.track(false);
   mode = 'held';
+  setOver(true);
+  anim.setSide(STAND);
   anim.play(clips.dangle(grumpy));
-  await win.startDragging();
+  if (grumpy) say(pick(LINES.pout), 2000);
+  host.dragStart(Math.round(ox), Math.round(oy));
 }
-
-// The OS owns the drag loop, so we detect "dropped" as "window stopped moving".
-win.onMoved(() => {
-  if (!dragging) return;
-  clearTimeout(moveEndTimer);
-  moveEndTimer = window.setTimeout(endDrag, 280);
-});
 
 async function endDrag() {
-  if (!dragging) return;
   dragging = false;
   down = null;
-  breathEl.classList.remove('still');
+  host.dragEnd();
+  lastInteraction = Date.now();
   mode = 'busy';
-  await anim.play(clips.toStand());
-  settle('idle');
+  const fell = await fallToGround();
+  if (fell && !grumpy && chance(0.5)) say(pick(LINES.happyDrop), 1800);
+  if (!fell) await anim.play(clips.toStand());
+  host.savePos();
   awakeSince = Date.now();
-  savePosition();
-  schedule(rand(4000, 9000));
+  await toFront(grumpy ? 'pout' : 'happy');
+  if (grumpy) setExpr('pout', 3000);
+  schedule(rand(5000, 10000));
 }
-// If the user clicks without moving after startDragging, release on mouseup too.
-window.addEventListener('mouseup', () => { if (dragging) { clearTimeout(moveEndTimer); moveEndTimer = window.setTimeout(endDrag, 120); } });
 
-// ---------- tray events ----------
-listen<string>('theme', e => { saved.theme = e.payload as ThemePref; applyTheme(); persist(); });
-listen<string>('action', async e => {
-  if (e.payload === 'sleep' && mode !== 'sleeping' && mode !== 'held') { walkStop?.(); anim.stop(); clearTimeout(decideTimer); sleep(); }
-  if (e.payload === 'wake' && mode === 'sleeping') { await wake(); schedule(rand(4000, 9000)); }
+// ---------- battery ----------
+interface BatteryManager extends EventTarget { level: number; charging: boolean }
+let battery: BatteryManager | null = null;
+let lowBattery = false, flexCount = 0, lastLowNag = 0, lastFlex = 0;
+
+async function initBattery() {
+  if (!hasBattery || battery) return;
+  try { battery = await (navigator as any).getBattery(); } catch { return; }
+  battery!.addEventListener('chargingchange', onChargingChange);
+  battery!.addEventListener('levelchange', () => { updateLow(); });
+  updateLow();
+}
+function updateLow() {
+  if (!battery) return;
+  const was = lowBattery;
+  lowBattery = !battery.charging && battery.level * 100 <= S.batteryLow;
+  if (lowBattery && !was && mode === 'front') { lastLowNag = 0; schedule(500); }
+  if (!lowBattery && was && mode === 'front') anim.setFront({ expr: 'smile' });
+}
+async function onChargingChange() {
+  if (!battery) return;
+  updateLow();
+  if (!battery.charging) { flexCount = 0; return; }
+  // Plugged in → excited, bounces, runs around, then back to normal life.
+  if (mode === 'held') return;
+  walkStop?.();
+  if (mode === 'sleep') await wake(false);
+  clearTimeout(decideTimer);
+  mode = 'busy';
+  await toFront('excited');
+  say(pick(LINES.charged), 2500);
+  const hop = [{ s: { bounce: 18, earAdd: [18, -18] as [number, number] }, ms: 170 }, { s: { bounce: 0, earAdd: [0, 0] as [number, number] }, ms: 170 }];
+  await anim.face([...hop, ...hop, ...hop]);
+  mode = 'side';
+  await toSide(true);
+  await anim.play(clips.chargedBounce());
+  await walk(rand(3500, 6000), 110, clips.run());
+  schedule(rand(6000, 10000));
+}
+
+/** Returns true if a battery reaction happened. */
+async function batteryCheck(): Promise<boolean> {
+  if (!battery) return false;
+  const now = Date.now();
+  if (lowBattery && now - lastLowNag > 8 * 60_000) {
+    lastLowNag = now;
+    say(pick(LINES.lowBattery), 4000);
+    await sideAction(clips.tired(), false);
+    anim.setFront({ expr: 'tired' });
+    return true;
+  }
+  if (battery.charging && battery.level * 100 >= S.batteryHigh && flexCount < 3 && now - lastFlex > 3 * 60_000) {
+    flexCount++; lastFlex = now;
+    say(pick(LINES.full), 4000);
+    await sideAction(clips.flex());
+    return true;
+  }
+  return false;
+}
+
+// ---------- tray / settings ----------
+host.onAction(async a => {
+  if (a === 'sleep' && mode !== 'sleep' && mode !== 'held') { walkStop?.(); anim.stop(); clearTimeout(decideTimer); sleep(); }
+  if (a === 'wake' && mode === 'sleep') { await wake(true); schedule(rand(6000, 12000)); }
 });
+host.onSettings(s => { S = s; applyTheme(); updateLow(); });
+host.onBatteryPresent(b => { hasBattery = b; initBattery(); });
 
 // ---------- boot ----------
 async function boot() {
-  try { saved = JSON.parse((await invoke<string | null>('load_state')) ?? '{}') ?? {}; } catch { saved = {}; }
+  const st = await host.getState();
+  S = st.settings; hasBattery = st.hasBattery;
   applyTheme();
-  anim.set(STAND);
-
-  if (saved.x !== undefined && saved.y !== undefined) {
-    await win.setPosition(new PhysicalPosition(saved.x, saved.y));
-  } else {
-    // Bottom-right, feet resting on the taskbar.
-    await win.setPosition(new LogicalPosition(screen.availWidth - window.innerWidth - 40, screen.availHeight - window.innerHeight));
-  }
-  await win.show();
-  await anim.play(clips.earflap()); // hello!
-  scheduleBlink();
+  setOver(false);
+  initBattery();
+  mode = 'busy';
+  anim.setFront({ ...FRONT_REST, expr: 'happy' });
+  if (!(await fallToGround())) { /* already on the ground */ }
+  await toFront('happy');
+  say(pick(LINES.hello()), 2800);
+  await frontEarFlap();
   schedule(rand(6000, 12000));
 }
-boot().then(() => log("boot ok")).catch(e => log(`boot failed: ${e}`));
+const BENCH = (window.host as any)?.bench as string | null;
+if (BENCH) {
+  // Perf benchmarks (scripts/bench.sh): 'idle' = static pose, no timers; 'fN'/'sN' = N front/side redraws per second.
+  host.getState().then(st => {
+    S = st.settings; applyTheme(); anim.setFront({ ...FRONT_REST });
+    const m = /^([fs])(\d+)$/.exec(BENCH);
+    if (m) { let i = 0; if (m[1] === 's') anim.setSide(STAND); setInterval(() => { i++; if (m[1] === 'f') anim.setFront({ gaze: [Math.sin(i / 3) * 10, 0] }); else anim.setSide({ ...STAND, ears: [Math.sin(i / 3) * 20, 0] }); }, 1000 / Number(m[2])); }
+    host.log(`bench ${BENCH} running`);
+  });
+} else boot().then(() => host.log('boot ok')).catch(e => host.log(`boot failed: ${e?.stack || e}`));
+
+// Diagnostics (dev only): SVG redraws per 10 s + current mode, to trace CPU use to a cause.
+if (import.meta.env.DEV) {
+  let lastDraws = 0;
+  setInterval(() => { host.log(`perf: ${moveEvents} mousemoves, ${Animator.draws - lastDraws} redraws/10s, mode=${mode}, view=${anim.view}, busy=${anim.busy}`); lastDraws = Animator.draws; moveEvents = 0; }, 10_000);
+}

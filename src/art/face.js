@@ -1,0 +1,133 @@
+// Dumbo 3/4 head + expression generator — ported from design/Dumbo Desktop Pet Mascot/Dumbo Expressions.dc.html (Claude Design export).
+// Local patches: (1) line marked PATCH — layers() accepts live extras k.gaze [dx,dy], k.blink 0..1, k.earAdd [l,r] so Dumbo can look at the cursor and blink;
+// (2) hair rim-glow uses stroke-linejoin=round (removes dark-theme spike above the tuft).
+/* eslint-disable */
+const TH = {
+  light: { ol:'#3d2433', b1:'#ebe5f0', b2:'#aa9fbd', shade:'#b6abc8', ear1:'#fcd0dc', ear2:'#ee8dab', blush:'#f7809e', blushOp:.5, eye1:'#1f0f0b', eye2:'#86513a', mouth:'#5c2236', tongue:'#f27896', hi:.45, tear:'#cfe9ff' },
+  dark:  { ol:'#100b1f', b1:'#5f6891', b2:'#2b3050', shade:'#363c60', ear1:'#e29aff', ear2:'#7a2fd8', blush:'#ff66b0', blushOp:.55, eye1:'#0e0720', eye2:'#7548c2', mouth:'#2a0f2e', tongue:'#ff7fb0', hi:.2, tear:'#9fe6ff', neon:true }
+};
+const SW = 7, r1 = v => Math.round(v * 10) / 10;
+const EAR_L = 'M120 92 C60 70 12 110 14 170 C16 230 50 280 100 282 C125 283 140 262 140 240 L160 200 Z';
+const EAR_R = 'M292 86 C350 64 396 104 394 165 C392 225 362 270 320 270 C300 270 290 252 292 232 L260 200 Z';
+const EAR_LI = 'M112 112 C66 100 34 130 34 175 C34 225 62 262 98 262 C116 262 124 248 124 232 Z';
+const EAR_RI = 'M300 106 C344 94 374 124 374 168 C374 218 350 250 322 250 C308 250 302 240 304 226 Z';
+const HAIR = 'M193 42 C186 22 204 6 225 14 C211 16 204 27 209 40';
+const EYES_AT = [[160, 168, 25, 30], [272, 168, 25, 30]];
+
+const V = {
+  eyes: {
+    open:{}, wide:{ s:1.08, hs:1.12 }, sparkle:{ sparkle:1, hs:1.08 }, teary:{ teary:1, hs:1.15 },
+    happy:{ closed:'happy' }, sleep:{ closed:'calm' }, lookAway:{ dx:-6, dy:1 }, lookUp:{ dx:3, dy:-6 }, confused:{ s:1.04, squintR:1 }
+  },
+  lids: { none:[0, 0], focus:[.3, .3], half:[.54, .54], pout:[.24, .24], proud:[.4, .4] },
+  brows: {
+    neutral:{ dy:0, inner:0, arch:1 }, raised:{ dy:-7, inner:1, arch:1.3 }, worried:{ dy:-3, inner:6, arch:.5 },
+    determined:{ dy:3, inner:-3.5, arch:.6 }, relaxed:{ dy:4, inner:1, arch:.5 }, pout:{ dy:1, inner:-2, arch:.7 },
+    confused:{ l:{ dy:-8, inner:1, arch:1.3 }, r:{ dy:3, inner:-1, arch:.5 } }, thinking:{ l:{ dy:-2, inner:3, arch:1 }, r:{ dy:-8, inner:0, arch:1.3 } },
+    proud:{ dy:-5, inner:-1, arch:1.1 }, giggle:{ dy:-4, inner:5, arch:.8 }
+  },
+  mouth: {
+    none:null,
+    smile:{ line:'M191 229 Q202 239 213 229' },
+    open:{ d:'M191 226 Q202 230 213 225 C214 237 208 242 202 242 C196 242 190 237 191 226 Z', tg:[202, 241, 6.5, 5] },
+    laugh:{ d:'M186 223 Q202 228 218 222 C220 239 211 247 202 247 C193 247 184 239 186 223 Z', tg:[202, 245, 9, 6.5] },
+    oh:{ d:'M202 226 C208 226 210 231 210 235 C210 240 206 242 202 242 C198 242 194 240 194 235 C194 231 196 226 202 226 Z', tg:[202, 242, 5, 4] },
+    pout:{ d:'M195 234 Q198 229 202 232 Q206 229 209 234 Q202 239 195 234 Z' },
+    giggle:{ d:'M188 226 Q195 230 202 226 Q209 230 216 226 C216 238 209 243 202 243 C195 243 188 238 188 226 Z', tg:[202, 242, 7, 5] },
+    flat:{ line:'M195 233 Q202 235 209 233' },
+    hmm:{ line:'M193 234 Q199 232 205 235 Q208 236 210 234' }
+  },
+  blush: { normal:{ s:1, o:1 }, strong:{ s:1.2, o:1.45 }, puff:{ s:1.55, o:1.5, puff:1 }, faint:{ s:.9, o:.55 } },
+  trunk: {
+    rest:{ P:[[213,186],[211,238],[250,254],[259,213]] },
+    lift:{ P:[[213,186],[232,224],[276,228],[290,202]] },
+    raised:{ P:[[213,186],[240,224],[292,228],[318,198]] },
+    proud:{ P:[[213,186],[246,228],[306,232],[332,192]] },
+    droop:{ P:[[213,186],[210,232],[222,262],[238,268]], up:false },
+    tight:{ P:[[213,186],[228,222],[256,232],[252,204]], rb:8 },
+    chin:{ P:[[213,186],[230,226],[216,256],[193,246]] },
+    wiggle:{ P:[[213,186],[244,228],[296,226],[308,198]] },
+    focus:{ P:[[213,186],[224,226],[262,238],[280,212]] }
+  },
+  ears: { neutral:[0, 0], up:[7, -7], forward:[11, -11], down:[-14, 14], droop:[-8, 8], tilt:[4, -9] }
+};
+const EXPR = [
+  ['neutral','Neutral idle',   { eyes:'open', lids:'none', brows:'neutral', mouth:'none', blush:'normal', trunk:'rest', ears:'neutral', tilt:0 }],
+  ['smile','Smile',            { eyes:'open', lids:'none', brows:'neutral', mouth:'smile', blush:'normal', trunk:'lift', ears:'neutral', tilt:0 }],
+  ['happy','Happy',            { eyes:'open', lids:'none', brows:'raised', mouth:'open', blush:'strong', trunk:'lift', ears:'up', tilt:0 }],
+  ['laugh','Laugh',            { eyes:'happy', lids:'none', brows:'raised', mouth:'laugh', blush:'strong', trunk:'raised', ears:'up', tilt:0 }],
+  ['excited','Excited',        { eyes:'sparkle', lids:'none', brows:'raised', mouth:'open', blush:'strong', trunk:'raised', ears:'forward', tilt:0 }],
+  ['sad','Sad',                { eyes:'teary', lids:'none', brows:'worried', mouth:'none', blush:'faint', trunk:'droop', ears:'down', tilt:0 }],
+  ['pout','Pout',              { eyes:'lookAway', lids:'pout', brows:'pout', mouth:'pout', blush:'puff', trunk:'tight', ears:'neutral', tilt:0 }],
+  ['confused','Confused',      { eyes:'confused', lids:'none', brows:'confused', mouth:'hmm', blush:'normal', trunk:'focus', ears:'tilt', tilt:-8 }],
+  ['thinking','Thinking',      { eyes:'lookUp', lids:'none', brows:'thinking', mouth:'none', blush:'normal', trunk:'chin', ears:'neutral', tilt:3 }],
+  ['tired','Tired · low battery', { eyes:'open', lids:'half', brows:'relaxed', mouth:'none', blush:'faint', trunk:'droop', ears:'down', tilt:0 }],
+  ['sleeping','Sleeping',      { eyes:'sleep', lids:'none', brows:'relaxed', mouth:'none', blush:'faint', trunk:'rest', ears:'droop', tilt:4 }],
+  ['curious','Curious',        { eyes:'wide', lids:'none', brows:'raised', mouth:'oh', blush:'normal', trunk:'raised', ears:'forward', tilt:-4 }],
+  ['giggle','Ticklish giggle', { eyes:'happy', lids:'none', brows:'giggle', mouth:'giggle', blush:'strong', trunk:'wiggle', ears:'up', tilt:6 }],
+  ['proud','Proud',            { eyes:'open', lids:'proud', brows:'proud', mouth:'laugh', blush:'strong', trunk:'proud', ears:'up', tilt:-3 }],
+  ['focused','Focused coding', { eyes:'open', lids:'focus', brows:'determined', mouth:'flat', blush:'normal', trunk:'focus', ears:'neutral', tilt:0 }]
+];
+
+function bez(P, t) { const u = 1 - t; return [0, 1].map(i => u * u * u * P[0][i] + 3 * u * u * t * P[1][i] + 3 * u * t * t * P[2][i] + t * t * t * P[3][i]); }
+function bezD(P, t) { const u = 1 - t; return [0, 1].map(i => 3 * u * u * (P[1][i] - P[0][i]) + 6 * u * t * (P[2][i] - P[1][i]) + 3 * t * t * (P[3][i] - P[2][i])); }
+function trunkGeo(P, ra, rb) {
+  const N = 28, pts = [];
+  for (let k = 0; k <= N; k++) { const t = k / N, p = bez(P, t), d = bezD(P, t), L = Math.hypot(d[0], d[1]) || 1, T = [d[0] / L, d[1] / L], n = [-T[1], T[0]], r = ra + (rb - ra) * Math.pow(t, .9); pts.push({ p, T, n, r, l:[p[0] + n[0] * r, p[1] + n[1] * r], rr:[p[0] - n[0] * r, p[1] - n[1] * r] }); }
+  const f = q => r1(q[0]) + ' ' + r1(q[1]);
+  const Ls = pts.map(q => f(q.l)), Rs = pts.map(q => f(q.rr)).reverse(), e = pts[N], a = pts[0];
+  const open = `M${Ls.join(' L')} A${r1(e.r)} ${r1(e.r)} 0 0 0 ${Rs[0]} L${Rs.join(' L')}`;
+  return { fill: open + ` A${r1(a.r)} ${r1(a.r)} 0 0 0 ${Ls[0]} Z`, stroke: open, pts, e };
+}
+function brow(cx, cy, side, b) {
+  const ox = cx - side * 13, ix = cx + side * 13;
+  return `M${ox} ${r1(cy + 3 + b.dy + b.inner * .2)} Q${cx} ${r1(cy - 5 * b.arch + b.dy)} ${ix} ${r1(cy + 1 + b.dy - b.inner)}`;
+}
+
+function layers(theme, k, u) {
+  const t = TH[theme], ol = t.ol, BF = `url(#${u}body)`;
+  /* PATCH */ const ev0 = V.eyes[k.eyes], gz = k.gaze || [0, 0], ev = { ...ev0, dx: (ev0.dx || 0) + gz[0], dy: (ev0.dy || 0) + gz[1] }, bk = k.blink || 0, lid0 = V.lids[k.lids], lid = [Math.max(lid0[0], bk), Math.max(lid0[1], bk)], ea0 = V.ears[k.ears], ea = [ea0[0] + ((k.earAdd || [0, 0])[0]), ea0[1] + ((k.earAdd || [0, 0])[1])];
+  const _unused = 0, bw = V.brows[k.brows], mo = V.mouth[k.mouth], bl = V.blush[k.blush], tr = V.trunk[k.trunk];
+  const G = {};
+  G.ears = `<g id="ear-right" data-pivot="278,170" transform="rotate(${ea[1]} 278 170)"><path d="${EAR_R}" fill="${BF}" stroke="${ol}" stroke-width="${SW}" stroke-linejoin="round"/><path d="${EAR_RI}" fill="url(#${u}ear)"/>${t.neon ? `<path d="${EAR_RI}" fill="${t.ear1}" opacity=".5" filter="url(#${u}soft)"/>` : ''}</g><g id="ear-left" data-pivot="132,175" transform="rotate(${ea[0]} 132 175)"><path d="${EAR_L}" fill="${BF}" stroke="${ol}" stroke-width="${SW}" stroke-linejoin="round"/><path d="${EAR_LI}" fill="url(#${u}ear)"/>${t.neon ? `<path d="${EAR_LI}" fill="${t.ear1}" opacity=".5" filter="url(#${u}soft)"/>` : ''}</g>`;
+  G.cheekPuff = bl.puff ? `<ellipse cx="94" cy="208" rx="16" ry="25" fill="${t.b1}" stroke="${ol}" stroke-width="${SW}"/><ellipse cx="316" cy="206" rx="15" ry="24" fill="${t.shade}" stroke="${ol}" stroke-width="${SW}"/>` : '';
+  G.head = `<ellipse cx="205" cy="145" rx="122" ry="110" fill="${t.shade}"/><g clip-path="url(#${u}head)"><ellipse cx="194" cy="134" rx="120" ry="106" fill="${BF}" filter="url(#${u}soft)"/></g><ellipse cx="205" cy="145" rx="122" ry="110" fill="none" stroke="${ol}" stroke-width="${SW}"/><ellipse cx="140" cy="88" rx="34" ry="13" transform="rotate(-28 140 88)" fill="#fff" opacity="${t.hi}"/>`;
+  G.hair = `<path d="${HAIR}Z" fill="${BF}"/><path d="${HAIR}" fill="none" stroke="${ol}" stroke-width="${SW}" stroke-linecap="round" stroke-linejoin="round"/><path d="M174 46 Q178 35 190 35" fill="none" stroke="${ol}" stroke-width="4" stroke-linecap="round"/>`;
+  G.brows = [[153, 118, 1, bw.l || bw], [279, 118, -1, bw.r || bw]].map(([cx, cy, s, b]) => `<path d="${brow(cx, cy, s, b)}" fill="none" stroke="${ol}" stroke-width="4.5" stroke-linecap="round"/>`).join('');
+  let eyes = '', hi = '', lids = '';
+  EYES_AT.forEach(([cx0, cy0, rx0, ry0], i) => {
+    const s = ev.s || 1, rx = rx0 * s, ry = ry0 * s, dx = ev.dx || 0, dy = ev.dy || 0, cx = cx0 + dx * .45, cy = cy0 + dy * .45;
+    if (ev.closed === 'happy') { eyes += `<path d="M${r1(cx - rx * .8)} ${cy + 7} Q${cx} ${cy - 15} ${r1(cx + rx * .8)} ${cy + 7}" fill="none" stroke="${ol}" stroke-width="6.5" stroke-linecap="round"/>`; return; }
+    if (ev.closed === 'calm') { eyes += `<path d="M${r1(cx - rx * .8)} ${cy + 2} Q${cx} ${cy + 15} ${r1(cx + rx * .8)} ${cy + 2}" fill="none" stroke="${ol}" stroke-width="6" stroke-linecap="round"/><path d="M${r1(cx + (i ? 1 : -1) * rx * .8)} ${cy + 2} l${i ? 5 : -5} -3" stroke="${ol}" stroke-width="4" stroke-linecap="round"/>`; return; }
+    if (ev.squintR && i === 1) { eyes += `<path d="M${r1(cx - rx * .75)} ${cy + 3} Q${cx} ${cy - 6} ${r1(cx + rx * .75)} ${cy + 1}" fill="none" stroke="${ol}" stroke-width="6.5" stroke-linecap="round"/>`; return; }
+    const cid = `${u}e${i}`;
+    eyes += `<clipPath id="${cid}"><ellipse cx="${cx}" cy="${cy}" rx="${r1(rx + 1.5)}" ry="${r1(ry + 1.5)}"/></clipPath><ellipse cx="${cx}" cy="${cy}" rx="${r1(rx)}" ry="${r1(ry)}" fill="url(#${u}eye)" stroke="${ol}" stroke-width="4"/>`;
+    eyes += `<g clip-path="url(#${cid})"><ellipse cx="${r1(cx + dx * .5)}" cy="${r1(cy + ry * .45 + dy * .5)}" rx="${r1(rx * .62)}" ry="${r1(ry * .3)}" fill="${t.eye2}" opacity="${ev.sparkle ? .85 : .55}" filter="url(#${u}soft)"/>${ev.teary ? `<ellipse cx="${cx}" cy="${r1(cy + ry * .66)}" rx="${r1(rx * .9)}" ry="${r1(ry * .3)}" fill="${t.tear}" opacity=".45"/>` : ''}</g>`;
+    eyes += `<path d="M${r1(cx - rx)} ${cy - 3} A${r1(rx)} ${r1(ry)} 0 0 1 ${r1(cx + rx)} ${cy - 3}" fill="none" stroke="${ol}" stroke-width="6.5" stroke-linecap="round"/>`;
+    if (ev.teary) eyes += `<path d="M${r1(cx - rx * .8)} ${r1(cy + ry * .78)} Q${cx} ${r1(cy + ry * 1.12)} ${r1(cx + rx * .8)} ${r1(cy + ry * .78)}" fill="none" stroke="${t.tear}" stroke-width="3.2" stroke-linecap="round" opacity=".9"/>`;
+    const hs = ev.hs || 1, hx = cx + dx * .55, hy = cy + dy * .55;
+    hi += `<circle cx="${r1(hx - rx * .34)}" cy="${r1(hy - ry * .36)}" r="${r1(rx * .37 * hs)}" fill="#fff"/><circle cx="${r1(hx + rx * .36)}" cy="${r1(hy + ry * .38)}" r="${r1(rx * .16 * hs)}" fill="#fff"/>`;
+    if (ev.sparkle) hi += `<circle cx="${r1(hx + rx * .34)}" cy="${r1(hy - ry * .42)}" r="${r1(rx * .12)}" fill="#fff"/><circle cx="${r1(hx - rx * .42)}" cy="${r1(hy + ry * .28)}" r="${r1(rx * .09)}" fill="#fff"/><circle cx="${r1(hx + rx * .02)}" cy="${r1(hy + ry * .55)}" r="${r1(rx * .07)}" fill="#fff" opacity=".85"/>`;
+    if (ev.teary) hi += `<path d="M${r1(cx - rx * .6)} ${r1(cy + ry * .5)} q${r1(rx * .3)} -4 ${r1(rx * .6)} 0 t${r1(rx * .6)} 0" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".85"/>`;
+    const lv = lid[i];
+    if (lv > 0) {
+      const yb = cy - ry + 2 * ry * lv, hw = rx * Math.sqrt(Math.max(0, 1 - ((yb - cy) / ry) ** 2)), sag = ry * .16;
+      lids += `<g clip-path="url(#${cid})"><path d="M${r1(cx - rx - 4)} ${r1(cy - ry - 4)} L${r1(cx + rx + 4)} ${r1(cy - ry - 4)} L${r1(cx + rx + 4)} ${r1(yb)} Q${cx} ${r1(yb + sag * 2)} ${r1(cx - rx - 4)} ${r1(yb)} Z" fill="${BF}"/></g><path d="M${r1(cx - hw)} ${r1(yb)} Q${cx} ${r1(yb + sag * 2)} ${r1(cx + hw)} ${r1(yb)}" fill="none" stroke="${ol}" stroke-width="5" stroke-linecap="round"/><ellipse cx="${cx}" cy="${cy}" rx="${r1(rx)}" ry="${r1(ry)}" fill="none" stroke="${ol}" stroke-width="4"/><path d="M${r1(cx - rx)} ${cy - 3} A${r1(rx)} ${r1(ry)} 0 0 1 ${r1(cx + rx)} ${cy - 3}" fill="none" stroke="${ol}" stroke-width="6.5" stroke-linecap="round"/>`;
+    }
+  });
+  G.eyes = eyes; G.highlights = hi; G.lids = lids;
+  G.blush = [144, 288].map(x => { const s = bl.s, o = Math.min(.95, t.blushOp * bl.o); return `<ellipse cx="${x}" cy="212" rx="${r1(13 * s)}" ry="${r1(7 * s)}" fill="${t.blush}" opacity="${o}" filter="url(#${u}soft)"/><ellipse cx="${x}" cy="212" rx="${r1(10.5 * s)}" ry="${r1(5.5 * s)}" fill="${t.blush}" opacity="${o}"/><path d="M${x - 6} 214.5 l3 -4.5 M${x - .5} 215 l3 -4.5 M${x + 5} 214.5 l3 -4.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" opacity=".9"/>`; }).join('');
+  G.mouth = !mo ? '' : mo.line ? `<path d="${mo.line}" fill="none" stroke="${ol}" stroke-width="4" stroke-linecap="round"/>` : `<path d="${mo.d}" fill="${t.mouth}" stroke="${ol}" stroke-width="3.5" stroke-linejoin="round"/>`;
+  G.tongue = mo && mo.tg ? `<clipPath id="${u}mc"><path d="${mo.d}"/></clipPath><g clip-path="url(#${u}mc)"><ellipse cx="${mo.tg[0]}" cy="${mo.tg[1]}" rx="${mo.tg[2]}" ry="${mo.tg[3]}" fill="${t.tongue}"/></g>` : '';
+  const g = trunkGeo(tr.P, 21, tr.rb || 9), e = g.e;
+  const nx = e.p[0] + e.T[0] * e.r * .45, ny = e.p[1] + e.T[1] * e.r * .45, na = Math.atan2(e.T[1], e.T[0]) * 180 / Math.PI + 90;
+  const wr = [3, 6].map(j => { const q = g.pts[j]; return `<path d="M${r1(q.p[0] + q.n[0] * q.r * .75)} ${r1(q.p[1] + q.n[1] * q.r * .75)} Q${r1(q.p[0] + q.T[0] * 5)} ${r1(q.p[1] + q.T[1] * 5)} ${r1(q.p[0] - q.n[0] * q.r * .75)} ${r1(q.p[1] - q.n[1] * q.r * .75)}" fill="none" stroke="${ol}" stroke-width="2.4" stroke-linecap="round" opacity=".3"/>`; }).join('');
+  G.trunk = `<g clip-path="url(#${u}head)"><path d="${g.fill}" fill="${ol}" opacity=".12" transform="translate(4 5)" filter="url(#${u}soft)"/></g><path d="${g.fill}" fill="${BF}"/><path d="${g.fill}" fill="url(#${u}trunk)"/><path d="${g.stroke}" fill="none" stroke="${ol}" stroke-width="${SW}" stroke-linecap="round" stroke-linejoin="round"/>${wr}<ellipse cx="${r1(nx)}" cy="${r1(ny)}" rx="4.2" ry="2.6" transform="rotate(${r1(na)} ${r1(nx)} ${r1(ny)})" fill="${ol}" opacity=".75"/>`;
+  G.sil = c => `<g transform="rotate(${ea[1]} 278 170)"><path d="${EAR_R}" fill="${c[0]}" stroke="${c[0]}" stroke-width="${c[1]}"/></g><g transform="rotate(${ea[0]} 132 175)"><path d="${EAR_L}" fill="${c[0]}" stroke="${c[0]}" stroke-width="${c[1]}"/></g><ellipse cx="205" cy="145" rx="122" ry="110" fill="${c[0]}" stroke="${c[0]}" stroke-width="${c[1]}"/><path d="${HAIR}" fill="none" stroke="${c[0]}" stroke-width="${c[1] + 7}" stroke-linecap="round" stroke-linejoin="round"/><path d="${g.fill}" fill="${c[0]}" stroke="${c[0]}" stroke-width="${c[1]}"/>${bl.puff ? `<ellipse cx="94" cy="208" rx="16" ry="25" fill="${c[0]}" stroke="${c[0]}" stroke-width="${c[1]}"/><ellipse cx="316" cy="206" rx="15" ry="24" fill="${c[0]}" stroke="${c[0]}" stroke-width="${c[1]}"/>` : ''}`;
+  return G;
+}
+function defs(theme, u) {
+  const t = TH[theme];
+  return `<defs><linearGradient id="${u}body" gradientUnits="userSpaceOnUse" x1="110" y1="40" x2="300" y2="400"><stop offset="0" stop-color="${t.b1}"/><stop offset="1" stop-color="${t.b2}"/></linearGradient><linearGradient id="${u}trunk" x1="0" y1="0" x2=".35" y2="1"><stop offset="0" stop-color="${t.shade}" stop-opacity="0"/><stop offset=".5" stop-color="${t.shade}" stop-opacity="0"/><stop offset="1" stop-color="${t.b2}" stop-opacity=".8"/></linearGradient><radialGradient id="${u}ear" cx=".45" cy=".5" r=".65"><stop offset="0" stop-color="${t.ear1}"/><stop offset="1" stop-color="${t.ear2}"/></radialGradient><linearGradient id="${u}eye" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t.eye1}"/><stop offset=".5" stop-color="${t.eye1}"/><stop offset="1" stop-color="${t.eye2}"/></linearGradient><linearGradient id="${u}rim" gradientUnits="userSpaceOnUse" x1="20" y1="120" x2="390" y2="300"><stop offset="0" stop-color="#3be6ff"/><stop offset=".5" stop-color="#7e6bff"/><stop offset="1" stop-color="#ff4fd8"/></linearGradient><filter id="${u}glow" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="9"/></filter><filter id="${u}soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4"/></filter><clipPath id="${u}head"><ellipse cx="205" cy="145" rx="122" ry="110"/></clipPath></defs>`;
+}
+export { TH as FACE_TH, V, EXPR, layers, defs as faceDefs, SW as FACE_SW, r1 };

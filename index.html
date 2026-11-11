@@ -4,21 +4,29 @@
     <meta charset="UTF-8" />
     <title>Dumbo</title>
     <style>
-      html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; user-select: none; -webkit-user-select: none; }
-      /* #pet flips direction, #breath breathes (compositor-only, ~0 CPU), #art holds the SVG. */
-      #pet { width: 100vw; height: 100vh; cursor: grab; }
-      #pet.left { transform: scaleX(-1); }
-      #breath, #art { width: 100%; height: 100%; }
-      /* will-change: own GPU layer, so breathing scales a cached bitmap instead of re-rasterizing the SVG filters each frame. */
-      #breath { transform-origin: 50% 97%; animation: breathe 3.6s ease-in-out infinite; will-change: transform; }
-      #breath.sleep { animation-duration: 5.5s; }
-      #breath.still { animation: none; }
-      #art svg { width: 100%; height: 100%; display: block; }
-      @keyframes breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.012, 1.03); } }
+      html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: transparent; overflow: hidden; user-select: none; -webkit-user-select: none; }
+      /* Window is 240×220 (× size). Dumbo's stage is 120×116 at the bottom centre; the rest is
+         transparent, click-through room for speech bubbles and jumps. */
+      #stage { position: absolute; left: 25%; bottom: 0; width: 50%; height: 52.73%; }
+      #stage.left { transform: scaleX(-1); }
+      #art { width: 100%; height: 100%; }
+      #art svg { width: 100%; height: 100%; display: block; overflow: visible; }
+
+      #bubble {
+        position: absolute; left: 50%; bottom: 54%; transform: translate(-50%, 6px) scale(.9); opacity: 0;
+        max-width: 92%; padding: .45em .9em; border-radius: 1.2em; box-sizing: border-box;
+        font: 800 5.6vw/1.25 'Nunito', 'Segoe UI Rounded', 'Segoe UI', system-ui, sans-serif; text-align: center;
+        background: #fff; color: #3d2433; border: .2em solid #3d2433; pointer-events: none;
+        transition: opacity .18s ease, transform .22s cubic-bezier(.3,1.6,.6,1); white-space: nowrap;
+      }
+      #bubble::after { content: ''; position: absolute; left: 50%; bottom: -.62em; width: .8em; height: .8em; background: inherit; border: inherit; border-top: 0; border-left: 0; transform: translateX(-50%) rotate(45deg); }
+      #bubble.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
+      body.dark #bubble { background: #221d33; color: #f2ecff; border-color: #7e6bff; box-shadow: 0 0 .9em rgba(126,107,255,.45); }
     </style>
   </head>
   <body>
-    <div id="pet"><div id="breath"><div id="art"></div></div></div>
+    <div id="bubble"></div>
+    <div id="stage"><div id="art"></div></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

@@ -531,4 +531,4 @@ const POSES = [
     ['Dangle B', { base:'sit', root:[-40, -60, 0], legs:{ fl:12, ff:-8 }, eyes:'happy', mouth:'smile', shadow:false, props:[{ k:'window', x:-20, y:372, w:560, h:240, z:'back' }] }]]]
 ];
 
-export { poseSVG, POSES, TH };
+export { poseSVG, POSES, TH, P3, TAIL_TUFT, SW, HOOD };

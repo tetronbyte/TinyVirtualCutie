@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dumbo settings</title>
+    <style>
+      :root { --bg: #f4f1f7; --card: #fff; --ink: #2b1f2a; --muted: #7a6b80; --line: #e3dbe9; --accent: #c86ea0; --accent-ink: #fff; }
+      @media (prefers-color-scheme: dark) { :root { --bg: #15121f; --card: #1f1a2d; --ink: #f2ecff; --muted: #a59bbf; --line: #2f2842; --accent: #8f7bff; --accent-ink: #fff; } }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 'Segoe UI', system-ui, sans-serif; }
+      main { max-width: 460px; margin: 0 auto; padding: 20px 16px 32px; }
+      header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+      header img { width: 48px; height: 48px; }
+      h1 { font-size: 20px; margin: 0; }
+      header p { margin: 0; color: var(--muted); font-size: 13px; }
+      section { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 4px 16px; margin-bottom: 14px; }
+      h2 { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 14px 0 2px; }
+      .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+      h2 + .row { border-top: 0; }
+      .row label { flex: 1; }
+      .row small { display: block; color: var(--muted); font-size: 12px; }
+      input[type=text], input[type=time], select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+      input[type=text] { width: 150px; }
+      input[type=range] { width: 150px; accent-color: var(--accent); }
+      input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); }
+      output { display: inline-block; min-width: 3.2em; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+      .seg { display: flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+      .seg button { font: inherit; border: 0; background: transparent; color: var(--ink); padding: 6px 10px; cursor: pointer; }
+      .seg button[aria-pressed=true] { background: var(--accent); color: var(--accent-ink); }
+      .saved { color: var(--muted); font-size: 12px; text-align: center; min-height: 1.4em; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="./assets/icon.png" alt="" />
+        <div><h1 id="title">Dumbo</h1><p>Changes apply right away.</p></div>
+      </header>
+
+      <section>
+        <h2>Pet</h2>
+        <div class="row"><label for="name">Name</label><input id="name" type="text" maxlength="20" /></div>
+        <div class="row"><label>Size</label>
+          <div class="seg" id="sizeSeg"><button data-v="0.8">S</button><button data-v="1">M</button><button data-v="1.35">L</button></div></div>
+        <div class="row"><label for="size">Custom size</label><input id="size" type="range" min="0.6" max="2" step="0.05" /><output id="sizeOut"></output></div>
+        <div class="row"><label>Theme<small>Auto follows Windows light/dark</small></label>
+          <div class="seg" id="themeSeg"><button data-v="auto">Auto</button><button data-v="light">Light</button><button data-v="dark">Dark</button></div></div>
+      </section>
+
+      <section>
+        <h2>Sleep</h2>
+        <div class="row"><label for="sleepiness">Sleepiness<small>How much of the day he naps</small></label><input id="sleepiness" type="range" min="0" max="1" step="0.05" /><output id="sleepOut"></output></div>
+        <div class="row"><label for="sleepStart">Bedtime</label><input id="sleepStart" type="time" /></div>
+        <div class="row"><label for="sleepEnd">Wake up</label><input id="sleepEnd" type="time" /></div>
+      </section>
+
+      <section>
+        <h2>Battery</h2>
+        <div class="row"><label for="batteryLow">Feels tired below<small>Asks you to charge</small></label><input id="batteryLow" type="range" min="5" max="60" step="1" /><output id="lowOut"></output></div>
+        <div class="row"><label for="batteryHigh">Flexes above<small>Asks you to unplug (3 times max)</small></label><input id="batteryHigh" type="range" min="60" max="100" step="1" /><output id="highOut"></output></div>
+      </section>
+
+      <section>
+        <h2>System</h2>
+        <div class="row"><label for="startWithWindows">Start with Windows</label><input id="startWithWindows" type="checkbox" /></div>
+      </section>
+      <p class="saved" id="saved"></p>
+    </main>
+    <script type="module" src="/src/settings.ts"></script>
+  </body>
+</html>
