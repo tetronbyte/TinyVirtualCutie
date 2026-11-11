@@ -11,7 +11,8 @@ Source material: owner's handwritten notes (2026-11-11), `suggestions_idea.txt` 
 - **Electron 33 on the stock, unmodified runtime** (renamed `Dumbo.exe`) + Vite + TypeScript, no UI framework. Chosen because Windows Smart App Control (must stay ON per owner) blocks any freshly compiled/unsigned exe — Tauri/Rust builds were blocked. The stock Electron binary is already trusted, and our code is just JS/HTML it loads.
 - Art: Claude Design generators run at runtime: `src/art/dumbo.js` (side-view poses) + `src/art/face.js` (3/4 head expressions) composed into a front-facing sitting Dumbo by `src/art/front.js`.
 - State: `%USERPROFILE%\Apps\Dumbo\state.json` (settings + position), shared by dev and installed copies; `boot.json` there = last boot report (exe, app path, autostart status).
-- Installed copy: `%USERPROFILE%\Apps\Dumbo\runtime\Dumbo.exe` + `...\Apps\Dumbo\app\`, shortcuts on Desktop + Start Menu. Start with Windows = HKCU Run entry (exe + app folder arg), reconciled on every start. NOT under AppData: the Claude desktop app is MSIX-packaged and its child processes get AppData/HKCU writes redirected into `AppData\Local\Packages\Claude_*\LocalCache` (caused the 2026-11-12 'Unable to find Electron app' bug).
+- **Portable package (shareable)**: `npm run package` → `release/Dumbo/` (229 MB: stock `electron.exe` renamed `Dumbo.exe` 180 MB, byte-identical; `resources/app.asar` 0.4 MB = Dumbo; `resources/dumbo.ico`; en-US locale only) + `release/Dumbo-<ver>-win-x64.zip` (~100 MB). Friends unzip and run `Dumbo.exe`; first run creates Desktop + Start Menu shortcuts. No compiled/modified exe → Smart App Control friendly; the .exe icon stays Electron's atom (changing it = modifying the binary). Shortcuts/tray/window use Dumbo's icon.
+- Owner install: `npm run install-app` → packages, then copies to `%USERPROFILE%\Apps\Dumbo\Dumbo\` (state.json/boot.json stay in `%USERPROFILE%\Apps\Dumbo\`) and launches via Explorer. NOT under AppData: the Claude desktop app is MSIX-packaged and its child processes get AppData/HKCU writes redirected into `AppData\Local\Packages\Claude_*\LocalCache` (caused the 2026-11-12 'Unable to find Electron app' bug).
 untime\Dumbo.exe` + `%LOCALAPPDATA%\Dumbopp\`, shortcuts on Desktop + Start Menu. Start with Windows = HKCU Run entry via Electron login items.
 - Commands: see `AGENTS.md` (`npm run dev`, `npm run install-app`, bench/snap tools).
 
@@ -23,7 +24,7 @@ untime\Dumbo.exe` + `%LOCALAPPDATA%\Dumbopp\`, shortcuts on Desktop + Start Men
 - `src/engine/animator.ts` — event-driven renderer with two views (side clips / front tweens), stops when idle. `src/engine/clips.ts` — side clips from design pose frames.
 - `src/art/*` — generators (see above) + `.d.ts`. `src/settings.ts` + `settings.html` — settings page.
 - `index.html` (pet page: bubble + stage), `preview.html` (browser animation tester), `vite.config.ts` (3 pages, `base: './'`).
-- `scripts/dev.mjs`, `scripts/install.mjs`, `scripts/bench.sh`, `scripts/snap.cjs`. `assets/` icons.
+- `scripts/dev.mjs`, `scripts/package.mjs` (portable zip), `scripts/install.mjs` (owner install from package), `scripts/make-icons.cjs` (renders dark transparent icons from the art → `assets/icon.ico|png`, `tray.png`), `scripts/bench.sh`, `scripts/snap.cjs`.
 - `design/Dumbo Desktop Pet Mascot/` — owner's Claude Design export (source art; don't edit).
 
 ## 4. Current status (2026-11-12)
@@ -73,6 +74,7 @@ untime\Dumbo.exe` + `%LOCALAPPDATA%\Dumbopp\`, shortcuts on Desktop + Start Men
 - 2026-11-11 — Q&A round 2: battery thresholds, auto theme, shadow rule, 2D-with-soft-shading style confirmed. New 2D references (outlined chibi elephant, light pink + dark neon) → DESIGN_PROMPT.md rewritten with trunk/eye focus. Hoodie outfit added (mainly while coding).
 - 2026-11-11 — Design delivered (manual export into `design/`). Reviewed: complete set — rig, turnaround, 15 expressions ×2 themes, hoodie (lilac/mint/peach + dark neon, hood up/down, pull-on), ~60 pose keyframes incl. coding w/ hoodie, charge/flex, window eat/push/sit. Pose sheet is parametric → chosen animation approach.
 - 2026-11-11 — MVP step 1 built: Tauri scaffold, ported generator, animator/clips, behaviours, drag, tray, theme, persistence, browser preview.
+- 2026-11-12 — v0.3.0: portable shareable package (stock runtime + app.asar, zip ~100 MB), self-creating shortcuts, dark transparent icons (full body ≥40 px, head ≤32 px) for shortcut/tray/window.
 - 2026-11-12 — Fixed launch error: installer had run inside Claude's MSIX sandbox so AppData writes were redirected; install moved to `%USERPROFILE%\Apps\Dumbo`, autostart always passes app path, state beside app, boot report. Fixed pet window growing on each move (Electron rounding at 150% scale). Added window perching/peek/nibble/fake push, app reactions (settings editor), stretch reminder, welcome back.
 - 2026-11-12 — Smart App Control blocked Tauri builds → moved host to stock Electron runtime + per-user install script (works with SAC on). Git repo created (owner: commit continuously). Front-facing "looks at you" view from the design's expression generator (no new art needed). Added click-through, gravity, battery reactions, coding/hoodie, exercises, trip, bubbles, settings window, autostart. Perf investigation: per-frame cost dominates → removed breathing, low-fps clips, saccade gaze.
 

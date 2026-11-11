@@ -7,8 +7,9 @@
 - Run in dev (Vite hot reload + Electron): `npm run dev`
 - Typecheck: `npm run typecheck`
 - Build pages: `npm run build` (→ `dist/`)
-- Install/update the standalone app for this user: `npm run install-app`
-  (→ `%USERPROFILE%\Apps\Dumbo\{runtime,app}` + Desktop/Start Menu shortcuts, then launches it via Explorer; settings kept)
+- Shareable portable build: `npm run package` → `release/Dumbo/` + `release/Dumbo-<version>-win-x64.zip`
+- Install/update for this user: `npm run install-app` (packages, copies to `%USERPROFILE%\Apps\Dumbo\Dumbo\`, launches via Explorer; settings kept; Dumbo makes his own shortcuts)
+- Regenerate icons after art changes: `npm run icons`
 - Animation preview in a normal browser: `npx vite` → http://localhost:1420/preview.html
 - Perf benchmark: `scripts/bench.sh live|idle|f10|s10` (avg % of one core, 60 s; Git Bash)
 - Offscreen screenshot of any HTML: `npx electron scripts/snap.cjs <in.html> <out.png> [w] [h]`
@@ -16,7 +17,7 @@
 ## Gotchas
 - Claude desktop app is MSIX-packaged: processes started from this agent get **AppData and HKCU writes silently redirected** to `%LOCALAPPDATA%\Packages\Claude_*\LocalCache` (and reads see a merged view). Never install or store app state under AppData from here; never trust what you read back from AppData/HKCU as "real". Use `%USERPROFILE%\Apps\Dumbo\boot.json` (written by the real app) to verify autostart etc.
 - Scenario test: `DUMBO_BENCH=perch npm run dev` simulates a window and logs perch positions (`[pet] ...`).
-- **Smart App Control is ON** on the owner PC and must stay on. It blocks any freshly compiled/unsigned exe. That's why the app runs on the stock Electron runtime (byte-identical, just renamed `Dumbo.exe`). Never add a build step that produces or modifies an .exe (no electron-builder/packager, no rcedit, no Rust/Tauri). Never change security settings.
+- **Smart App Control is ON** on the owner PC and must stay on. It blocks any freshly compiled/unsigned exe. That's why the app runs on the stock Electron runtime (byte-identical, just renamed `Dumbo.exe`). Never add a build step that produces or modifies an .exe (no electron-builder/packager, no rcedit, no Rust/Tauri, no self-extracting exe). Packaging = copy stock runtime + `resources/app.asar`. Never change security settings.
 - Every drawn frame costs ~10–30 ms CPU in Electron (SVG redraw + transparent window present). Don't add continuous animations (no CSS infinite animations, no always-on rAF). Keep clips at 8–14 fps; eyes jump in single-frame saccades.
 - Measure CPU with `Get-Counter '\Process(electron*)\% Processor Time'` (bench script). `Get-Process` CPU deltas gave wrong (zero) numbers.
 - The Browser pane can stall when the app window is hidden; use `scripts/snap.cjs` for visual checks. GDI screen capture can't see the pet window.

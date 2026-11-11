@@ -2,8 +2,8 @@
   "name": "tinyvirtualcutie",
   "productName": "Dumbo",
   "private": true,
-  "version": "0.2.0",
-  "description": "Dumbo — a tiny desktop pet",
+  "version": "0.3.0",
+  "description": "Dumbo \u2014 a tiny desktop pet",
   "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
@@ -11,9 +11,12 @@
     "vite": "vite",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
-    "install-app": "node scripts/install.mjs"
+    "install-app": "node scripts/install.mjs",
+    "package": "node scripts/package.mjs",
+    "icons": "electron scripts/make-icons.cjs"
   },
   "devDependencies": {
+    "@electron/asar": "^3.4.1",
     "electron": "^33.4.11",
     "typescript": "^5.6.3",
     "vite": "^5.4.11"

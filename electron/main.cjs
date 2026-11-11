@@ -1,7 +1,7 @@
 // Dumbo host process (Electron).
 // Runs on the stock, already-trusted electron.exe so Windows Smart App Control doesn't block it —
 // we never compile our own .exe. All pet logic lives in the renderer (src/).
-const { app, BrowserWindow, Tray, Menu, ipcMain, screen, nativeImage, nativeTheme, powerMonitor } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, screen, nativeImage, nativeTheme, powerMonitor, shell } = require('electron');
 const { WinWatch } = require('./winwatch.cjs');
 const path = require('path');
 const fs = require('fs');
@@ -16,6 +16,12 @@ if (!app.requestSingleInstanceLock()) { app.quit(); return; }
 const DEV_URL = process.env.DUMBO_DEV_URL; // set by scripts/dev.mjs
 const ROOT = path.join(__dirname, '..');
 const ICON = path.join(ROOT, 'assets', 'icon.ico');
+// Portable/packaged layout (scripts/package.mjs): Dumbo.exe + resources/app.asar. The stock runtime
+// finds the app by itself, so no app-path argument is needed — and the icon for Windows shortcuts
+// lives outside the archive at resources/dumbo.ico.
+const SELF_CONTAINED = /app\.asar$/i.test(ROOT) || path.basename(path.dirname(ROOT)).toLowerCase() === 'resources';
+const LAUNCH_ARGS = SELF_CONTAINED ? [] : [path.resolve(ROOT)];
+const SHORTCUT_ICON = SELF_CONTAINED ? path.join(process.resourcesPath, 'dumbo.ico') : ICON;
 // Settings live next to the installed app (%USERPROFILE%\Apps\Dumbo\state.json), not in AppData:
 // packaged apps (e.g. a terminal inside the Claude desktop app) get AppData silently redirected,
 // which split settings between two invisible copies. One file, same for dev and installed runs.
@@ -112,10 +118,18 @@ function applySettings(next) {
 }
 
 function setAutostart(on) {
-  // process.execPath = the stock runtime (renamed Dumbo.exe, so Electron thinks it's "packaged");
-  // the app folder must always be passed or it boots Electron's default app instead of Dumbo.
-  const args = [path.resolve(ROOT)];
-  app.setLoginItemSettings({ openAtLogin: on, path: process.execPath, args, name: 'Dumbo' });
+  // process.execPath = the stock runtime renamed Dumbo.exe. In the dev/folder layout the app folder
+  // must be passed or it boots Electron's default app; the portable layout needs no argument.
+  app.setLoginItemSettings({ openAtLogin: on, path: process.execPath, args: LAUNCH_ARGS, name: 'Dumbo' });
+}
+
+/** Desktop + Start Menu shortcuts pointing at this copy of Dumbo, with his icon. */
+function createShortcuts() {
+  const opts = { target: process.execPath, args: LAUNCH_ARGS.map(a => `"${a}"`).join(' '), cwd: path.dirname(process.execPath), icon: SHORTCUT_ICON, iconIndex: 0, description: 'Dumbo — a tiny desktop pet', appUserModelId: 'dev.tinyvirtualcutie.dumbo' };
+  const places = [path.join(app.getPath('desktop'), 'Dumbo.lnk'), path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Dumbo.lnk')];
+  let ok = 0;
+  for (const p of places) { try { if (shell.writeShortcutLink(p, fs.existsSync(p) ? 'replace' : 'create', opts)) ok++; } catch (e) { console.error(e); } }
+  return ok;
 }
 
 function buildTrayMenu() {
@@ -129,6 +143,7 @@ function buildTrayMenu() {
     { label: 'Settings…', click: openSettings },
     { type: 'separator' },
     { label: 'Start with Windows', type: 'checkbox', checked: s.startWithWindows, click: i => applySettings({ startWithWindows: i.checked }) },
+    { label: 'Add Desktop & Start Menu shortcuts', click: createShortcuts },
     { label: 'Quit', click: () => app.quit() },
   ]));
 }
@@ -205,10 +220,14 @@ app.whenReady().then(() => {
   tray.on('click', togglePet);
   buildTrayMenu();
   setAutostart(settings().startWithWindows); // always reconcile: repairs or removes stale entries from older installs
+  if (SELF_CONTAINED && !DEV_URL && state.shortcutsFor !== process.execPath) {
+    if (createShortcuts()) { state.shortcutsFor = process.execPath; saveState(); }
+  }
   // Boot report next to the app, so problems can be diagnosed without the console.
   try {
-    const li = app.getLoginItemSettings({ path: process.execPath, args: [path.resolve(ROOT)] });
-    fs.writeFileSync(path.join(STATE_DIR, 'boot.json'), JSON.stringify({ at: new Date().toISOString(), exe: process.execPath, app: path.resolve(ROOT), dev: !!DEV_URL, startWithWindows: settings().startWithWindows, loginItem: { openAtLogin: li.openAtLogin, executableWillLaunchAtLogin: li.executableWillLaunchAtLogin, launchItems: li.launchItems } }, null, 2));
+    const li = app.getLoginItemSettings({ path: process.execPath, args: LAUNCH_ARGS });
+    fs.mkdirSync(STATE_DIR, { recursive: true });
+    fs.writeFileSync(path.join(STATE_DIR, 'boot.json'), JSON.stringify({ at: new Date().toISOString(), exe: process.execPath, app: path.resolve(ROOT), selfContained: SELF_CONTAINED, dev: !!DEV_URL, startWithWindows: settings().startWithWindows, loginItem: { openAtLogin: li.openAtLogin, executableWillLaunchAtLogin: li.executableWillLaunchAtLogin, launchItems: li.launchItems } }, null, 2));
   } catch (e) { console.error(e); }
 });
 app.on('second-instance', () => pet?.showInactive());
