@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Dumbo</title>
+    <style>
+      html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; user-select: none; -webkit-user-select: none; }
+      /* #pet flips direction, #breath breathes (compositor-only, ~0 CPU), #art holds the SVG. */
+      #pet { width: 100vw; height: 100vh; cursor: grab; }
+      #pet.left { transform: scaleX(-1); }
+      #breath, #art { width: 100%; height: 100%; }
+      /* will-change: own GPU layer, so breathing scales a cached bitmap instead of re-rasterizing the SVG filters each frame. */
+      #breath { transform-origin: 50% 97%; animation: breathe 3.6s ease-in-out infinite; will-change: transform; }
+      #breath.sleep { animation-duration: 5.5s; }
+      #breath.still { animation: none; }
+      #art svg { width: 100%; height: 100%; display: block; }
+      @keyframes breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.012, 1.03); } }
+    </style>
+  </head>
+  <body>
+    <div id="pet"><div id="breath"><div id="art"></div></div></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

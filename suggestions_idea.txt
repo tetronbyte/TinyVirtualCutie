@@ -1,0 +1,587 @@
+I LOVE this idea. We could build something that feels like a tiny virtual creature living on your desktop. 🥹
+
+Think of it as a Desktop Companion: a tiny animated character that stays in a corner of your screen, has its own personality, reacts to what you're doing, and occasionally performs little activities independently.
+
+And the interesting part: it doesn't have to be just an animation. We can give it an actual brain.
+
+# 1. The concept: A tiny desktop creature
+
+[Are Codex Pets a Revival of 2000s Desktop Mascots?｜Zun-Beho](https://images.openai.com/static-rsc-4/7oi13WkNPcLqfQrAgWmO7t9dTeWwre_MXsELGGOdYQmVYgKdVn4F8bFgkBD4CBQSKp5AExqsx3lo4C-O2qlerhRS_v5yzskVRoTJl85_0BtTgPaTVyfQ2tDqCCA-w3FkKsmhfHtSrJue4tbxptcKKQSntztBQXQsByODvIIVpv4?purpose=inline)
+
+[Albrut (Albrut) · GitHub](https://images.openai.com/static-rsc-4/404HJRmjbmGjm-BaSy3lfkJ0nLruNSzO5FNXPD9cKTpJRILzQjSr4zRQc2A4fnIBVcVmr9c8ApmqHlRoyYO296XsmSB3xv2Z-6RtYw2KInrAb2MT1mC1QnVBasQafL9ka5tdYXSn85iz--b_tbS8WKa2JppBwFAWuyQY1pibEu8?purpose=inline)
+
+[Pixelated hamster pink wallpaper desktop | Free Photo Illustration - rawpixel](https://images.openai.com/static-rsc-4/YKRyvRIq7qCzcl0MzCStCrX9N1PpGU_uIPU9J9J1SUUQSukUKf1VBOMxCHytWDj7GPVnHb635I7Uel0oNpTg5mqbhgT_DdVt1cpjwA3MCd21o3kNZgh8Buhy8C75AI0xcAPUu-V7PbvbyfgsvCd9P-fDmm0g0li0dF1qTKxofLg?purpose=inline)
+
+13
+
+Imagine opening your laptop:
+
+- Your little creature is sitting in the bottom-right corner.
+- Sometimes it walks around its tiny virtual space.
+- Sometimes it sleeps.
+- Sometimes it looks at you.
+- Sometimes it gets curious and starts doing something.
+- When you haven't interacted with it for a while, it starts entertaining itself.
+- When you click it, it wakes up and talks to you.
+- When you have a task, you can ask it to do something.
+
+It should feel alive, not like another application window.
+
+I'd approach this as a combination of three things:
+
+1. A virtual pet – animations, personality and behaviours.
+2. A desktop application – transparent, floating, always on top.
+3. An autonomous agent – optional intelligence and independent activities.
+
+# 2. How I would architect it
+
+Layer 1 — The desktop body
+
+[Cat Pixel PNG Transparent Images Free Download | Vector Files | Pngtree](https://images.openai.com/static-rsc-4/b8rUhRT77tTxlRzUCu6vC88Bz0sVQIreT_FFtF7WMXWFdNIpvnpMHIXwti-g7Tj4rRx6kkkZrSBm-mAPrUZs5dtcxpm4gMIl-bJAjX1VEVmK5jaiPr1cbh9e5yqA4tN6qhBhCKQCEHe9fGj3h6Ye7y_G0CYUS_ZDGRFQK7O2-Ms?purpose=inline)
+
+[pngtree.com](https://pngtree.com/so/cat-pixel?utm_source=chatgpt.com)
+
+A tiny transparent window containing the character. It floats above other applications, can be dragged around, and can be hidden whenever you want.
+
+Layer 2 — The personality engine
+
+[Pet Companions Pixel Sprite Pack for Cyberpunk Game - CraftPix.net](https://images.openai.com/static-rsc-4/jLahI7v9XYle0eGOfSQN4qc_QIKmcfOUYjGZcXKjcw_O7y415Wf88j0H0isNncH3_Klbl_8_42N4SMZf2tdBmUSJDvCeZ22xYBr4gGgDdK-i8r0NNjSJR9hrWwDUc3nL8HhOAHnOK2JP7e6TxSmlKGwgi2U8m06k3_lDEPm5GS0?purpose=inline)
+
+[craftpix.net](https://craftpix.net/product/pet-companions-pixel-sprite-pack-for-cyberpunk-game/?utm_source=chatgpt.com)
+
+Controls what the character does: sleeping, walking, playing, looking around, getting excited, etc.
+
+Layer 3 — The brain
+
+[AI that clicks for you: Microsoft's research points to the future of GUI automation | VentureBeat](https://images.openai.com/static-rsc-4/UmDcKln6y9GAyubx2tiYPloowznexCrgJ59t0AoCZphyI9p7Q45ScpqYlCZfef5P15U4_wXeJrYfGJNBH10FPlKJ_h24Alw52FwhTpQ6vPk3F-NnCRvrRpu_qLmEcDINO0jHGNfp-eTH9kWGdTldHT5VniG52WqN6IMXWiuf_aE?purpose=inline)
+
+[venturebeat.com](https://venturebeat.com/ai/ai-that-clicks-for-you-microsoft-research-points-to-the-future-of-gui-automation?utm_source=chatgpt.com)
+
+An optional AI agent that decides what to do, responds to you, remembers its personality, and performs useful little tasks.
+
+## 3. Technology stack I'd recommend
+
+Given your existing React, TypeScript and Python experience, I'd choose:
+
+[Tauri: An Electron alternative written in Rust | Product Hunt](https://images.openai.com/static-rsc-4/eJsaeSe3s7NgYq_PVrfzC4LPaDezfK9BQrUranDAXvzFHZ_AEAR2UKpZv_BruP2jeWng6Tw04zUcCCRmEA3zhwVxugLDOQ1-EmogSuLysOZrStchzgUpbNcXWlgydma6uet1TLNOTsKB5DzfKHU2dxPwGtJ5ohx2-TjWK39YObM?purpose=inline)
+
+Tauri 2 + Rust
+
+My recommendation
+
+Native desktop application and window management
+
+[React Logo, Interactive, JavaScript, Web Development, Library PNG](https://images.openai.com/static-rsc-4/Fl2k_M2MV9G60-G7WybCJohvSsz5vwqQsQppvr32F68EV081GHJtW9RJC9qzUmIyqYoKRib8QukYMDHeoi9S68vPmo6QWCkUSZ04wokMQon4iVyQtTjASZavNLZps_OHoxGIXYHG61QQxMlUTbtbDTcfPlPzUqtZndtSvw9CQCM?purpose=inline)
+
+React + TypeScript
+
+Character interface and interaction
+
+SVG / CSS Animations
+
+Character expressions, movement and animations
+
+[Python logo Icons, Logos, Symbols – Free Download PNG, SVG](https://images.openai.com/static-rsc-4/DmsB8FS-GP7uphH6D36okAKArZlBuv18j7laB7MGQztxtnElBP3iuvRtFFsgJN3_CMjTR795lNP5nkz0C0O5HRM_6vUhOfMDScUzQErc9yfIrgdVyj38VLAdNtbsn3vWhJAUhRcvYx9LUssqXM5zJvcGr4rSiP0dNojMqKdTlnc?purpose=inline)
+
+Python or Rust agent backend
+
+Optional autonomous tasks and AI integration
+
+[Download SQLite Logo Vector Free | Logowik](https://images.openai.com/static-rsc-4/FNgt5tS7aCAtljy9lscSrsexgjF4pglv8m76CjorlrsvF2QY74RB5n0OKcfVEc1hSm_hKwVgeZTv9aAwnU8uOypGl7nn_6IAXTZYp5kaJUNWnm0ltOheJsZDp4_iDbuIvMAHwcNOppZ2cukLawB8fOm_UOB4oTdeGcgB0h6CsHc?purpose=inline)
+
+SQLite
+
+Local memory, settings and activity history
+
+Why Tauri?
+
+- Small application footprint.
+- Transparent, frameless windows.
+- Always-on-top functionality.
+- Native system tray integration.
+- React frontend.
+- Rust backend for desktop operations.
+
+There are already projects demonstrating this approach. For example, Claude Pet is built with Tauri 2 and reports an approximately 8 MB binary.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://github.com\&sz=32)
+
+GitHub+1
+
+
+
+Electron is another option, but I'd start with Tauri for this project.
+
+## 4. The most interesting part: Making it feel alive
+
+I wouldn't make the character randomly change animations. I'd build a small behaviour engine.
+
+For example:
+
+| Situation              | Character behaviour    |
+| ---------------------- | ---------------------- |
+| Just started           | Wakes up, stretches    |
+| No activity            | Looks around           |
+| After some time        | Sleeps                 |
+| You move mouse near it | Eyes follow cursor     |
+| You click it           | Gets excited           |
+| You drag it            | Holds on and moves     |
+| AI is thinking         | Thinks, scratches head |
+| AI completes task      | Celebrates             |
+| Error occurs           | Looks confused         |
+| Long working session   | Takes a little break   |
+
+We can implement this using a finite state machine.
+
+```
+
+type PetState =
+  | "idle"
+  | "walking"
+  | "sleeping"
+  | "playing"
+  | "curious"
+  | "thinking"
+  | "working"
+  | "happy"
+  | "confused";
+
+interface Pet {
+  state: PetState;
+  energy: number;
+  happiness: number;
+  position: {
+    x: number;
+    y: number;
+  };
+}
+
+```
+
+A behaviour controller decides which state comes next based on timers, user interactions and agent events.
+
+For example:
+
+```
+IDLE
+  |
+  | Random behaviour decision
+  |
+  +----> WALK
+  |
+  +----> PLAY
+  |
+  +----> SLEEP
+  |
+  +----> CURIOUS
+  |
+  +----> WORK
+```
+
+The character should have some randomness, but also remember what it was doing.
+
+## 5. Giving it its own work
+
+This is where I think we can make the project really special.
+
+Instead of being just a virtual pet, it could become a little autonomous desktop assistant.
+
+I'd divide its capabilities into three levels:
+
+[Albrut (Albrut) · GitHub](https://images.openai.com/static-rsc-4/404HJRmjbmGjm-BaSy3lfkJ0nLruNSzO5FNXPD9cKTpJRILzQjSr4zRQc2A4fnIBVcVmr9c8ApmqHlRoyYO296XsmSB3xv2Z-6RtYw2KInrAb2MT1mC1QnVBasQafL9ka5tdYXSn85iz--b_tbS8WKa2JppBwFAWuyQY1pibEu8?purpose=inline)
+
+Level 1: Independent life
+
+First milestone
+
+- Walks around.
+- Sleeps and wakes up.
+- Plays with imaginary objects.
+- Has energy and happiness levels.
+- Develops a little personality.
+
+[Pixel art typewriter with text in a cozy – Royalty-Free Vector | VectorStock](https://images.openai.com/static-rsc-4/-ugQFecZVx6qRrbXNgq-C5q3xsdz9Ru6KJvYk0j6n-1mM83LnljRcTdj202h7X21OE6ii3MEHHrkg63Mt7Gd1ejCr2jSbP6mpcOkeEwL0y6fu0XtJ4yGNUFDyCy7XrokgtY7xzzcHpm1ApG9R25mc-d41Bb7hFFKZK7C39kk2EQ?purpose=inline)
+
+Level 2: Desktop awareness
+
+- Knows when you're active or idle.
+- Knows the time.
+- Can run a Pomodoro timer.
+- Reminds you about tasks.
+- Reacts to your coding sessions.
+
+[Cute Pixel Art Creatures DALL·E Prompt | PromptBase](https://images.openai.com/static-rsc-4/TwveGabAzLy5ADxI_lDMBTWlDkS86tmudo6S-iBUWVhHXJd_qgSkKawLExexaCznUIgYYKFcQjKDKPdePNKQqDzHM54ws2rJN1WNyAXMPGSi79l4N18w5Eip0sxbu3-c6XgRdFxLv5J_JuB62pzBPnh7tFuDZgK43E1LqHScq2o?purpose=inline)
+
+Level 3: Autonomous AI companion
+
+- Can talk to you.
+- Can research something when asked.
+- Can organize small tasks.
+- Can monitor selected project folders.
+- Can run approved scripts.
+- Can suggest things you might want to do.
+
+One important design decision: the pet's animations should never depend on an LLM. Its basic life should run locally and instantly. AI should only be activated for actual intelligent tasks.
+
+Also, autonomous operations should have permissions. Reading selected folders might be allowed, while deleting files, executing shell commands or sending information externally should require your approval.
+
+## 6. Application architecture
+
+Here's the architecture I'd build:
+
+\#chatgpt-mermaid-\_r_vr\_{font-family:-apple-system-body,ui-sans-serif,-apple-system,system-ui,"Segoe UI",Helvetica,"Apple Color Emoji",Arial,sans-serif,"Segoe UI Emoji","Segoe UI Symbol";font-size:16px;fill:rgb(237, 237, 237);}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}#chatgpt-mermaid-\_r_vr\_ .edge-animation-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}#chatgpt-mermaid-\_r_vr\_ .edge-animation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}#chatgpt-mermaid-\_r_vr\_ .error-icon{fill:rgb(48, 48, 48);}#chatgpt-mermaid-\_r_vr\_ .error-text{fill:rgb(237, 237, 237);stroke:rgb(237, 237, 237);}#chatgpt-mermaid-\_r_vr\_ .edge-thickness-normal{stroke-width:1px;}#chatgpt-mermaid-\_r_vr\_ .edge-thickness-thick{stroke-width:3.5px;}#chatgpt-mermaid-\_r_vr\_ .edge-pattern-solid{stroke-dasharray:0;}#chatgpt-mermaid-\_r_vr\_ .edge-thickness-invisible{stroke-width:0;fill:none;}#chatgpt-mermaid-\_r_vr\_ .edge-pattern-dashed{stroke-dasharray:3;}#chatgpt-mermaid-\_r_vr\_ .edge-pattern-dotted{stroke-dasharray:2;}#chatgpt-mermaid-\_r_vr\_ .marker{fill:rgb(175, 175, 175);stroke:rgb(175, 175, 175);}#chatgpt-mermaid-\_r_vr\_ .marker.cross{stroke:rgb(175, 175, 175);}#chatgpt-mermaid-\_r_vr\_ svg{font-family:-apple-system-body,ui-sans-serif,-apple-system,system-ui,"Segoe UI",Helvetica,"Apple Color Emoji",Arial,sans-serif,"Segoe UI Emoji","Segoe UI Symbol";font-size:16px;}#chatgpt-mermaid-\_r_vr\_ p{margin:0;}#chatgpt-mermaid-\_r_vr\_ .label{font-family:-apple-system-body,ui-sans-serif,-apple-system,system-ui,"Segoe UI",Helvetica,"Apple Color Emoji",Arial,sans-serif,"Segoe UI Emoji","Segoe UI Symbol";color:rgb(237, 237, 237);}#chatgpt-mermaid-\_r_vr\_ .cluster-label text{fill:rgb(237, 237, 237);}#chatgpt-mermaid-\_r_vr\_ .cluster-label span{color:rgb(237, 237, 237);}#chatgpt-mermaid-\_r_vr\_ .cluster-label span p{background-color:transparent;}#chatgpt-mermaid-\_r_vr\_ .label text,#chatgpt-mermaid-\_r_vr\_ span{fill:rgb(237, 237, 237);color:rgb(237, 237, 237);}#chatgpt-mermaid-\_r_vr\_ .node rect,#chatgpt-mermaid-\_r_vr\_ .node circle,#chatgpt-mermaid-\_r_vr\_ .node ellipse,#chatgpt-mermaid-\_r_vr\_ .node polygon,#chatgpt-mermaid-\_r_vr\_ .node path{fill:rgb(36, 22, 63);stroke:rgb(120, 73, 209);stroke-width:1px;}#chatgpt-mermaid-\_r_vr\_ .rough-node .label text,#chatgpt-mermaid-\_r_vr\_ .node .label text,#chatgpt-mermaid-\_r_vr\_ .image-shape .label,#chatgpt-mermaid-\_r_vr\_ .icon-shape .label{text-anchor:middle;}#chatgpt-mermaid-\_r_vr\_ .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#chatgpt-mermaid-\_r_vr\_ .rough-node .label,#chatgpt-mermaid-\_r_vr\_ .node .label,#chatgpt-mermaid-\_r_vr\_ .image-shape .label,#chatgpt-mermaid-\_r_vr\_ .icon-shape .label{text-align:center;}#chatgpt-mermaid-\_r_vr\_ .node.clickable{cursor:pointer;}#chatgpt-mermaid-\_r_vr\_ .root .anchor path{fill:rgb(175, 175, 175)!important;stroke-width:0;stroke:rgb(175, 175, 175);}#chatgpt-mermaid-\_r_vr\_ .arrowheadPath{fill:rgb(175, 175, 175);}#chatgpt-mermaid-\_r_vr\_ .edgePath .path{stroke:rgb(175, 175, 175);stroke-width:1px;}#chatgpt-mermaid-\_r_vr\_ .flowchart-link{stroke:rgb(175, 175, 175);fill:none;}#chatgpt-mermaid-\_r_vr\_ .edgeLabel{background-color:rgb(0, 0, 0);text-align:center;}#chatgpt-mermaid-\_r_vr\_ .edgeLabel p{background-color:rgb(0, 0, 0);}#chatgpt-mermaid-\_r_vr\_ .edgeLabel rect{opacity:0.5;background-color:rgb(0, 0, 0);fill:rgb(0, 0, 0);}#chatgpt-mermaid-\_r_vr\_ .labelBkg{background-color:rgba(0, 0, 0, 0.5);}#chatgpt-mermaid-\_r_vr\_ .cluster rect{fill:rgb(48, 48, 48);stroke:rgba(255, 255, 255, 0.15);stroke-width:1px;}#chatgpt-mermaid-\_r_vr\_ .cluster text{fill:rgb(237, 237, 237);}#chatgpt-mermaid-\_r_vr\_ .cluster span{color:rgb(237, 237, 237);}#chatgpt-mermaid-\_r_vr\_ div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:-apple-system-body,ui-sans-serif,-apple-system,system-ui,"Segoe UI",Helvetica,"Apple Color Emoji",Arial,sans-serif,"Segoe UI Emoji","Segoe UI Symbol";font-size:12px;background:rgb(48, 48, 48);border:1px solid rgba(255, 255, 255, 0.15);border-radius:2px;pointer-events:none;z-index:100;}#chatgpt-mermaid-\_r_vr\_ .flowchartTitleText{text-anchor:middle;font-size:18px;fill:rgb(237, 237, 237);}#chatgpt-mermaid-\_r_vr\_ rect.text{fill:none;stroke-width:0;}#chatgpt-mermaid-\_r_vr\_ .icon-shape,#chatgpt-mermaid-\_r_vr\_ .image-shape{background-color:rgb(0, 0, 0);text-align:center;}#chatgpt-mermaid-\_r_vr\_ .icon-shape p,#chatgpt-mermaid-\_r_vr\_ .image-shape p{background-color:rgb(0, 0, 0);padding:2px;}#chatgpt-mermaid-\_r_vr\_ .icon-shape .label rect,#chatgpt-mermaid-\_r_vr\_ .image-shape .label rect{opacity:0.5;background-color:rgb(0, 0, 0);fill:rgb(0, 0, 0);}#chatgpt-mermaid-\_r_vr\_ .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}#chatgpt-mermaid-\_r_vr\_ .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}#chatgpt-mermaid-\_r_vr\_ .node .neo-node{stroke:rgb(120, 73, 209);}#chatgpt-mermaid-\_r_vr\_ [data-look="neo"].node rect,#chatgpt-mermaid-\_r_vr\_ [data-look="neo"].cluster rect,#chatgpt-mermaid-\_r_vr\_ [data-look="neo"].node polygon{stroke:url(#chatgpt-mermaid-\_r_vr\_-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#chatgpt-mermaid-\_r_vr\_ [data-look="neo"].swimlane.cluster rect{filter:none;}#chatgpt-mermaid-\_r_vr\_ [data-look="neo"].node path{stroke:url(#chatgpt-mermaid-\_r_vr\_-gradient);stroke-width:1px;}#chatgpt-mermaid-\_r_vr\_ [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#chatgpt-mermaid-\_r_vr\_ [data-look="neo"].node .neo-line path{stroke:rgb(120, 73, 209);filter:none;}#chatgpt-mermaid-\_r_vr\_ [data-look="neo"].node circle{stroke:url(#chatgpt-mermaid-\_r_vr\_-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#chatgpt-mermaid-\_r_vr\_ [data-look="neo"].node circle .state-start{fill:#000000;}#chatgpt-mermaid-\_r_vr\_ [data-look="neo"].icon-shape .icon{fill:url(#chatgpt-mermaid-\_r_vr\_-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#chatgpt-mermaid-\_r_vr\_ [data-look="neo"].icon-shape .icon-neo path{stroke:url(#chatgpt-mermaid-\_r_vr\_-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#chatgpt-mermaid-\_r_vr\_ .node text{font-size:14px;font-weight:600;letter-spacing:normal;fill:rgb(206, 176, 251);}#chatgpt-mermaid-\_r_vr\_ .edgeLabels text{font-size:13px;font-weight:600;letter-spacing:-0.08px;fill:rgb(206, 176, 251);}#chatgpt-mermaid-\_r_vr\_ .node tspan[font-weight="normal"],#chatgpt-mermaid-\_r_vr\_ .edgeLabels tspan[font-weight="normal"]{font-weight:600;}#chatgpt-mermaid-\_r_vr\_ .edgeLabel .label rect{opacity:1;rx:13px;ry:13px;fill:rgb(23, 12, 38);stroke:rgb(65, 47, 92);stroke-width:1px;}#chatgpt-mermaid-\_r_vr\_ .node rect,#chatgpt-mermaid-\_r_vr\_ .node circle,#chatgpt-mermaid-\_r_vr\_ .node ellipse,#chatgpt-mermaid-\_r_vr\_ .node polygon,#chatgpt-mermaid-\_r_vr\_ .node path{fill:rgb(44, 24, 74);stroke:rgba(255, 255, 255, 0.1);stroke-width:1px;}#chatgpt-mermaid-\_r_vr\_ .node rect{rx:16px;ry:16px;}#chatgpt-mermaid-\_r_vr\_ .mermaid-decision .label-container{fill:rgb(23, 12, 38);stroke:rgb(65, 47, 92);stroke-dasharray:2,2;}#chatgpt-mermaid-\_r_vr\_ .edgePaths .flowchart-link{stroke:rgb(175, 175, 175);stroke-width:1px;stroke-linecap:round;stroke-linejoin:round;}#chatgpt-mermaid-\_r_vr\_ .marker{fill:rgb(175, 175, 175);stroke:rgb(175, 175, 175);}#chatgpt-mermaid-\_r_vr\_ :root{--mermaid-font-family:-apple-system-body,ui-sans-serif,-apple-system,system-ui,"Segoe UI",Helvetica,"Apple Color Emoji",Arial,sans-serif,"Segoe UI Emoji","Segoe UI Symbol";}Tauri Desktop ApplicationTransparent Pet WindowSystem TrayRust BackendReact CharacterAnimation EngineBehaviour EnginePet State MachineLocal Event ManagerAgent RuntimeLLM / Local ModelApproved ToolsSQLite MemoryShow / Hide / Sleep / Quit
+
+A possible project structure:
+
+```
+tinycutie/
+│
+├── src/
+│   ├── components/
+│   │   ├── Pet.tsx
+│   │   ├── SpeechBubble.tsx
+│   │   └── PetMenu.tsx
+│   │
+│   ├── animations/
+│   │   ├── idle.ts
+│   │   ├── walking.ts
+│   │   ├── sleeping.ts
+│   │   └── expressions.ts
+│   │
+│   ├── engine/
+│   │   ├── stateMachine.ts
+│   │   ├── behaviour.ts
+│   │   └── movement.ts
+│   │
+│   └── App.tsx
+│
+├── src-tauri/
+│   └── src/
+│       ├── main.rs
+│       ├── window.rs
+│       ├── tray.rs
+│       └── agent.rs
+│
+├── assets/
+│   └── characters/
+│
+└── package.json
+```
+
+## 7. Existing projects worth studying
+
+These are particularly relevant to what we're building.
+
+[Claude Codeの動きに合わせてキャラクターを動かせるアプリをつくってみた](https://images.openai.com/static-rsc-4/dbZhR81MILjejNCIAZvuDfH8pg5w-sZY_5tSXmYdV760eqkz7J084VPfOhg-t3csYYGVolV2D21Qn1BU1oaGXUOH7_5vREYfgP9DeGkyGQ3QeN8uxpZf7HTnDEQhuqk_Nl7RYMzKrIw_lyknLAB45WFeoCxjhLneUy8jMnwL9vg?purpose=inline)
+
+1\. Claude Pet
+
+React-style desktop pet concept with Claude Code event integration, animations and a lightweight Tauri backend.
+
+[GitHub repository](https://github.com/IMMINJU/claude-pet?utm_source=chatgpt.com)
+
+[PixelClaw: A tiny pixel crab that lives on your Dock | Product Hunt](https://images.openai.com/static-rsc-4/O23T4A0zKoUTFH1PnWTICRfzq3TDWHvqjk3Y8hjzd8luJO3aNQ340vU3PlrAKsNCSKfKS_0auqiB0k4CjwyGEq_eK3agP05V72m5Bmj-MAaaE4-MyUPvYaUuYp864VlZP_eYaCqhXVd7aajXv07LHy4NdykaFHlMukkrpG8mSd8?purpose=inline)
+
+2\. Clawd
+
+Especially interesting for roaming around the screen, climbing application windows, and independent animations.
+
+[GitHub repository](https://github.com/ccyrene/clawd?utm_source=chatgpt.com)
+
+[Steam：AIデスクトップペット](https://images.openai.com/static-rsc-4/YfUV6Wl0i8CLEPQENwEguNlcwxPoHoozjQ08JBdm_6G7KZyubkQhx4GlWYS2GjDQPAviOnb1rH1p6zlvxANnE4J_W8h-zJyYGAmaVLMGBnlJZtSq3PXQl6nH10ylDvSUxlF3h7RNIW340OAwdVCT2iMHQ_i72o1HBNNtKCsGD3A?purpose=inline)
+
+3\. iPet
+
+Interesting for combining a virtual pet with an LLM, tool calling and local memory.
+
+[GitHub repository](https://github.com/Cloudstill/iPet?utm_source=chatgpt.com)
+
+[AI Desktop Pets: Connect OpenPets to Claude, OpenCode, and Cursor | OpenPets](https://images.openai.com/static-rsc-4/_jDdcWW9QjDgpc_ev5M1r_ev2_yHS1qNs2M6Davs39Gew_ufl2uk33rDg57a8UHnhXUD2O6lnaTTC9UdV0gFg6grxD9BClajVnrDEgm5Q29HEY--dUQSRlZYquqpaZr_-bORHld1dZWd0f7XGGpQsQCk2sGzE3X8de9Cank-L_g?purpose=inline)
+
+4\. OpenPets
+
+Worth studying if we eventually want downloadable characters, plugins and an extensible agent ecosystem.
+
+[Architecture documentation](https://docs.openpets.dev/architecture/?utm_source=chatgpt.com)
+
+## 8. My proposed development roadmap
+
+I'd avoid starting with the AI. First, we need to make something that you actually enjoy having on your desktop.
+
+| Phase | Deliverable                          |
+| ----- | ------------------------------------ |
+| 1     | Floating transparent character       |
+| 2     | Character animations and expressions |
+| 3     | Independent movement and behaviours  |
+| 4     | Pet personality, energy and memory   |
+| 5     | System tray, settings and controls   |
+| 6     | AI brain and autonomous tasks        |
+
+First MVP goal
+
+A cute creature that starts when Windows starts, sits on your desktop, walks around, sleeps, reacts to clicks, remembers its position, and can be hidden or shut down from the system tray.
+
+No AI required yet.
+
+# 9. Let's decide what TinyCutie should actually look like
+
+I have a few creative directions in mind.
+
+1\. Character art style
+
+Pixel art
+
+2D cartoon
+
+Cute blob
+
+3D creature
+
+2\. What should it be?
+
+🐈 A tiny cat
+
+🤖 A tiny robot
+
+✨ A fantasy creature
+
+🐧 A tiny penguin
+
+Something completely original
+
+3\. How ambitious should it become?
+
+Just a living virtual pet
+
+A living virtual pet + AI assistant
+
+A fully autonomous AI companion
+
+4\. How should it move?
+
+Stays in one corner
+
+Roams around the desktop
+
+Climbs application windows
+
+A combination of all three
+
+Let's build TinyCutie&#x20;
+
+My personal recommendation: Make it a tiny original pixel-art creature, with its own personality, that roams around your Windows desktop. Eventually, let it become an AI agent that has a little life of its own.
+
+I think this could become a genuinely delightful little application rather than just another desktop utility. 🐾
+
+
+
+I want to make it really light weight and very low power consuming and blazing fast. Forget my tech knowedlge. I will use the best tech stach for this (doen't matter if I know). What would you suggest)
+
+
+
+If lightweight, extremely low power consumption, and blazing-fast performance are the priorities, I'd actually change my technology recommendation.
+
+I would optimize TinyCutie like a tiny native operating-system utility, not like a conventional desktop application.
+
+The goal:
+
+- Almost zero CPU usage when the character is idle.
+- Minimal RAM consumption.
+- No unnecessary background processes.
+- Instant response to clicks and interactions.
+- No GPU-intensive rendering.
+- No AI model running continuously.
+- Starts quickly with Windows.
+- Runs quietly in the background without disturbing your work.
+
+My recommendation: build it in Rust, using a native Windows rendering stack.
+
+Not Electron. Not a continuously running browser. Not Python.
+
+## 1. Technology stack: what I'd actually choose
+
+There are two serious options. I'd choose the first for our initial version.
+
+Option A — Pure native Rust
+
+My choice
+
+[Ralsei custom shimeji (Deltarune) - 42Jellybeans's Ko-fi Shop](https://images.openai.com/static-rsc-4/HrE6Scj6zvs7zACMzZLr2Hy-r9BfFumE4LO7mYIixc-vYQAKGBmN6OcqfImPpEvoG1Rz7icv32cYSQICChJzByynvSQ3_2HNViWNm2xK4Ah2Jdsej8Gxk-CUHVEHQrDWYXpI2qXCcjK7xXt7n_2xn3S6hrdfZ1YXVTe-VV3qQ0I?purpose=inline)
+
+[ko-fi.com](https://ko-fi.com/s/be5d6aaf00?utm_source=chatgpt.com)
+
+| Component            | Technology                    |
+| -------------------- | ----------------------------- |
+| Programming language | Rust                          |
+| Window management    | Win32 API                     |
+| Window rendering     | Windows layered windows       |
+| Graphics             | GDI / bitmap sprites          |
+| Animation            | Event-driven sprite animation |
+| System tray          | Native Windows API            |
+| Storage              | SQLite or a small config file |
+| AI (optional)        | Separate on-demand process    |
+
+Why: No browser engine, no JavaScript runtime, no heavyweight UI framework. We have direct control over resource consumption.
+
+Reference: [!StayAlone](https://github.itlym.cn/4TyllaL/notStayAlone?utm_source=chatgpt.com) reports an approximately 880 KB executable and very low resource consumption using raw Win32.
+
+Option B — Tauri 2 + Rust
+
+[Making Tamamon — a desktop pet that grows as you code by Jason, Jeong on Dribbble](https://images.openai.com/static-rsc-4/wX0bAYJ1XW2zLjDhAbqoYSbdCY7-sghfEwlY5lq0_IfAPv1Pt_dSf1509-AoBJhIUDDsGBH_S0cwn3EBslcCdwzp9IINdEPKrYlH8hXGbJGRkcgMRocV2coz-KTyxfrzQd2dRqoZMUUQFVs0jWC6q5v0BG_zhpOtFssP-pF1osw?purpose=inline)
+
+[dribbble.com](https://dribbble.com/shots/27523836-Making-Tamamon-a-desktop-pet-that-grows-as-you-code?utm_source=chatgpt.com)
+
+- Rust handles native operations.
+- WebView2 handles the character interface.
+- React makes complex interactions easier.
+- More convenient for settings, chat and dashboards.
+
+The downside is the WebView2 runtime and its additional processes. Microsoft documents the associated memory and process overhead.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://learn.microsoft.com\&sz=32)
+
+Microsoft Learn+1
+
+
+
+Reference: [Tauri documentation](https://tauri.app/?utm_source=chatgpt.com).
+
+My decision: Pure Rust + Win32 for the pet itself. If we later need a sophisticated settings interface, we can create a separate settings window without making the pet's rendering engine heavyweight.
+
+## 2. How we achieve extremely low power consumption
+
+This is more important than the programming language.
+
+A poorly designed Rust application can still consume unnecessary CPU and battery.
+
+I'd implement these optimizations:
+
+| Feature          | Implementation                    |
+| ---------------- | --------------------------------- |
+| Animation        | Sprite sheets, not video          |
+| Idle state       | No continuous rendering           |
+| Frame updates    | Only when a frame changes         |
+| Movement         | Event-driven timers               |
+| Random behaviour | Infrequent decisions              |
+| Mouse tracking   | Only when interaction is relevant |
+| Graphics         | Small transparent bitmap          |
+| Memory           | Release unused assets             |
+| AI               | Never run continuously            |
+| Network          | No background network requests    |
+
+### The most important trick: don't render continuously
+
+Imagine the character is sleeping.
+
+We don't need to redraw the screen 60 times every second.
+
+Instead:
+
+Intelligent rendering
+
+Traditional animation
+
+# 60 FPS
+
+Continuous rendering
+
+TinyCutie idle
+
+# 0 FPS
+
+When nothing changes
+
+When the pet sleeps, show one frame. When it blinks, update the image. When it walks, render the necessary animation frames. When nothing is happening, do nothing.
+
+This is the kind of architecture that makes a real difference.
+
+## 3. Proposed internal architecture
+
+I'd keep the core incredibly small.
+
+\#chatgpt-mermaid-\_r_19t\_{font-family:-apple-system-body,ui-sans-serif,-apple-system,system-ui,"Segoe UI",Helvetica,"Apple Color Emoji",Arial,sans-serif,"Segoe UI Emoji","Segoe UI Symbol";font-size:16px;fill:rgb(237, 237, 237);}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}#chatgpt-mermaid-\_r_19t\_ .edge-animation-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}#chatgpt-mermaid-\_r_19t\_ .edge-animation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}#chatgpt-mermaid-\_r_19t\_ .error-icon{fill:rgb(48, 48, 48);}#chatgpt-mermaid-\_r_19t\_ .error-text{fill:rgb(237, 237, 237);stroke:rgb(237, 237, 237);}#chatgpt-mermaid-\_r_19t\_ .edge-thickness-normal{stroke-width:1px;}#chatgpt-mermaid-\_r_19t\_ .edge-thickness-thick{stroke-width:3.5px;}#chatgpt-mermaid-\_r_19t\_ .edge-pattern-solid{stroke-dasharray:0;}#chatgpt-mermaid-\_r_19t\_ .edge-thickness-invisible{stroke-width:0;fill:none;}#chatgpt-mermaid-\_r_19t\_ .edge-pattern-dashed{stroke-dasharray:3;}#chatgpt-mermaid-\_r_19t\_ .edge-pattern-dotted{stroke-dasharray:2;}#chatgpt-mermaid-\_r_19t\_ .marker{fill:rgb(175, 175, 175);stroke:rgb(175, 175, 175);}#chatgpt-mermaid-\_r_19t\_ .marker.cross{stroke:rgb(175, 175, 175);}#chatgpt-mermaid-\_r_19t\_ svg{font-family:-apple-system-body,ui-sans-serif,-apple-system,system-ui,"Segoe UI",Helvetica,"Apple Color Emoji",Arial,sans-serif,"Segoe UI Emoji","Segoe UI Symbol";font-size:16px;}#chatgpt-mermaid-\_r_19t\_ p{margin:0;}#chatgpt-mermaid-\_r_19t\_ .label{font-family:-apple-system-body,ui-sans-serif,-apple-system,system-ui,"Segoe UI",Helvetica,"Apple Color Emoji",Arial,sans-serif,"Segoe UI Emoji","Segoe UI Symbol";color:rgb(237, 237, 237);}#chatgpt-mermaid-\_r_19t\_ .cluster-label text{fill:rgb(237, 237, 237);}#chatgpt-mermaid-\_r_19t\_ .cluster-label span{color:rgb(237, 237, 237);}#chatgpt-mermaid-\_r_19t\_ .cluster-label span p{background-color:transparent;}#chatgpt-mermaid-\_r_19t\_ .label text,#chatgpt-mermaid-\_r_19t\_ span{fill:rgb(237, 237, 237);color:rgb(237, 237, 237);}#chatgpt-mermaid-\_r_19t\_ .node rect,#chatgpt-mermaid-\_r_19t\_ .node circle,#chatgpt-mermaid-\_r_19t\_ .node ellipse,#chatgpt-mermaid-\_r_19t\_ .node polygon,#chatgpt-mermaid-\_r_19t\_ .node path{fill:rgb(36, 22, 63);stroke:rgb(120, 73, 209);stroke-width:1px;}#chatgpt-mermaid-\_r_19t\_ .rough-node .label text,#chatgpt-mermaid-\_r_19t\_ .node .label text,#chatgpt-mermaid-\_r_19t\_ .image-shape .label,#chatgpt-mermaid-\_r_19t\_ .icon-shape .label{text-anchor:middle;}#chatgpt-mermaid-\_r_19t\_ .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#chatgpt-mermaid-\_r_19t\_ .rough-node .label,#chatgpt-mermaid-\_r_19t\_ .node .label,#chatgpt-mermaid-\_r_19t\_ .image-shape .label,#chatgpt-mermaid-\_r_19t\_ .icon-shape .label{text-align:center;}#chatgpt-mermaid-\_r_19t\_ .node.clickable{cursor:pointer;}#chatgpt-mermaid-\_r_19t\_ .root .anchor path{fill:rgb(175, 175, 175)!important;stroke-width:0;stroke:rgb(175, 175, 175);}#chatgpt-mermaid-\_r_19t\_ .arrowheadPath{fill:rgb(175, 175, 175);}#chatgpt-mermaid-\_r_19t\_ .edgePath .path{stroke:rgb(175, 175, 175);stroke-width:1px;}#chatgpt-mermaid-\_r_19t\_ .flowchart-link{stroke:rgb(175, 175, 175);fill:none;}#chatgpt-mermaid-\_r_19t\_ .edgeLabel{background-color:rgb(0, 0, 0);text-align:center;}#chatgpt-mermaid-\_r_19t\_ .edgeLabel p{background-color:rgb(0, 0, 0);}#chatgpt-mermaid-\_r_19t\_ .edgeLabel rect{opacity:0.5;background-color:rgb(0, 0, 0);fill:rgb(0, 0, 0);}#chatgpt-mermaid-\_r_19t\_ .labelBkg{background-color:rgba(0, 0, 0, 0.5);}#chatgpt-mermaid-\_r_19t\_ .cluster rect{fill:rgb(48, 48, 48);stroke:rgba(255, 255, 255, 0.15);stroke-width:1px;}#chatgpt-mermaid-\_r_19t\_ .cluster text{fill:rgb(237, 237, 237);}#chatgpt-mermaid-\_r_19t\_ .cluster span{color:rgb(237, 237, 237);}#chatgpt-mermaid-\_r_19t\_ div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:-apple-system-body,ui-sans-serif,-apple-system,system-ui,"Segoe UI",Helvetica,"Apple Color Emoji",Arial,sans-serif,"Segoe UI Emoji","Segoe UI Symbol";font-size:12px;background:rgb(48, 48, 48);border:1px solid rgba(255, 255, 255, 0.15);border-radius:2px;pointer-events:none;z-index:100;}#chatgpt-mermaid-\_r_19t\_ .flowchartTitleText{text-anchor:middle;font-size:18px;fill:rgb(237, 237, 237);}#chatgpt-mermaid-\_r_19t\_ rect.text{fill:none;stroke-width:0;}#chatgpt-mermaid-\_r_19t\_ .icon-shape,#chatgpt-mermaid-\_r_19t\_ .image-shape{background-color:rgb(0, 0, 0);text-align:center;}#chatgpt-mermaid-\_r_19t\_ .icon-shape p,#chatgpt-mermaid-\_r_19t\_ .image-shape p{background-color:rgb(0, 0, 0);padding:2px;}#chatgpt-mermaid-\_r_19t\_ .icon-shape .label rect,#chatgpt-mermaid-\_r_19t\_ .image-shape .label rect{opacity:0.5;background-color:rgb(0, 0, 0);fill:rgb(0, 0, 0);}#chatgpt-mermaid-\_r_19t\_ .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}#chatgpt-mermaid-\_r_19t\_ .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}#chatgpt-mermaid-\_r_19t\_ .node .neo-node{stroke:rgb(120, 73, 209);}#chatgpt-mermaid-\_r_19t\_ [data-look="neo"].node rect,#chatgpt-mermaid-\_r_19t\_ [data-look="neo"].cluster rect,#chatgpt-mermaid-\_r_19t\_ [data-look="neo"].node polygon{stroke:url(#chatgpt-mermaid-\_r_19t\_-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#chatgpt-mermaid-\_r_19t\_ [data-look="neo"].swimlane.cluster rect{filter:none;}#chatgpt-mermaid-\_r_19t\_ [data-look="neo"].node path{stroke:url(#chatgpt-mermaid-\_r_19t\_-gradient);stroke-width:1px;}#chatgpt-mermaid-\_r_19t\_ [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#chatgpt-mermaid-\_r_19t\_ [data-look="neo"].node .neo-line path{stroke:rgb(120, 73, 209);filter:none;}#chatgpt-mermaid-\_r_19t\_ [data-look="neo"].node circle{stroke:url(#chatgpt-mermaid-\_r_19t\_-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#chatgpt-mermaid-\_r_19t\_ [data-look="neo"].node circle .state-start{fill:#000000;}#chatgpt-mermaid-\_r_19t\_ [data-look="neo"].icon-shape .icon{fill:url(#chatgpt-mermaid-\_r_19t\_-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#chatgpt-mermaid-\_r_19t\_ [data-look="neo"].icon-shape .icon-neo path{stroke:url(#chatgpt-mermaid-\_r_19t\_-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#chatgpt-mermaid-\_r_19t\_ .node text{font-size:14px;font-weight:600;letter-spacing:normal;fill:rgb(206, 176, 251);}#chatgpt-mermaid-\_r_19t\_ .edgeLabels text{font-size:13px;font-weight:600;letter-spacing:-0.08px;fill:rgb(206, 176, 251);}#chatgpt-mermaid-\_r_19t\_ .node tspan[font-weight="normal"],#chatgpt-mermaid-\_r_19t\_ .edgeLabels tspan[font-weight="normal"]{font-weight:600;}#chatgpt-mermaid-\_r_19t\_ .edgeLabel .label rect{opacity:1;rx:13px;ry:13px;fill:rgb(23, 12, 38);stroke:rgb(65, 47, 92);stroke-width:1px;}#chatgpt-mermaid-\_r_19t\_ .node rect,#chatgpt-mermaid-\_r_19t\_ .node circle,#chatgpt-mermaid-\_r_19t\_ .node ellipse,#chatgpt-mermaid-\_r_19t\_ .node polygon,#chatgpt-mermaid-\_r_19t\_ .node path{fill:rgb(44, 24, 74);stroke:rgba(255, 255, 255, 0.1);stroke-width:1px;}#chatgpt-mermaid-\_r_19t\_ .node rect{rx:16px;ry:16px;}#chatgpt-mermaid-\_r_19t\_ .mermaid-decision .label-container{fill:rgb(23, 12, 38);stroke:rgb(65, 47, 92);stroke-dasharray:2,2;}#chatgpt-mermaid-\_r_19t\_ .edgePaths .flowchart-link{stroke:rgb(175, 175, 175);stroke-width:1px;stroke-linecap:round;stroke-linejoin:round;}#chatgpt-mermaid-\_r_19t\_ .marker{fill:rgb(175, 175, 175);stroke:rgb(175, 175, 175);}#chatgpt-mermaid-\_r_19t\_ :root{--mermaid-font-family:-apple-system-body,ui-sans-serif,-apple-system,system-ui,"Segoe UI",Helvetica,"Apple Color Emoji",Arial,sans-serif,"Segoe UI Emoji","Segoe UI Symbol";}TinyCutie.exeNative Windows WindowBehaviour ControllerSystem TraySprite RendererState MachineAnimation SchedulerPet PersonalityLocal State StorageOptional AI ProcessOnly when needed
+
+The important separation:
+
+- Core process: Always running, extremely lightweight.
+- AI process: Starts only when the user asks for something intelligent.
+- Settings: Open only when requested.
+- Assets: Load only the active character's animations.
+
+This means the AI functionality cannot accidentally make the pet consume resources all day.
+
+## 4. Performance targets
+
+These are the targets I'd use when benchmarking our first release, not guaranteed measurements.
+
+| Metric             | Target           |
+| ------------------ | ---------------- |
+| Idle CPU           | Approximately 0% |
+| Idle RAM           | Under 10–15 MB   |
+| Executable         | Under 2 MB       |
+| Startup            | Under 300 ms     |
+| Idle network usage | Zero             |
+| Background AI      | Disabled         |
+| Animation          | Smooth 30–60 FPS |
+
+I'd prioritize battery consumption over maintaining 60 FPS constantly.
+
+## 5. One more important decision: Windows only or cross-platform?
+
+I'd start with Windows because it allows us to use native Windows APIs without carrying unnecessary compatibility layers. We can consider macOS and Linux later.
+
+Recommended final stack
+
+# TinyCutie
+
+Native desktop companion
+
+Rust
+
+Core application and logic
+
+Win32 API
+
+Window, transparency, system tray
+
+GDI / layered windows
+
+Lightweight sprite rendering
+
+Sprite sheets
+
+Character animations
+
+Event-driven state machine
+
+Personality and behaviour
+
+SQLite / JSON
+
+Persistent local memory
+
+Optional AI subprocess
+
+Intelligent tasks, on demand
+
+## 6. How I'd start building
+
+I would not start by building the AI, personality system, or settings interface.
+
+First, create a tiny Rust application that:
+
+1. Opens a transparent window.
+2. Displays one animated character.
+3. Keeps itself above normal windows.
+4. Supports dragging.
+5. Has a system tray icon.
+6. Can hide, show and quit.
+7. Uses almost no CPU while idle.
+
+Then benchmark it using Windows Task Manager and Windows Performance Recorder.
+
+Only after we've achieved the performance goals should we add more features.
+
+One question before we lock the architecture: Do you want TinyCutie to be exclusively a Windows application, or do you eventually want it to work on macOS and Linux too?
+
+My preference is to optimize for Windows first, and build the core so we can port it later if necessary.&#x20;

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800;900&display=swap" rel="stylesheet">
+<style>body{margin:0;background:#ece8ef;font-family:'Nunito',system-ui,sans-serif;color:#2b1f2a}a{color:#7a4a8c}a:hover{color:#3d2433}</style>
+</helmet>
+<div ref="{{ root }}" style="max-width:1200px;margin:0 auto;padding:40px 28px 72px;display:flex;flex-direction:column;gap:36px">
+  <header style="display:flex;flex-direction:column;gap:6px">
+    <div style="font-size:13px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#8a6f86">Desktop pet · UI bits</div>
+    <h1 style="margin:0;font-size:40px;font-weight:800;color:#3d2433">Bubble, tray icon &amp; props</h1>
+  </header>
+
+  <section style="display:flex;flex-direction:column;gap:12px">
+    <h2 style="margin:0;font-size:24px;font-weight:800;color:#3d2433">Speech bubble</h2>
+    <p style="margin:0;font-size:15px;color:#6b5869">Pill bubble, 3px plum outline, soft rounded tail pointing down-left toward Dumbo. Text is live — edit in place.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,480px),1fr));gap:16px">
+      <div style="background:#ffffff;border-radius:18px;padding:28px 24px 34px;display:flex;flex-wrap:wrap;gap:30px 22px;align-items:flex-start">
+        <sc-for list="{{ lines }}" as="l" hint-placeholder-count="4">
+          <div style="position:relative;display:inline-flex;flex-direction:column;align-items:flex-start">
+            <div style="background:#ffffff;border:3px solid #3d2433;border-radius:999px;padding:7px 16px 8px;font-size:18px;font-weight:800;color:#3d2433;line-height:1.2;white-space:nowrap;box-shadow:0 3px 0 rgba(61,36,51,.12)">{{ l.text }}</div>
+            <svg width="26" height="16" viewBox="0 0 26 16" style="margin:-3px 0 0 18px;display:block"><path d="M2 0 C6 6 4 12 1 15 C9 14 16 8 20 0" fill="#ffffff" stroke="#3d2433" stroke-width="3" stroke-linejoin="round"></path><rect x="3" y="0" width="16" height="3" fill="#ffffff"></rect></svg>
+          </div>
+        </sc-for>
+      </div>
+      <div style="background:#15121f;border-radius:18px;padding:28px 24px 34px;display:flex;flex-wrap:wrap;gap:30px 22px;align-items:flex-start">
+        <sc-for list="{{ lines }}" as="l" hint-placeholder-count="4">
+          <div style="position:relative;display:inline-flex;flex-direction:column;align-items:flex-start">
+            <div style="border:2.5px solid transparent;border-radius:999px;padding:7px 16px 8px;font-size:18px;font-weight:800;color:#f2ecff;line-height:1.2;white-space:nowrap;background:linear-gradient(#221d33,#221d33) padding-box,linear-gradient(90deg,#3be6ff,#7e6bff,#ff4fd8) border-box;box-shadow:0 0 14px rgba(126,107,255,.45)">{{ l.text }}</div>
+            <svg width="26" height="16" viewBox="0 0 26 16" style="margin:-3px 0 0 18px;display:block"><path d="M2 0 C6 6 4 12 1 15 C9 14 16 8 20 0" fill="#221d33" stroke="#3be6ff" stroke-width="2.5" stroke-linejoin="round"></path><rect x="3" y="0" width="16" height="2.6" fill="#221d33"></rect></svg>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,480px),1fr));gap:16px">
+      <div style="border-radius:18px;background:linear-gradient(160deg,#cfd9e6,#e9dfe9);padding:18px 24px;display:flex;align-items:flex-end;gap:4px">
+        <div data-asset="pet" data-theme="light" style="width:92px;height:96px"></div>
+        <div style="display:flex;flex-direction:column;align-items:flex-start;margin-bottom:64px">
+          <div style="background:#ffffff;border:2.5px solid #3d2433;border-radius:999px;padding:4px 11px 5px;font-size:13px;font-weight:800;color:#3d2433;white-space:nowrap">sleepy...</div>
+          <svg width="18" height="11" viewBox="0 0 26 16" style="margin:-2px 0 0 8px;display:block"><path d="M2 0 C6 6 4 12 1 15 C9 14 16 8 20 0" fill="#ffffff" stroke="#3d2433" stroke-width="3.4" stroke-linejoin="round"></path><rect x="3" y="0" width="16" height="3" fill="#ffffff"></rect></svg>
+        </div>
+        <span style="margin-left:auto;font-size:12px;font-weight:700;color:#4a5466">13px bubble · desktop scale</span>
+      </div>
+      <div style="border-radius:18px;background:linear-gradient(160deg,#0f1630,#2a1838);padding:18px 24px;display:flex;align-items:flex-end;gap:4px">
+        <div data-asset="pet" data-theme="dark" style="width:92px;height:96px"></div>
+        <div style="display:flex;flex-direction:column;align-items:flex-start;margin-bottom:64px">
+          <div style="border:2px solid transparent;border-radius:999px;padding:4px 11px 5px;font-size:13px;font-weight:800;color:#f2ecff;white-space:nowrap;background:linear-gradient(#221d33,#221d33) padding-box,linear-gradient(90deg,#3be6ff,#7e6bff,#ff4fd8) border-box;box-shadow:0 0 10px rgba(126,107,255,.45)">charge me pls</div>
+          <svg width="18" height="11" viewBox="0 0 26 16" style="margin:-2px 0 0 8px;display:block"><path d="M2 0 C6 6 4 12 1 15 C9 14 16 8 20 0" fill="#221d33" stroke="#3be6ff" stroke-width="3" stroke-linejoin="round"></path><rect x="3" y="0" width="16" height="2.6" fill="#221d33"></rect></svg>
+        </div>
+        <span style="margin-left:auto;font-size:12px;font-weight:700;color:#a9b2d6">13px bubble · desktop scale</span>
+      </div>
+    </div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:12px">
+    <h2 style="margin:0;font-size:24px;font-weight:800;color:#3d2433">Tray icon</h2>
+    <p style="margin:0;font-size:15px;color:#6b5869">Simplified head: thicker outline, bigger eyes, one highlight, stubby trunk. 16px uses a dedicated simplified cut (no blush, no tuft detail).</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,480px),1fr));gap:16px">
+      <div style="background:#ffffff;border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:16px">
+        <div style="display:flex;align-items:flex-end;gap:22px;flex-wrap:wrap">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div data-asset="tray" data-theme="light" data-size="128" style="width:128px;height:128px;border-radius:14px;background:#f6f3f8"></div><span style="font-size:12px;font-weight:700;color:#8a7a88">master</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div data-asset="tray" data-theme="light" data-size="32" style="width:32px;height:32px"></div><span style="font-size:12px;font-weight:700;color:#8a7a88">32</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div data-asset="tray" data-theme="light" data-size="24" style="width:24px;height:24px"></div><span style="font-size:12px;font-weight:700;color:#8a7a88">24</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div data-asset="tray" data-theme="light" data-size="16" style="width:16px;height:16px"></div><span style="font-size:12px;font-weight:700;color:#8a7a88">16</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div data-asset="tray" data-theme="light" data-size="16" style="width:128px;height:128px;border-radius:14px;background:#f6f3f8;image-rendering:pixelated"></div><span style="font-size:12px;font-weight:700;color:#8a7a88">16 cut, enlarged</span></div>
+        </div>
+        <div style="height:30px;border-radius:8px;background:#eeeaf1;display:flex;align-items:center;justify-content:flex-end;gap:14px;padding:0 12px;font-size:13px;font-weight:700;color:#3d2433">
+          <div style="width:14px;height:10px;border:2px solid #3d2433;border-radius:3px"></div>
+          <div data-asset="tray" data-theme="light" data-size="16" style="width:16px;height:16px"></div>
+          <span>Wed 14:02</span>
+        </div>
+        <div style="height:44px;border-radius:8px;background:#f4f1f6;display:flex;align-items:center;justify-content:flex-end;gap:14px;padding:0 14px;font-size:13px;font-weight:700;color:#3d2433">
+          <div data-asset="tray" data-theme="light" data-size="24" style="width:24px;height:24px"></div>
+          <div data-asset="tray" data-theme="light" data-size="32" style="width:32px;height:32px"></div>
+          <span>14:02</span>
+        </div>
+      </div>
+      <div style="background:#1b1728;border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:16px;color:#e9e4f5">
+        <div style="display:flex;align-items:flex-end;gap:22px;flex-wrap:wrap">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div data-asset="tray" data-theme="dark" data-size="128" style="width:128px;height:128px;border-radius:14px;background:#15121f"></div><span style="font-size:12px;font-weight:700;color:#a69cc0">master</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div data-asset="tray" data-theme="dark" data-size="32" style="width:32px;height:32px"></div><span style="font-size:12px;font-weight:700;color:#a69cc0">32</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div data-asset="tray" data-theme="dark" data-size="24" style="width:24px;height:24px"></div><span style="font-size:12px;font-weight:700;color:#a69cc0">24</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div data-asset="tray" data-theme="dark" data-size="16" style="width:16px;height:16px"></div><span style="font-size:12px;font-weight:700;color:#a69cc0">16</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div data-asset="tray" data-theme="dark" data-size="16" style="width:128px;height:128px;border-radius:14px;background:#15121f"></div><span style="font-size:12px;font-weight:700;color:#a69cc0">16 cut, enlarged</span></div>
+        </div>
+        <div style="height:30px;border-radius:8px;background:#0e0c16;display:flex;align-items:center;justify-content:flex-end;gap:14px;padding:0 12px;font-size:13px;font-weight:700;color:#e9e4f5">
+          <div style="width:14px;height:10px;border:2px solid #e9e4f5;border-radius:3px"></div>
+          <div data-asset="tray" data-theme="dark" data-size="16" style="width:16px;height:16px"></div>
+          <span>Wed 14:02</span>
+        </div>
+        <div style="height:44px;border-radius:8px;background:#221d33;display:flex;align-items:center;justify-content:flex-end;gap:14px;padding:0 14px;font-size:13px;font-weight:700;color:#e9e4f5">
+          <div data-asset="tray" data-theme="dark" data-size="24" style="width:24px;height:24px"></div>
+          <div data-asset="tray" data-theme="dark" data-size="32" style="width:32px;height:32px"></div>
+          <span>14:02</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:12px">
+    <h2 style="margin:0;font-size:24px;font-weight:800;color:#3d2433">Props</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,480px),1fr));gap:16px">
+      <div style="background:#ffffff;border-radius:18px;padding:16px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
+        <div style="display:flex;flex-direction:column;gap:6px"><div data-asset="laptopFront" data-theme="light" style="aspect-ratio:240/180;border-radius:12px;background:#f6f3f8"></div><span style="font-size:13px;font-weight:700;color:#5e4a5c">Laptop · screen</span></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><div data-asset="laptopBack" data-theme="light" style="aspect-ratio:240/180;border-radius:12px;background:#f6f3f8"></div><span style="font-size:13px;font-weight:700;color:#5e4a5c">Laptop · lid sticker</span></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><div data-asset="plug" data-theme="light" style="aspect-ratio:240/180;border-radius:12px;background:#f6f3f8"></div><span style="font-size:13px;font-weight:700;color:#5e4a5c">Charging plug</span></div>
+      </div>
+      <div style="background:#1b1728;border-radius:18px;padding:16px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
+        <div style="display:flex;flex-direction:column;gap:6px"><div data-asset="laptopFront" data-theme="dark" style="aspect-ratio:240/180;border-radius:12px;background:#15121f"></div><span style="font-size:13px;font-weight:700;color:#c9c0e0">Laptop · screen</span></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><div data-asset="laptopBack" data-theme="dark" style="aspect-ratio:240/180;border-radius:12px;background:#15121f"></div><span style="font-size:13px;font-weight:700;color:#c9c0e0">Laptop · lid sticker</span></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><div data-asset="plug" data-theme="dark" style="aspect-ratio:240/180;border-radius:12px;background:#15121f"></div><span style="font-size:13px;font-weight:700;color:#c9c0e0">Charging plug</span></div>
+      </div>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const C = {
+  light: { ol:'#3d2433', b1:'#ebe5f0', b2:'#aa9fbd', ear1:'#fcd0dc', ear2:'#ee8dab', eye1:'#1f0f0b', eye2:'#86513a', blush:'#f7809e', lid:'#e4ddeb', lid2:'#c9bfd6', key:'#f6f2f8', scr:'#fbf8ff', code:['#f59bb6','#ad94d8','#8fd6b8','#f2b38c'], led:'#8fe0b0', prong:'#e8c46a', cable:'#b9aecb' },
+  dark:  { ol:'#100b1f', b1:'#5f6891', b2:'#2b3050', ear1:'#e29aff', ear2:'#7a2fd8', eye1:'#0e0720', eye2:'#7548c2', blush:'#ff66b0', lid:'#2c2840', lid2:'#211d31', key:'#3a3552', scr:'#141022', code:['#3be6ff','#ff4fd8','#7e6bff','#ffd27a'], led:'#3be6ff', prong:'#ffd27a', cable:'#5a5478', neon:true }
+};
+const defs = (t, u) => `<defs><linearGradient id="${u}b" x1="0" y1="0" x2=".7" y2="1"><stop offset="0" stop-color="${t.b1}"/><stop offset="1" stop-color="${t.b2}"/></linearGradient><radialGradient id="${u}e" cx=".45" cy=".5" r=".65"><stop offset="0" stop-color="${t.ear1}"/><stop offset="1" stop-color="${t.ear2}"/></radialGradient><linearGradient id="${u}i" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t.eye1}"/><stop offset=".55" stop-color="${t.eye1}"/><stop offset="1" stop-color="${t.eye2}"/></linearGradient><linearGradient id="${u}r" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3be6ff"/><stop offset=".5" stop-color="#7e6bff"/><stop offset="1" stop-color="#ff4fd8"/></linearGradient><filter id="${u}g" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2"/></filter></defs>`;
+
+function trayHead(theme, size, u, inner) {
+  const t = C[theme].neon && size <= 32 ? { ...C[theme], b1:'#9099cc', b2:'#525a8c' } : C[theme], small = size <= 16, mid = size <= 24, sw = small ? 4.4 : mid ? 3.8 : 3.2, ol = t.ol;
+  const er = small ? 5 : 4.6, ery = small ? 5.6 : 5.4;
+  const earL = 'M21 24 C11 18 3 26 4 37 C5 47 12 53 20 50 C23 49 24 46 23 43 Z', earR = 'M43 24 C53 18 61 26 60 37 C59 47 52 53 44 50 C41 49 40 46 41 43 Z';
+  const sil = c => `<path d="${earL}" fill="${c}"/><path d="${earR}" fill="${c}"/><circle cx="32" cy="33" r="20" fill="${c}"/>`;
+  const rim = t.neon && !small ? `<g filter="url(#${u}g)" opacity=".9"><g stroke="url(#${u}r)" stroke-width="${sw + 4}" stroke-linejoin="round" fill="url(#${u}r)">${sil(`url(#${u}r)`).replace(/fill="url\(#[^)]+\)"/g, '')}</g></g>` : '';
+  const body = `
+    ${t.neon ? `<g stroke="url(#${u}r)" stroke-width="${small ? 5 : sw + 4}" stroke-linejoin="round"${small ? '' : ` filter="url(#${u}g)" opacity=".9"`}>${sil(`url(#${u}r)`)}</g>` : ''}
+    <path d="${earL}" fill="url(#${u}b)" stroke="${ol}" stroke-width="${sw}" stroke-linejoin="round"/>
+    <path d="${earR}" fill="url(#${u}b)" stroke="${ol}" stroke-width="${sw}" stroke-linejoin="round"/>
+    <path d="M18 29 C12 27 8 32 9 38 C10 44 14 47 18 45 Z" fill="url(#${u}e)"/>
+    <path d="M46 29 C52 27 56 32 55 38 C54 44 50 47 46 45 Z" fill="url(#${u}e)"/>
+    <circle cx="32" cy="33" r="20" fill="url(#${u}b)" stroke="${ol}" stroke-width="${sw}"/>
+    ${small ? '' : `<path d="M30 13.5 C29 9 32 6.5 36 8 C33 8.5 32 10.5 33 13" fill="none" stroke="${ol}" stroke-width="${sw * .8}" stroke-linecap="round" stroke-linejoin="round"/><ellipse cx="22" cy="21" rx="5" ry="2.2" transform="rotate(-30 22 21)" fill="#fff" opacity="${t.neon ? .25 : .5}"/>`}
+    <ellipse cx="24.5" cy="33" rx="${er}" ry="${ery}" fill="url(#${u}i)"/><ellipse cx="39.5" cy="33" rx="${er}" ry="${ery}" fill="url(#${u}i)"/>
+    <circle cx="${24.5 - er * .32}" cy="${33 - ery * .35}" r="${small ? 2.1 : 1.8}" fill="#fff"/><circle cx="${39.5 - er * .32}" cy="${33 - ery * .35}" r="${small ? 2.1 : 1.8}" fill="#fff"/>
+    ${small ? '' : `<circle cx="${24.5 + er * .38}" cy="${33 + ery * .4}" r=".8" fill="#fff"/><circle cx="${39.5 + er * .38}" cy="${33 + ery * .4}" r=".8" fill="#fff"/><ellipse cx="18.5" cy="41.5" rx="3.2" ry="1.8" fill="${t.blush}" opacity=".6"/><ellipse cx="45.5" cy="41.5" rx="3.2" ry="1.8" fill="${t.blush}" opacity=".6"/>`}
+    <path d="M32 38 C31 45 33 50 37.5 49.5 C40.5 49 41 46 39.6 44.6" fill="none" stroke="${ol}" stroke-width="${small ? 9 : 8.4}" stroke-linecap="round"/>
+    <path d="M32 38 C31 45 33 50 37.5 49.5 C40.5 49 41 46 39.6 44.6" fill="none" stroke="${t.b1}" stroke-width="${small ? 9 - sw * 1.3 : 8.4 - sw * 1.4}" stroke-linecap="round"/>
+    <circle cx="32" cy="37.2" r="${small ? 2.6 : 3}" fill="${t.b1}"/>`;
+  if (inner) return `<g>${defs(t, u)}${body}</g>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="2 4 60 56" width="${size}" height="${size}" shape-rendering="geometricPrecision">${defs(t, u)}${body}</svg>`;
+}
+
+function laptopFront(theme, u) {
+  const t = C[theme], ol = t.ol, n = t.neon;
+  const lines = [[0, 46], [1, 30], [2, 58], [0, 22], [3, 40], [1, 52]];
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180">${defs(t, u)}
+  <ellipse cx="120" cy="160" rx="96" ry="8" fill="${n ? '#000' : ol}" opacity="${n ? .5 : .12}"/>
+  ${n ? `<rect x="58" y="22" width="124" height="98" rx="12" fill="url(#${u}r)" opacity=".55" filter="url(#${u}g)"/>` : ''}
+  <rect x="58" y="22" width="124" height="98" rx="12" fill="${t.lid}" stroke="${ol}" stroke-width="5"/>
+  <rect x="68" y="32" width="104" height="76" rx="6" fill="${t.scr}"/>
+  ${lines.map(([c, w], i) => `<rect x="${78 + (i % 3 === 2 ? 10 : 0)}" y="${42 + i * 10}" width="${w}" height="5" rx="2.5" fill="${t.code[c]}"/>`).join('')}
+  <rect x="${78 + 40}" y="92" width="3" height="9" rx="1.5" fill="${n ? '#3be6ff' : ol}"/>
+  <path d="M40 150 L200 150 L188 122 L52 122 Z" fill="${t.lid}" stroke="${ol}" stroke-width="5" stroke-linejoin="round"/>
+  ${[0, 1, 2].map(r => [0, 1, 2, 3, 4, 5, 6, 7].map(k => `<rect x="${64 + k * 14 - r * 2}" y="${127 + r * 7}" width="10" height="4.5" rx="2" fill="${t.key}"/>`).join('')).join('')}
+  <rect x="100" y="141" width="40" height="5" rx="2.5" fill="${t.lid2}"/>
+  ${n ? `<path d="M42 150 L198 150" stroke="url(#${u}r)" stroke-width="2.4" stroke-linecap="round"/>` : ''}
+  </svg>`;
+}
+function laptopBack(theme, u) {
+  const t = C[theme], ol = t.ol, n = t.neon;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180">${defs(t, u)}
+  <ellipse cx="120" cy="160" rx="96" ry="8" fill="${n ? '#000' : ol}" opacity="${n ? .5 : .12}"/>
+  <path d="M46 150 L194 150 L184 140 L56 140 Z" fill="${t.lid2}" stroke="${ol}" stroke-width="5" stroke-linejoin="round"/>
+  ${n ? `<rect x="54" y="20" width="132" height="122" rx="14" fill="url(#${u}r)" opacity=".5" filter="url(#${u}g)"/>` : ''}
+  <rect x="54" y="20" width="132" height="122" rx="14" fill="${t.lid}" stroke="${ol}" stroke-width="5"/>
+  <circle cx="120" cy="80" r="35" fill="${n ? '#221d33' : '#ffffff'}" stroke="${ol}" stroke-width="4"/>
+  <g transform="translate(87 47) scale(1.03)">${trayHead(theme, 64, u + 's', true)}</g>
+  <g transform="translate(160 118) rotate(28)"><path d="M-6 -12 C2 -14 7 -8 5 -3 C4 -1 4 1 5 3 C7 9 2 14 -6 12 C-12 10 -12 4 -9 1 C-8 0 -8 -1 -9 -3 C-12 -8 -12 -11 -6 -12 Z" fill="#e9b874" stroke="${ol}" stroke-width="3"/><circle cx="-3" cy="-6" r="1.2" fill="#b98447"/><circle cx="-1" cy="6" r="1.2" fill="#b98447"/></g>
+  <g transform="translate(78 120) rotate(-12)"><rect x="-14" y="-9" width="28" height="18" rx="6" fill="${n ? '#3be6ff' : '#ffd6e2'}" stroke="${ol}" stroke-width="3"/><path d="M-6 -2 Q-7 0 -6 2 M6 -2 Q7 0 6 2" stroke="${ol}" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M-1 -3 L1 3" stroke="${ol}" stroke-width="2.4" stroke-linecap="round"/></g>
+  </svg>`;
+}
+function plug(theme, u) {
+  const t = C[theme], ol = t.ol, n = t.neon;
+  const cab = 'M14 150 C40 170 70 120 58 104 C48 92 30 108 46 122 C62 136 92 104 104 92';
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180">${defs(t, u)}
+  <ellipse cx="140" cy="146" rx="70" ry="7" fill="${n ? '#000' : ol}" opacity="${n ? .5 : .12}"/>
+  ${n ? `<path d="${cab}" fill="none" stroke="url(#${u}r)" stroke-width="12" opacity=".5" filter="url(#${u}g)" stroke-linecap="round"/>` : ''}
+  <path d="${cab}" fill="none" stroke="${ol}" stroke-width="11" stroke-linecap="round"/>
+  <path d="${cab}" fill="none" stroke="${n ? '#5a5478' : t.cable}" stroke-width="5.5" stroke-linecap="round"/>
+  ${n ? `<path d="${cab}" fill="none" stroke="url(#${u}r)" stroke-width="2" stroke-linecap="round"/>` : ''}
+  <path d="M100 80 L112 76 L112 112 L100 108 Z" fill="${t.lid2}" stroke="${ol}" stroke-width="4.5" stroke-linejoin="round"/>
+  ${n ? `<rect x="110" y="62" width="62" height="64" rx="20" fill="url(#${u}r)" opacity=".5" filter="url(#${u}g)"/>` : ''}
+  <rect x="110" y="62" width="62" height="64" rx="20" fill="${n ? '#2c2840' : '#fbf7ff'}" stroke="${ol}" stroke-width="5"/>
+  <ellipse cx="128" cy="74" rx="9" ry="4" transform="rotate(-20 128 74)" fill="#fff" opacity="${n ? .2 : .9}"/>
+  <path d="M172 80 L196 80 M172 108 L196 108" stroke="${ol}" stroke-width="10" stroke-linecap="round"/>
+  <path d="M172 80 L195 80 M172 108 L195 108" stroke="${t.prong}" stroke-width="4.5" stroke-linecap="round"/>
+  ${n ? `<circle cx="141" cy="94" r="10" fill="${t.led}" opacity=".6" filter="url(#${u}g)"/>` : ''}
+  <circle cx="141" cy="94" r="6" fill="${t.led}" stroke="${ol}" stroke-width="3"/>
+  <path d="M128 112 L154 112" stroke="${n ? '#3a3552' : '#e4ddeb'}" stroke-width="4" stroke-linecap="round"/>
+  </svg>`;
+}
+function petMini(theme, u) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">${trayHead(theme, 64, u, true).replace('<g>', '<g transform="translate(0 0)">')}</svg>`;
+}
+const toURL = s => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s);
+
+class Component extends DCLogic {
+  root = React.createRef();
+  paint() {
+    const el = this.root.current; if (!el) return;
+    let n = 0;
+    el.querySelectorAll('[data-asset]').forEach(d => {
+      if (d.dataset.done) return; d.dataset.done = '1';
+      const a = d.dataset.asset, th = d.dataset.theme, u = 'a' + (n++);
+      let svg = '';
+      if (a === 'tray') svg = trayHead(th, +d.dataset.size, u).replace(/width="\d+" height="\d+"/, 'width="100%" height="100%"');
+      else if (a === 'laptopFront') svg = laptopFront(th, u);
+      else if (a === 'laptopBack') svg = laptopBack(th, u);
+      else if (a === 'plug') svg = plug(th, u);
+      else if (a === 'pet') svg = petMini(th, u);
+      d.innerHTML = `<img alt="" src="${toURL(svg)}" style="width:100%;height:100%;display:block">`;
+    });
+  }
+  componentDidMount() { this.paint(); }
+  componentDidUpdate() { this.paint(); }
+  renderVals() {
+    return { root: this.root, lines: [{ text:'hi!' }, { text:'sleepy...' }, { text:'charge me pls' }, { text:"I'm strongly energized! :)" }] };
+  }
+}
+</script>
+</body>
+</html>

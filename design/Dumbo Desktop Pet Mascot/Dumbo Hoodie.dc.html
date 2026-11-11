@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
+<style>body{margin:0;background:#ece8ef;font-family:'Nunito',system-ui,sans-serif;color:#2b1f2a}a{color:#7a4a8c}a:hover{color:#3d2433}</style>
+</helmet>
+<div ref="{{ root }}" style="max-width:1240px;margin:0 auto;padding:40px 28px 72px;display:flex;flex-direction:column;gap:40px">
+  <header style="display:flex;flex-direction:column;gap:6px">
+    <div style="font-size:13px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#8a6f86">Desktop pet · outfit 01</div>
+    <h1 style="margin:0;font-size:40px;font-weight:800;color:#3d2433">Dumbo's coding hoodie</h1>
+    <p style="margin:0;font-size:16px;color:#6b5869;max-width:640px;text-wrap:pretty">Same Dumbo (trunk B). Oversized baby hoodie built as separate rig layers. Chest emblem and light colour are switchable in Tweaks.</p>
+  </header>
+
+  <section style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;flex-direction:column;gap:2px"><h2 style="margin:0;font-size:24px;font-weight:800;color:#3d2433">Hood down · sitting</h2><p style="margin:0;font-size:15px;color:#6b5869">Default state.</p></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px">
+      <sc-for list="{{ sitDownL }}" as="c" hint-placeholder-count="3">
+        <div style="background:#ffffff;border-radius:18px;padding:14px;display:flex;flex-direction:column;align-items:center;gap:10px">
+          <div style="width:100%;border-radius:12px;background-color:#f7f5f8;background-image:conic-gradient(#eeeaf0 25%,transparent 0 50%,#eeeaf0 0 75%,transparent 0);background-size:20px 20px;display:flex;justify-content:center;padding:10px 0"><div data-theme="{{ c.theme }}" data-hc="{{ c.hc }}" data-pose="{{ c.pose }}" data-hood="{{ c.hood }}" data-emblem="hero" style="width:220px;height:230px"></div></div>
+          <strong style="font-size:14px">{{ c.label }}</strong>
+        </div>
+      </sc-for>
+      <sc-for list="{{ sitDownD }}" as="c" hint-placeholder-count="1">
+        <div style="background:#1b1728;border-radius:18px;padding:14px;display:flex;flex-direction:column;align-items:center;gap:10px;color:#e9e4f5">
+          <div style="width:100%;border-radius:12px;background-color:#15121f;background-image:conic-gradient(#1c1829 25%,transparent 0 50%,#1c1829 0 75%,transparent 0);background-size:20px 20px;display:flex;justify-content:center;padding:10px 0"><div data-theme="{{ c.theme }}" data-hc="{{ c.hc }}" data-pose="{{ c.pose }}" data-hood="{{ c.hood }}" data-emblem="hero" style="width:220px;height:230px"></div></div>
+          <strong style="font-size:14px">{{ c.label }}</strong>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;flex-direction:column;gap:2px"><h2 style="margin:0;font-size:24px;font-weight:800;color:#3d2433">Hood up · focused coding</h2><p style="margin:0;font-size:15px;color:#6b5869">Ears pass through two slots in the hood.</p></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px">
+      <sc-for list="{{ sitUpL }}" as="c" hint-placeholder-count="3">
+        <div style="background:#ffffff;border-radius:18px;padding:14px;display:flex;flex-direction:column;align-items:center;gap:10px">
+          <div style="width:100%;border-radius:12px;background-color:#f7f5f8;background-image:conic-gradient(#eeeaf0 25%,transparent 0 50%,#eeeaf0 0 75%,transparent 0);background-size:20px 20px;display:flex;justify-content:center;padding:10px 0"><div data-theme="{{ c.theme }}" data-hc="{{ c.hc }}" data-pose="{{ c.pose }}" data-hood="{{ c.hood }}" data-emblem="hero" style="width:220px;height:230px"></div></div>
+          <strong style="font-size:14px">{{ c.label }}</strong>
+        </div>
+      </sc-for>
+      <sc-for list="{{ sitUpD }}" as="c" hint-placeholder-count="1">
+        <div style="background:#1b1728;border-radius:18px;padding:14px;display:flex;flex-direction:column;align-items:center;gap:10px;color:#e9e4f5">
+          <div style="width:100%;border-radius:12px;background-color:#15121f;background-image:conic-gradient(#1c1829 25%,transparent 0 50%,#1c1829 0 75%,transparent 0);background-size:20px 20px;display:flex;justify-content:center;padding:10px 0"><div data-theme="{{ c.theme }}" data-hc="{{ c.hc }}" data-pose="{{ c.pose }}" data-hood="{{ c.hood }}" data-emblem="hero" style="width:220px;height:230px"></div></div>
+          <strong style="font-size:14px">{{ c.label }}</strong>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;flex-direction:column;gap:2px"><h2 style="margin:0;font-size:24px;font-weight:800;color:#3d2433">Standing</h2><p style="margin:0;font-size:15px;color:#6b5869">Sleeves swallow the front paws; hem sits low over the legs.</p></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px">
+      <sc-for list="{{ standL }}" as="c" hint-placeholder-count="2">
+        <div style="background:#ffffff;border-radius:18px;padding:14px;display:flex;flex-direction:column;align-items:center;gap:10px">
+          <div style="width:100%;border-radius:12px;background-color:#f7f5f8;background-image:conic-gradient(#eeeaf0 25%,transparent 0 50%,#eeeaf0 0 75%,transparent 0);background-size:20px 20px;display:flex;justify-content:center;padding:10px 0"><div data-theme="{{ c.theme }}" data-hc="{{ c.hc }}" data-pose="{{ c.pose }}" data-hood="{{ c.hood }}" data-emblem="hero" style="width:220px;height:230px"></div></div>
+          <strong style="font-size:14px">{{ c.label }}</strong>
+        </div>
+      </sc-for>
+      <sc-for list="{{ standD }}" as="c" hint-placeholder-count="2">
+        <div style="background:#1b1728;border-radius:18px;padding:14px;display:flex;flex-direction:column;align-items:center;gap:10px;color:#e9e4f5">
+          <div style="width:100%;border-radius:12px;background-color:#15121f;background-image:conic-gradient(#1c1829 25%,transparent 0 50%,#1c1829 0 75%,transparent 0);background-size:20px 20px;display:flex;justify-content:center;padding:10px 0"><div data-theme="{{ c.theme }}" data-hc="{{ c.hc }}" data-pose="{{ c.pose }}" data-hood="{{ c.hood }}" data-emblem="hero" style="width:220px;height:230px"></div></div>
+          <strong style="font-size:14px">{{ c.label }}</strong>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;flex-direction:column;gap:2px"><h2 style="margin:0;font-size:24px;font-weight:800;color:#3d2433">Chest emblem · pick one</h2><p style="margin:0;font-size:15px;color:#6b5869">Set the winner in Tweaks — it applies everywhere.</p></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:16px">
+      <sc-for list="{{ emblems }}" as="e" hint-placeholder-count="3">
+        <div id="{{ e.id }}" style="background:#ffffff;border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;gap:10px;align-items:center"><span style="background:#3d2433;color:#fff;font-weight:800;font-size:13px;border-radius:8px;padding:3px 9px">{{ e.badge }}</span><strong style="font-size:15px">{{ e.label }}</strong></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div style="border-radius:12px;background:#f5f2f7;display:flex;justify-content:center;padding:8px 0"><div data-theme="light" data-hc="hero" data-pose="sit" data-hood="down" data-emblem="{{ e.key }}" style="width:146px;height:153px"></div></div>
+            <div style="border-radius:12px;background:#15121f;display:flex;justify-content:center;padding:8px 0"><div data-theme="dark" data-hc="dark" data-pose="sit" data-hood="down" data-emblem="{{ e.key }}" style="width:146px;height:153px"></div></div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;flex-direction:column;gap:2px"><h2 style="margin:0;font-size:24px;font-weight:800;color:#3d2433">Pulling it on · key frames</h2><p style="margin:0;font-size:15px;color:#6b5869">Head pops through the neck hole, ears stay tucked, then flop out.</p></div>
+    <div style="background:#ffffff;border-radius:18px;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px">
+      <sc-for list="{{ framesL }}" as="c" hint-placeholder-count="4">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+          <div style="width:100%;border-radius:12px;background:#f5f2f7;display:flex;justify-content:center;padding:8px 0"><div data-theme="light" data-hc="hero" data-pose="sit" data-hood="down" data-frame="{{ c.frame }}" data-emblem="hero" style="width:180px;height:188px"></div></div>
+          <span style="font-size:13px;font-weight:700;color:#5e4a5c">{{ c.label }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="background:#1b1728;border-radius:18px;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px">
+      <sc-for list="{{ framesL }}" as="c" hint-placeholder-count="4">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+          <div style="width:100%;border-radius:12px;background:#15121f;display:flex;justify-content:center;padding:8px 0"><div data-theme="dark" data-hc="dark" data-pose="sit" data-hood="down" data-frame="{{ c.frame }}" data-emblem="hero" style="width:180px;height:188px"></div></div>
+          <span style="font-size:13px;font-weight:700;color:#c9c0e0">{{ c.label }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;flex-direction:column;gap:2px"><h2 style="margin:0;font-size:24px;font-weight:800;color:#3d2433">Rig layers</h2><p style="margin:0;font-size:15px;color:#6b5869">Each piece is its own SVG group in rig coordinates, so it toggles on/off and follows the body.</p></div>
+    <div style="background:#ffffff;border-radius:18px;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px">
+      <sc-for list="{{ layers }}" as="c" hint-placeholder-count="8">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+          <div style="width:100%;border-radius:12px;background-color:#f7f5f8;background-image:conic-gradient(#eeeaf0 25%,transparent 0 50%,#eeeaf0 0 75%,transparent 0);background-size:14px 14px;display:flex;justify-content:center;padding:6px 0"><div data-theme="light" data-hc="hero" data-pose="sit" data-hood="{{ c.hood }}" data-only="{{ c.key }}" data-emblem="hero" style="width:112px;height:117px"></div></div>
+          <span style="font-size:12px;font-weight:700;color:#5e4a5c">{{ c.label }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="background:#1b1728;border-radius:18px;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px">
+      <sc-for list="{{ layers }}" as="c" hint-placeholder-count="8">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+          <div style="width:100%;border-radius:12px;background-color:#15121f;background-image:conic-gradient(#1c1829 25%,transparent 0 50%,#1c1829 0 75%,transparent 0);background-size:14px 14px;display:flex;justify-content:center;padding:6px 0"><div data-theme="dark" data-hc="dark" data-pose="sit" data-hood="{{ c.hood }}" data-only="{{ c.key }}" data-emblem="hero" style="width:112px;height:117px"></div></div>
+          <span style="font-size:12px;font-weight:700;color:#c9c0e0">{{ c.label }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;flex-direction:column;gap:2px"><h2 style="margin:0;font-size:24px;font-weight:800;color:#3d2433">At desktop size</h2><p style="margin:0;font-size:15px;color:#6b5869">96px and 48px, true pixel size.</p></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px">
+      <sc-for list="{{ deskL }}" as="c" hint-placeholder-count="2">
+        <div style="border-radius:14px;background:linear-gradient(160deg,#cfd9e6,#e9dfe9);padding:14px;display:flex;align-items:flex-end;justify-content:space-between;gap:10px;min-height:120px">
+          <span style="font-size:12px;font-weight:700;color:#4a5466">{{ c.label }}</span>
+          <div style="display:flex;align-items:flex-end;gap:12px"><div data-theme="light" data-hc="hero" data-pose="sit" data-hood="{{ c.hood }}" data-emblem="hero" style="width:92px;height:96px"></div><div data-theme="light" data-hc="hero" data-pose="sit" data-hood="{{ c.hood }}" data-emblem="hero" style="width:46px;height:48px"></div></div>
+        </div>
+      </sc-for>
+      <sc-for list="{{ deskL }}" as="c" hint-placeholder-count="2">
+        <div style="border-radius:14px;background:linear-gradient(160deg,#0f1630,#2a1838);padding:14px;display:flex;align-items:flex-end;justify-content:space-between;gap:10px;min-height:120px">
+          <span style="font-size:12px;font-weight:700;color:#a9b2d6">{{ c.label }}</span>
+          <div style="display:flex;align-items:flex-end;gap:12px"><div data-theme="dark" data-hc="dark" data-pose="sit" data-hood="{{ c.hood }}" data-emblem="hero" style="width:92px;height:96px"></div><div data-theme="dark" data-hc="dark" data-pose="sit" data-hood="{{ c.hood }}" data-emblem="hero" style="width:46px;height:48px"></div></div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;emblem&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;braces&quot;,&quot;heart&quot;,&quot;peanut&quot;],&quot;default&quot;:&quot;braces&quot;,&quot;tsType&quot;:&quot;'braces'|'heart'|'peanut'&quot;},&quot;lightColor&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;lilac&quot;,&quot;mint&quot;,&quot;peach&quot;],&quot;default&quot;:&quot;lilac&quot;,&quot;tsType&quot;:&quot;'lilac'|'mint'|'peach'&quot;}}">
+const TH = {
+  light: { ol:'#3d2433', b1:'#ebe5f0', b2:'#aa9fbd', shade:'#b6abc8', belly1:'#fcf5ea', belly2:'#efdfca', nail:'#f8eddc', ear1:'#fcd0dc', ear2:'#ee8dab', sole:'#f9efe4', pad:'#f597b3', blush:'#f7809e', blushOp:.5, eye1:'#1f0f0b', eye2:'#86513a', mouth:'#5c2236', tongue:'#f27896', hi:.45, tuft:'#9d92b0' },
+  dark:  { ol:'#100b1f', b1:'#5f6891', b2:'#2b3050', shade:'#363c60', belly1:'#ada4e6', belly2:'#7469b4', nail:'#a197da', ear1:'#e29aff', ear2:'#7a2fd8', sole:'#958bd0', pad:'#ff8cc6', blush:'#ff66b0', blushOp:.55, eye1:'#0e0720', eye2:'#7548c2', mouth:'#2a0f2e', tongue:'#ff7fb0', hi:.2, tuft:'#3a4166', neon:true }
+};
+const HC = {
+  lilac: { h1:'#e6d8f8', h2:'#ad94d8', rib:'#a089cf', lin:'#8f76bf', str:'#fffaf3', str2:'#fffaf3', tip:'#f59bb6', emb:'#7449bd' },
+  mint:  { h1:'#d6f3e5', h2:'#8acbb0', rib:'#78bea0', lin:'#5fa486', str:'#fffaf3', str2:'#fffaf3', tip:'#f59bb6', emb:'#2c8a66' },
+  peach: { h1:'#ffe3d1', h2:'#f0a988', rib:'#e79a77', lin:'#cf7f5f', str:'#fffaf3', str2:'#fffaf3', tip:'#f59bb6', emb:'#cf5f45' },
+  dark:  { h1:'#3a3846', h2:'#131218', rib:'#1f1d26', lin:'#0c0b10', str:'#3be6ff', str2:'#ff4fd8', tip:'#ff4fd8', emb:'#ff6fd8' }
+};
+const E = (cx, cy, rx, ry) => `M${cx - rx} ${cy} a${rx} ${ry} 0 1 0 ${2 * rx} 0 a${rx} ${ry} 0 1 0 ${-2 * rx} 0 Z`;
+const EAR_L = 'M120 92 C60 70 12 110 14 170 C16 230 50 280 100 282 C125 283 140 262 140 240 L160 200 Z';
+const EAR_R = 'M292 86 C350 64 396 104 394 165 C392 225 362 270 320 270 C300 270 290 252 292 232 L260 200 Z';
+const EAR_LI = 'M112 112 C66 100 34 130 34 175 C34 225 62 262 98 262 C116 262 124 248 124 232 Z';
+const EAR_RI = 'M300 106 C344 94 374 124 374 168 C374 218 350 250 322 250 C308 250 302 240 304 226 Z';
+const LEG_L = 'M156 346 L156 384 Q156 403 185 403 Q214 403 214 384 L214 356';
+const LEG_R = 'M214 356 L214 384 Q214 403 243 403 Q272 403 272 384 L272 346';
+const LEG_SL = 'M164 352 L164 404 Q164 422 186 422 Q208 422 208 404 L208 352';
+const LEG_SR = 'M214 352 L214 404 Q214 422 236 422 Q258 422 258 404 L258 352';
+const ARM_L = 'M150 256 C126 276 108 306 110 338 C112 356 138 358 144 342 C148 322 158 300 174 282';
+const ARM_R = 'M270 256 C294 276 312 306 310 338 C308 356 282 358 276 342 C272 322 262 300 246 282';
+const TAIL = 'M128 350 C100 352 82 338 74 318';
+const TAIL_S = 'M140 352 C112 356 94 344 86 326';
+const TAIL_TUFT = 'M76 322 C62 316 58 300 64 290 C70 300 76 302 78 295 C84 304 86 314 80 322 Z';
+const HAIR = 'M193 42 C186 22 204 6 225 14 C211 16 204 27 209 40';
+const FOOT_L = 'cx="110" cy="350" rx="44" ry="50" transform="rotate(-14 110 350)"';
+const FOOT_R = 'cx="318" cy="348" rx="34" ry="46" transform="rotate(14 318 348)"';
+const TRUNK = { d:'M198 184 C192 216 206 247 234 247 C254 247 268 236 272 220 C275 206 266 198 258 201 C252 204 251 211 248 214 C244 218 240 214 240 206 C240 199 240 193 241 186', n:[265,205,50] };
+const COLLAR = 'M100 250 C100 222 150 212 208 214 C266 212 318 222 318 250 C318 272 296 282 272 280 C250 270 230 264 208 266 C186 264 166 270 144 280 C120 282 100 272 100 250 Z';
+const COLLAR_IN = 'M122 248 C134 232 176 228 208 228 C240 228 284 232 296 248 C284 258 246 256 208 256 C170 256 134 258 122 248 Z';
+const COLLAR_EDGE = 'M104 262 C112 278 132 284 146 280 C168 270 188 264 208 266 C230 264 250 270 272 280 C288 284 308 278 314 262';
+const SACK = 'M88 164 C70 168 46 190 46 226 C46 262 70 286 98 304 L316 304 C344 286 368 262 368 226 C368 190 344 168 324 164 Z';
+const SACK_HEM = 'M96 292 Q207 306 318 292 L320 314 Q207 328 94 314 Z';
+const F2_TORSO = 'M108 356 C90 330 64 300 60 262 C56 222 80 200 110 206 C126 210 134 222 140 232 C170 224 250 224 280 232 C286 222 296 210 312 206 C342 200 366 222 362 262 C358 300 332 330 314 356 Z';
+const F2_HEM = 'M104 338 Q210 352 318 338 L320 360 Q210 376 102 360 Z';
+const P = {
+  sit: {
+    torso:'M124 246 C104 286 102 336 108 366 L312 366 C318 336 316 286 296 246 C266 230 154 230 124 246 Z',
+    hem:'M106 342 Q210 354 314 342 L316 364 Q210 378 104 364 Z',
+    folds:['M134 296 Q146 318 138 340','M286 292 Q276 316 284 338'],
+    pocket:[170,250,284,330,8],
+    sleeves:[
+      { key:'sleeveL', f:'M150 328 C147 342 148 356 150 366 L216 366 C215 354 214 342 213 328 Z', s:'M150 328 C147 342 148 356 150 366', top:'M152 332 Q182 324 212 334', cuff:[146,360,74,0] },
+      { key:'sleeveR', f:'M213 328 C213 342 212 354 212 366 L278 366 C280 356 281 342 278 328 Z', s:'M278 328 C281 342 280 356 278 366 M213 338 L213 362', top:'M214 334 Q244 324 276 332', cuff:[208,360,74,0] }
+    ]
+  },
+  stand: {
+    torso:'M136 240 C118 280 120 340 126 372 L294 372 C300 340 302 280 284 240 C256 226 164 226 136 240 Z',
+    hem:'M124 362 Q210 374 296 362 L298 384 Q210 398 122 384 Z',
+    folds:['M150 300 Q160 320 154 344','M270 300 Q260 320 266 344'],
+    pocket:[178,242,300,348,8],
+    sleeves:[
+      { key:'sleeveL', f:'M150 250 C122 270 102 304 104 336 L150 342 C152 318 162 296 180 278 Z', s:'M150 250 C122 270 102 304 104 336 M150 342 C152 318 162 296 180 278', top:'', cuff:[100,328,50,8] },
+      { key:'sleeveR', f:'M270 250 C298 270 318 304 316 336 L270 342 C268 318 258 296 240 278 Z', s:'M270 250 C298 270 318 304 316 336 M270 342 C268 318 258 296 240 278', top:'', cuff:[270,328,50,-8] }
+    ]
+  }
+};
+function cuffParts(x, y, w) {
+  const k = w / 74, X = v => +(x + v * k).toFixed(1), Y = v => +(y + v * k).toFixed(1);
+  const d = `M${X(0)} ${Y(10)} C${X(0)} ${Y(2)} ${X(10)} ${Y(0)} ${X(20)} ${Y(2)} C${X(30)} ${Y(-2)} ${X(44)} ${Y(-2)} ${X(54)} ${Y(2)} C${X(64)} ${Y(0)} ${X(74)} ${Y(2)} ${X(74)} ${Y(10)} L${X(74)} ${Y(22)} C${X(74)} ${Y(32)} ${X(64)} ${Y(32)} ${X(54)} ${Y(30)} C${X(44)} ${Y(34)} ${X(30)} ${Y(34)} ${X(20)} ${Y(30)} C${X(10)} ${Y(32)} ${X(0)} ${Y(30)} ${X(0)} ${Y(22)} Z`;
+  let ribs = '';
+  for (let v = 12; v <= 62; v += 10) ribs += `M${X(v)} ${Y(8)} L${X(v)} ${Y(25)} `;
+  const top = `M${X(3)} ${Y(7)} C${X(22)} ${Y(1)} ${X(52)} ${Y(1)} ${X(71)} ${Y(7)}`;
+  return { d, ribs, top, cx: x + 37 * k, cy: y + 16 * k };
+}
+function pocketD(xl, xr, yt, yb, fl) {
+  return `M${xl + 8} ${yt} L${xr - 8} ${yt} Q${xr} ${yt} ${xr + 2} ${yt + 8} L${xr + fl} ${yb - 8} Q${xr + fl + 2} ${yb} ${xr + fl - 6} ${yb} L${xl - fl + 6} ${yb} Q${xl - fl - 2} ${yb} ${xl - fl} ${yb - 8} L${xl - 2} ${yt + 8} Q${xl} ${yt} ${xl + 8} ${yt} Z`;
+}
+
+function render(o) {
+  const dark = o.theme === 'dark', t = TH[dark ? 'dark' : 'light'];
+  const H = dark ? HC.dark : (HC[o.hc] || HC.lilac);
+  const stand = o.pose === 'stand', G = P[stand ? 'stand' : 'sit'];
+  const f = +o.frame || 0;
+  let hood = o.hood || 'none';
+  if (f === 1) hood = 'sack'; else if (f) hood = 'down';
+  const wear = hood !== 'none', sack = hood === 'sack';
+  const u = o.u, id = s => u + s, SW = 7, ol = t.ol;
+  const tg = 'transform="translate(-6 0) translate(218 184) scale(1 1.12) translate(-218 -184)"';
+  const earsHidden = f === 1 || f === 2;
+  const eL = f === 3 ? 'transform="rotate(-16 140 175)"' : '';
+  const eR = f === 3 ? 'transform="rotate(16 268 160)"' : '';
+  const hasSleeves = wear && !sack && f !== 2;
+  const torsoD = f === 2 ? F2_TORSO : G.torso, hemD = sack ? SACK_HEM : (f === 2 ? F2_HEM : G.hem);
+  const tail = stand ? TAIL_S : TAIL, tuftT = stand ? 'transform="translate(10 4)"' : '';
+  const bodyE = stand ? [210, 302, 80, 82] : [210, 318, 92, 78];
+  const legs = stand ? [LEG_SL, LEG_SR] : [LEG_L, LEG_R];
+  const nails = stand ? [175,186,197,225,236,247] : [172,185,198,230,243,256];
+  const nailY = stand ? [420, 411] : [400, 389];
+  const HF = `url(#${id('hd')})`, BF = `url(#${id('body')})`;
+  const neonLine = (d, w = 2.6) => dark ? `<path d="${d}" fill="none" stroke="url(#${id('rim')})" stroke-width="${w * 3}" stroke-linecap="round" opacity=".55" filter="url(#${id('g2')})"/><path d="${d}" fill="none" stroke="url(#${id('rim')})" stroke-width="${w}" stroke-linecap="round"/>` : '';
+  const cuffG = (cf, inner) => { const c = cuffParts(cf[0], cf[1], cf[2]); return `<g transform="rotate(${cf[3]} ${c.cx} ${c.cy})">${inner(c)}</g>`; };
+
+  const sil = (c, sw) => {
+    const F = d => `<path d="${d}" fill="${c}" stroke="${c}" stroke-width="${sw}" stroke-linejoin="round"/>`;
+    let s = `<path d="${tail}" fill="none" stroke="${c}" stroke-width="${10 + sw}" stroke-linecap="round"/><g ${tuftT}>${F(TAIL_TUFT)}</g>`;
+    if (!earsHidden) s += `<g ${eL}>${F(EAR_L)}</g><g ${eR}>${F(EAR_R)}</g>`;
+    s += F(E(...bodyE)) + F(legs[0] + 'Z') + F(legs[1] + 'Z');
+    if (stand) s += F(ARM_L + 'Z') + F(ARM_R + 'Z');
+    else s += `<ellipse ${FOOT_L} fill="${c}" stroke="${c}" stroke-width="${sw}"/><ellipse ${FOOT_R} fill="${c}" stroke="${c}" stroke-width="${sw}"/>`;
+    s += F(E(205, 145, 122, 110)) + F(HAIR + 'Z');
+    if (!sack) s += `<g ${tg}><path d="${TRUNK.d}Z" fill="${c}" stroke="${c}" stroke-width="${sw}"/></g>`;
+    if (sack) s += F(SACK) + F(SACK_HEM);
+    else if (wear) {
+      s += F(torsoD) + F(hemD);
+      if (hood === 'up') s += F(E(205, 138, 138, 128));
+      if (hood === 'down') s += F(COLLAR);
+      if (hasSleeves) G.sleeves.forEach(sl => { s += F(sl.f) + cuffG(sl.cuff, cp => F(cp.d)); });
+    }
+    return s;
+  };
+
+  const emblem = (k, x, y) => {
+    let s = '';
+    const g2 = `url(#${id('g2')})`;
+    if (k === 'heart') {
+      const d = 'M0 8 C-10 1 -11 -6 -6 -8 C-3 -9 -1 -7 0 -5 C1 -7 3 -9 6 -8 C11 -6 10 1 0 8 Z';
+      s = (dark ? `<path d="${d}" fill="#ff4fd8" opacity=".75" filter="${g2}"/>` : '') + `<path d="${d}" fill="${H.emb}"/>`;
+    } else if (k === 'peanut') {
+      const d = 'M-3 -10 C3 -12 7 -7 5 -2 C4 0 4 1 5 3 C7 8 3 12 -3 10 C-8 8 -8 3 -6 1 C-5 0 -5 -1 -6 -3 C-8 -7 -8 -9 -3 -10 Z';
+      s = `<g transform="rotate(35)">${dark ? `<path d="${d}" fill="none" stroke="#3be6ff" stroke-width="4" opacity=".6" filter="${g2}"/>` : ''}<path d="${d}" fill="#e9b874" stroke="${dark ? '#3be6ff' : ol}" stroke-width="1.6"/><circle cx="-1" cy="-5" r="1" fill="#b98447"/><circle cx="1" cy="5" r="1" fill="#b98447"/><circle cx="-2.5" cy="1" r=".9" fill="#b98447"/></g>`;
+    } else {
+      const d = 'M-3 -8 Q-7 -8 -7 -4 L-7 -2 Q-7 0 -10 0 Q-7 0 -7 2 L-7 4 Q-7 8 -3 8 M3 -8 Q7 -8 7 -4 L7 -2 Q7 0 10 0 Q7 0 7 2 L7 4 Q7 8 3 8';
+      const st = dark ? `url(#${id('emg')})` : H.emb;
+      s = (dark ? `<path d="${d}" fill="none" stroke="${st}" stroke-width="6" opacity=".55" filter="${g2}" stroke-linecap="round"/>` : '') + `<path d="${d}" fill="none" stroke="${st}" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>`;
+    }
+    return `<g transform="translate(${x} ${y}) scale(1.1)">${s}</g>`;
+  };
+
+  const L = {};
+  if (wear) {
+    const folds = sack ? ['M60 210 Q74 200 90 208', 'M326 208 Q342 200 356 210', 'M150 230 Q160 262 150 290'] : (f === 2 ? ['M74 236 Q92 224 110 236', 'M310 236 Q328 224 346 236'] : G.folds);
+    let ribs = ''; for (let x = 100; x <= 324; x += 12) ribs += `M${x} 280 L${x} 410 `;
+    L.body = `<g data-layer="hoodie-body">
+      <path d="${sack ? SACK : torsoD}" fill="${HF}" stroke="${ol}" stroke-width="${SW}" stroke-linejoin="round"/>
+      ${folds.map(d => `<path d="${d}" fill="none" stroke="${ol}" stroke-width="3" stroke-linecap="round" opacity=".22"/>`).join('')}
+      <path d="${hemD}" fill="${H.rib}" stroke="${ol}" stroke-width="5.5" stroke-linejoin="round"/>
+      <g clip-path="url(#${id('hemc')})"><path d="${ribs}" stroke="${ol}" stroke-width="2" opacity=".16"/></g>
+      ${sack ? '' : `<ellipse cx="210" cy="262" rx="78" ry="14" fill="${ol}" opacity=".2" filter="url(#${id('soft')})"/>${emblem(o.emblem, 210, 275)}`}
+    </g>`;
+    if (hood === 'down') L.hoodDown = `<g data-layer="hood-down">
+      <path d="${COLLAR}" fill="${HF}" stroke="${ol}" stroke-width="${SW}" stroke-linejoin="round"/>
+      <path d="${COLLAR_IN}" fill="${H.lin}" opacity=".85"/>
+      ${neonLine(COLLAR_EDGE, 2.2)}
+    </g>`;
+    if (!sack) {
+      const [xl, xr, yt, yb, fl] = G.pocket;
+      L.pocket = `<g data-layer="pocket">
+        <path d="${pocketD(xl, xr, yt, yb, fl)}" fill="${HF}" stroke="${ol}" stroke-width="5" stroke-linejoin="round"/>
+        <path d="M${xl + 6} ${yt + 6} L${xr - 6} ${yt + 6}" stroke="${ol}" stroke-width="2" stroke-dasharray="4 4" opacity=".3"/>
+        <path d="M${xl + 3} ${yt + 12} L${xl - fl + 5} ${yb - 10} M${xr - 3} ${yt + 12} L${xr + fl - 5} ${yb - 10}" stroke="${H.lin}" stroke-width="5" stroke-linecap="round" opacity=".7"/>
+      </g>`;
+      const strs = [['M184 250 C182 274 180 294 182 312', 182, 318, H.str], ['M236 250 C240 270 242 288 240 302', 240, 308, H.str2]];
+      L.strings = `<g data-layer="drawstrings">${strs.map(([d, cx, cy, c]) => `
+        ${dark ? `<path d="${d}" fill="none" stroke="${c}" stroke-width="10" opacity=".45" filter="url(#${id('g2')})" stroke-linecap="round"/><circle cx="${cx}" cy="${cy}" r="10" fill="${c}" opacity=".45" filter="url(#${id('g2')})"/>` : ''}
+        <path d="${d}" fill="none" stroke="${ol}" stroke-width="7.5" stroke-linecap="round"/>
+        <path d="${d}" fill="none" stroke="${c}" stroke-width="3.6" stroke-linecap="round"/>
+        <circle cx="${cx}" cy="${cy}" r="6.5" fill="${dark ? c : H.tip}" stroke="${ol}" stroke-width="3"/>
+        <circle cx="${cx - 2}" cy="${cy - 2}" r="1.8" fill="#fff" opacity=".8"/>`).join('')}</g>`;
+    }
+    if (hasSleeves) G.sleeves.forEach(sl => {
+      L[sl.key] = `<g data-layer="${sl.key === 'sleeveL' ? 'sleeve-left' : 'sleeve-right'}">
+        <path d="${sl.f}" fill="${HF}"/>
+        <path d="${sl.s}" fill="none" stroke="${ol}" stroke-width="${SW}" stroke-linecap="round"/>
+        ${sl.top ? `<path d="${sl.top}" fill="none" stroke="${ol}" stroke-width="3" stroke-linecap="round" opacity=".22"/>` : ''}
+        ${cuffG(sl.cuff, c => `<path d="${c.d}" fill="${H.rib}" stroke="${ol}" stroke-width="5" stroke-linejoin="round"/><path d="${c.ribs}" stroke="${ol}" stroke-width="2" stroke-linecap="round" opacity=".2"/>${neonLine(c.top, 2.2)}`)}
+      </g>`;
+    });
+    if (hood === 'up') L.hoodUp = `<g data-layer="hood-up">
+      <path d="${E(205, 138, 138, 128)} ${E(208, 160, 108, 94)}" fill-rule="evenodd" fill="${HF}"/>
+      <path d="M205 12 Q207 40 208 64" fill="none" stroke="${ol}" stroke-width="3" opacity=".25"/>
+      <path d="M96 60 Q120 40 150 34 M314 60 Q290 40 260 34" fill="none" stroke="${ol}" stroke-width="3" stroke-linecap="round" opacity=".18"/>
+      <path d="${E(205, 138, 138, 128)}" fill="none" stroke="${ol}" stroke-width="${SW}"/>
+      <ellipse cx="208" cy="160" rx="114" ry="100" fill="none" stroke="${H.rib}" stroke-width="13"/>
+      <ellipse cx="208" cy="160" rx="120.5" ry="106.5" fill="none" stroke="${ol}" stroke-width="2.5" opacity=".45"/>
+      <ellipse cx="208" cy="160" rx="108" ry="94" fill="none" stroke="${ol}" stroke-width="5"/>
+      ${neonLine(E(208, 160, 112, 98), 2.4)}
+      <ellipse cx="80" cy="156" rx="9" ry="44" transform="rotate(6 80 156)" fill="${H.lin}" stroke="${ol}" stroke-width="4"/>
+      <ellipse cx="82" cy="158" rx="5" ry="38" transform="rotate(6 80 156)" fill="${BF}"/>
+      <ellipse cx="332" cy="146" rx="8" ry="40" transform="rotate(-6 332 146)" fill="${H.lin}" stroke="${ol}" stroke-width="4"/>
+      <ellipse cx="330" cy="148" rx="4.5" ry="34" transform="rotate(-6 332 146)" fill="${BF}"/>
+    </g>`;
+  }
+
+  const eye = (cx, cy, rx, ry) => f === 2 ? `<path d="M${cx - rx * .8} ${cy + 6} Q${cx} ${cy - 16} ${cx + rx * .8} ${cy + 6}" fill="none" stroke="${ol}" stroke-width="6" stroke-linecap="round"/>` : `
+    <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="url(#${id('eye')})" stroke="${ol}" stroke-width="4"/>
+    <ellipse cx="${cx}" cy="${cy + ry * .45}" rx="${rx * .6}" ry="${ry * .3}" fill="${t.eye2}" opacity=".55" filter="url(#${id('soft')})"/>
+    <path d="M${cx - rx} ${cy - 3} A${rx} ${ry} 0 0 1 ${cx + rx} ${cy - 3}" fill="none" stroke="${ol}" stroke-width="6.5" stroke-linecap="round"/>
+    <circle cx="${cx - rx * .34}" cy="${cy - ry * .36}" r="${rx * .37}" fill="#fff"/>
+    <circle cx="${cx + rx * .36}" cy="${cy + ry * .38}" r="${rx * .16}" fill="#fff"/>`;
+  const pad = (cx, cy, rx, ry, rot) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" transform="rotate(${rot} ${cx} ${cy})" fill="${t.pad}"/>`;
+  const blush = (x) => `<ellipse cx="${x}" cy="212" rx="13" ry="7" fill="${t.blush}" opacity="${t.blushOp}" filter="url(#${id('soft')})"/><ellipse cx="${x}" cy="212" rx="10.5" ry="5.5" fill="${t.blush}" opacity="${t.blushOp}"/><path d="M${x - 6} 214.5 l3 -4.5 M${x - .5} 215 l3 -4.5 M${x + 5} 214.5 l3 -4.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" opacity=".9"/>`;
+
+  const ears = earsHidden ? '' : `
+    <g ${eR}><path d="${EAR_R}" fill="${BF}" stroke="${ol}" stroke-width="${SW}" stroke-linejoin="round"/><path d="${EAR_RI}" fill="url(#${id('ear')})"/>${dark ? `<path d="${EAR_RI}" fill="${t.ear1}" opacity=".55" filter="url(#${id('soft')})" transform="translate(12 6) scale(.96)"/>` : ''}</g>
+    <g ${eL}><path d="${EAR_L}" fill="${BF}" stroke="${ol}" stroke-width="${SW}" stroke-linejoin="round"/><path d="${EAR_LI}" fill="url(#${id('ear')})"/>${dark ? `<path d="${EAR_LI}" fill="${t.ear1}" opacity=".55" filter="url(#${id('soft')})" transform="translate(6 4) scale(.96)"/>` : ''}</g>`;
+  const [bx, by, brx, bry] = bodyE;
+  const bodyCore = `
+    <ellipse cx="${bx}" cy="${by}" rx="${brx}" ry="${bry}" fill="${t.shade}"/>
+    <g clip-path="url(#${id('bod')})"><ellipse cx="${bx - 12}" cy="${by - 12}" rx="${brx - 2}" ry="${bry - 2}" fill="${BF}" filter="url(#${id('soft')})"/></g>
+    <ellipse cx="${bx}" cy="${by}" rx="${brx}" ry="${bry}" fill="none" stroke="${ol}" stroke-width="${SW}"/>
+    <path d="${stand ? 'M190 262 C182 296 192 334 212 346 C232 334 244 296 236 262 C226 254 200 254 190 262 Z' : 'M188 266 C182 294 194 318 215 330 C236 318 248 294 242 266 C230 257 200 257 188 266 Z'}" fill="url(#${id('belly')})"/>
+    ${legs.map(d => `<path d="${d}Z" fill="${BF}"/><path d="${d}" fill="none" stroke="${ol}" stroke-width="${SW}" stroke-linecap="round" stroke-linejoin="round"/>`).join('')}
+    ${nails.map(x => `<path d="M${x - 6.5} ${nailY[0]} Q${x - 6.5} ${nailY[1]} ${x} ${nailY[1]} Q${x + 6.5} ${nailY[1]} ${x + 6.5} ${nailY[0]}" fill="${t.nail}" stroke="${ol}" stroke-width="3" stroke-linejoin="round"/>`).join('')}
+    ${stand ? [ARM_L, ARM_R].map(d => `<path d="${d}Z" fill="${BF}"/><path d="${d}" fill="none" stroke="${ol}" stroke-width="${SW}" stroke-linecap="round" stroke-linejoin="round"/>`).join('') : ''}
+    ${wear ? '' : `<ellipse cx="210" cy="260" rx="78" ry="14" fill="${ol}" opacity=".18" filter="url(#${id('soft')})"/>`}`;
+  const feet = stand ? '' : `
+    <ellipse ${FOOT_L} fill="${t.sole}" stroke="${ol}" stroke-width="${SW}"/>
+    ${pad(114,366,19,15,-14)}${pad(86,334,7.5,8,-14)}${pad(105,321,8.5,9,-14)}${pad(127,324,7.5,8,-14)}
+    <ellipse ${FOOT_R} fill="${t.sole}" stroke="${ol}" stroke-width="${SW}"/>
+    ${pad(320,362,14,12,14)}${pad(302,330,5.5,6,14)}${pad(317,320,6,6.5,14)}${pad(333,327,5.5,6,14)}`;
+  const headBase = `
+    <ellipse cx="205" cy="145" rx="122" ry="110" fill="${t.shade}"/>
+    <g clip-path="url(#${id('head')})"><ellipse cx="194" cy="134" rx="120" ry="106" fill="${BF}" filter="url(#${id('soft')})"/></g>
+    <ellipse cx="205" cy="145" rx="122" ry="110" fill="none" stroke="${ol}" stroke-width="${SW}"/>
+    <ellipse cx="140" cy="88" rx="34" ry="13" transform="rotate(-28 140 88)" fill="#fff" opacity="${t.hi}"/>
+    <path d="${HAIR}Z" fill="${BF}"/>
+    <path d="${HAIR}" fill="none" stroke="${ol}" stroke-width="${SW}" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M174 46 Q178 35 190 35" fill="none" stroke="${ol}" stroke-width="4" stroke-linecap="round"/>`;
+  const face = `
+    <path d="M140 122 Q152 114 166 119" fill="none" stroke="${ol}" stroke-width="4.5" stroke-linecap="round"/>
+    <path d="M266 119 Q280 114 292 122" fill="none" stroke="${ol}" stroke-width="4.5" stroke-linecap="round"/>
+    ${eye(160,168,25,30)}${eye(272,168,25,30)}
+    ${blush(144)}${blush(288)}
+    <path d="M200 214 Q211 218 222 213 C223 225 217 230 211 230 C205 230 200 225 200 214 Z" fill="${t.mouth}" stroke="${ol}" stroke-width="3.5" stroke-linejoin="round"/>
+    <g clip-path="url(#${id('mouth')})"><ellipse cx="211" cy="229" rx="7.5" ry="5.5" fill="${t.tongue}"/></g>
+    <g clip-path="url(#${id('head')})"><g ${tg}><path d="${TRUNK.d}Z" fill="${ol}" opacity=".12" transform="translate(4 5)" filter="url(#${id('soft')})"/></g></g>
+    <g ${tg}>
+      <path d="${TRUNK.d}Z" fill="${BF}"/><path d="${TRUNK.d}Z" fill="url(#${id('trunk')})"/>
+      <path d="${TRUNK.d}" fill="none" stroke="${ol}" stroke-width="${SW / 1.05}" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M203 197 Q216 201 231 196 M205 206 Q216 210 229 205" fill="none" stroke="${ol}" stroke-width="2.4" stroke-linecap="round" opacity=".3"/>
+      <ellipse cx="${TRUNK.n[0]}" cy="${TRUNK.n[1]}" rx="4.2" ry="2.6" transform="rotate(${TRUNK.n[2]} ${TRUNK.n[0]} ${TRUNK.n[1]})" fill="${ol}" opacity=".75"/>
+    </g>`;
+  const motion = d => `<path d="${d}" fill="none" stroke="${dark ? '#8fa0ff' : ol}" stroke-width="4" stroke-linecap="round" opacity=".45"/>`;
+
+  const defs = `<defs>
+    <linearGradient id="${id('body')}" gradientUnits="userSpaceOnUse" x1="110" y1="40" x2="300" y2="400"><stop offset="0" stop-color="${t.b1}"/><stop offset="1" stop-color="${t.b2}"/></linearGradient>
+    <linearGradient id="${id('hd')}" gradientUnits="userSpaceOnUse" x1="110" y1="20" x2="310" y2="420"><stop offset="0" stop-color="${H.h1}"/><stop offset="1" stop-color="${H.h2}"/></linearGradient>
+    <linearGradient id="${id('trunk')}" x1="0" y1="0" x2=".35" y2="1"><stop offset="0" stop-color="${t.shade}" stop-opacity="0"/><stop offset=".5" stop-color="${t.shade}" stop-opacity="0"/><stop offset="1" stop-color="${t.b2}" stop-opacity=".8"/></linearGradient>
+    <linearGradient id="${id('belly')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t.belly1}"/><stop offset="1" stop-color="${t.belly2}"/></linearGradient>
+    <radialGradient id="${id('ear')}" cx=".45" cy=".5" r=".65"><stop offset="0" stop-color="${t.ear1}"/><stop offset="1" stop-color="${t.ear2}"/></radialGradient>
+    <linearGradient id="${id('eye')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t.eye1}"/><stop offset=".5" stop-color="${t.eye1}"/><stop offset="1" stop-color="${t.eye2}"/></linearGradient>
+    <linearGradient id="${id('rim')}" gradientUnits="userSpaceOnUse" x1="20" y1="120" x2="390" y2="300"><stop offset="0" stop-color="#3be6ff"/><stop offset=".5" stop-color="#7e6bff"/><stop offset="1" stop-color="#ff4fd8"/></linearGradient>
+    <linearGradient id="${id('emg')}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3be6ff"/><stop offset="1" stop-color="#ff4fd8"/></linearGradient>
+    <filter id="${id('glow')}" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="9"/></filter>
+    <filter id="${id('g2')}" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3"/></filter>
+    <filter id="${id('soft')}" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4"/></filter>
+    <clipPath id="${id('head')}"><ellipse cx="205" cy="145" rx="122" ry="110"/></clipPath>
+    <clipPath id="${id('bod')}"><ellipse cx="${bx}" cy="${by}" rx="${brx}" ry="${bry}"/></clipPath>
+    <clipPath id="${id('hemc')}"><path d="${hemD}"/></clipPath>
+    <clipPath id="${id('f1')}"><rect x="-20" y="-20" width="460" height="182"/><ellipse cx="206" cy="162" rx="120" ry="16"/></clipPath>
+    <clipPath id="${id('mouth')}"><path d="M200 214 Q211 218 222 213 C223 225 217 230 211 230 C205 230 200 225 200 214 Z"/></clipPath>
+  </defs>`;
+  const open = `<svg viewBox="-36 -20 472 480" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="display:block;overflow:visible">${defs}`;
+
+  if (o.only && o.only !== 'pet') return `${open}${L[o.only] || ''}</svg>`;
+
+  let s = open;
+  if (dark) s += `<g filter="url(#${id('glow')})" opacity=".8">${sil(`url(#${id('rim')})`, 20)}</g><g>${sil(`url(#${id('rim')})`, 13)}</g>`;
+  s += `<path d="${tail}" fill="none" stroke="${ol}" stroke-width="${10 + SW * 2}" stroke-linecap="round"/><path d="${tail}" fill="none" stroke="${t.shade}" stroke-width="10" stroke-linecap="round"/><g ${tuftT}><path d="${TAIL_TUFT}" fill="${t.tuft}" stroke="${ol}" stroke-width="5" stroke-linejoin="round"/></g>`;
+  s += ears + bodyCore;
+  s += (L.body || '') + (L.hoodDown || '') + (L.pocket || '') + (L.sleeveL || '') + (L.sleeveR || '') + feet;
+  if (hood !== 'up') s += L.strings || '';
+  if (sack) {
+    s += `<ellipse cx="206" cy="162" rx="120" ry="16" fill="${H.lin}"/><ellipse cx="206" cy="166" rx="110" ry="11" fill="${ol}" opacity=".35"/>`;
+    s += `<g clip-path="url(#${id('f1')})">${headBase}${face}</g>`;
+    s += `<path d="M86 162 A120 16 0 0 0 326 162" fill="none" stroke="${H.rib}" stroke-width="10" stroke-linecap="round"/><path d="M84 166 A122 20 0 0 0 328 166" fill="none" stroke="${ol}" stroke-width="4" stroke-linecap="round"/>${neonLine('M90 166 A118 18 0 0 0 322 166', 2.2)}`;
+    s += motion('M28 196 Q18 226 28 256') + motion('M388 196 Q398 226 388 256');
+  } else {
+    s += headBase;
+    if (hood === 'up') s += `<g clip-path="url(#${id('head')})"><path d="${E(208, 160, 108, 94)}" fill="none" stroke="${ol}" stroke-width="22" opacity=".16" filter="url(#${id('soft')})"/></g>` + L.hoodUp + L.strings;
+    s += face;
+    if (f === 3) s += motion('M-4 118 Q-14 150 -4 182') + motion('M-18 130 Q-26 150 -18 170') + motion('M412 104 Q422 138 412 172') + motion('M426 116 Q434 138 426 160');
+  }
+  return s + '</svg>';
+}
+
+class Component extends DCLogic {
+  root = React.createRef();
+  paint() {
+    const el = this.root.current; if (!el) return;
+    const emb = this.props.emblem ?? 'braces', hc = this.props.lightColor ?? 'lilac';
+    let n = 0;
+    el.querySelectorAll('[data-theme]').forEach(d => {
+      const ds = d.dataset;
+      const o = { theme: ds.theme, hc: ds.hc === 'hero' ? hc : ds.hc, pose: ds.pose, hood: ds.hood,
+        frame: ds.frame, only: ds.only, emblem: ds.emblem === 'hero' ? emb : ds.emblem, u: 'h' };
+      const key = JSON.stringify(o);
+      this.cache = this.cache || {};
+      if (!this.cache[key]) this.cache[key] = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(render(o));
+      if (d.dataset.k !== key) { d.dataset.k = key; d.innerHTML = `<img alt="" src="${this.cache[key]}" style="width:100%;height:100%;display:block;overflow:visible">`; }
+      n++;
+    });
+  }
+  componentDidMount() { this.paint(); }
+  componentDidUpdate() { this.paint(); }
+  renderVals() {
+    const cols = [['lilac','Lilac'],['mint','Mint'],['peach','Peach']];
+    const L = hood => cols.map(([hc, label]) => ({ theme:'light', hc, pose:'sit', hood, label }));
+    const D = hood => [{ theme:'dark', hc:'dark', pose:'sit', hood, label:'Charcoal · neon trim' }];
+    return {
+      root: this.root,
+      sitDownL: L('down'), sitDownD: D('down'),
+      sitUpL: L('up'), sitUpD: D('up'),
+      standL: [{ theme:'light', hc:'hero', pose:'stand', hood:'down', label:'Light · hood down' }, { theme:'light', hc:'hero', pose:'stand', hood:'up', label:'Light · hood up' }],
+      standD: [{ theme:'dark', hc:'dark', pose:'stand', hood:'down', label:'Dark · hood down' }, { theme:'dark', hc:'dark', pose:'stand', hood:'up', label:'Dark · hood up' }],
+      emblems: [
+        { id:'emblem-a', key:'braces', badge:'A', label:'Tiny { }' },
+        { id:'emblem-b', key:'heart', badge:'B', label:'Tiny heart' },
+        { id:'emblem-c', key:'peanut', badge:'C', label:'Tiny peanut' }
+      ],
+      framesL: [
+        { frame:'1', label:'1 · Head pops through' },
+        { frame:'2', label:'2 · Ears still tucked' },
+        { frame:'3', label:'3 · Ears flop out' },
+        { frame:'0', label:'Done' }
+      ],
+      layers: [
+        { key:'pet', hood:'none', label:'Dumbo (off)' },
+        { key:'body', hood:'down', label:'Body' },
+        { key:'hoodDown', hood:'down', label:'Hood down' },
+        { key:'hoodUp', hood:'up', label:'Hood up' },
+        { key:'sleeveL', hood:'down', label:'Left sleeve' },
+        { key:'sleeveR', hood:'down', label:'Right sleeve' },
+        { key:'pocket', hood:'down', label:'Pocket' },
+        { key:'strings', hood:'down', label:'Drawstrings' }
+      ],
+      deskL: [{ hood:'down', label:'Hood down' }, { hood:'up', label:'Hood up' }]
+    };
+  }
+}
+</script>
+</body>
+</html>

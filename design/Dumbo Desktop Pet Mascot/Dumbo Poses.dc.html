@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>body{margin:0;background:#ece8ef;font-family:'Nunito',system-ui,sans-serif;color:#2b1f2a}a{color:#7a4a8c}a:hover{color:#3d2433}</style>
+</helmet>
+<div ref="{{ root }}" style="max-width:1320px;margin:0 auto;padding:40px 28px 72px;display:flex;flex-direction:column;gap:28px">
+  <header style="display:flex;flex-direction:column;gap:6px">
+    <div style="font-size:13px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#8a6f86">Desktop pet · key poses</div>
+    <h1 style="margin:0;font-size:40px;font-weight:800;color:#3d2433">Dumbo key poses</h1>
+    <p style="margin:0;font-size:16px;color:#6b5869;max-width:720px;text-wrap:pretty">Every frame is the side-view rig from the turnaround sheet — same named parts, posed only by bone rotations (root, head, ears, trunk ×2, tail, four legs) and face-layer swaps. Each frame lists its pose data so it can drive the rig directly.</p>
+  </header>
+  <sc-for list="{{ poses }}" as="p" hint-placeholder-count="4">
+    <section id="{{ p.key }}" style="background:#ffffff;border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap"><span style="background:#3d2433;color:#fff;font-weight:800;font-size:13px;border-radius:8px;padding:3px 9px">{{ p.n }}</span><h2 style="margin:0;font-size:20px;font-weight:800;color:#3d2433">{{ p.title }}</h2><span style="font-size:14px;color:#8a7a88">{{ p.note }}</span></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px">
+        <sc-for list="{{ p.frames }}" as="f" hint-placeholder-count="3">
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div data-pose="{{ p.key }}" data-frame="{{ f.i }}" data-theme="light" style="aspect-ratio:700/560;border-radius:12px;background:#f6f3f8"></div>
+            <div data-pose="{{ p.key }}" data-frame="{{ f.i }}" data-theme="dark" style="aspect-ratio:700/560;border-radius:12px;background:#15121f"></div>
+            <span style="font-size:13px;font-weight:700;color:#5e4a5c">{{ f.label }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+  </sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+
+const TH = {
+  light: { ol:'#3d2433', b1:'#ebe5f0', b2:'#aa9fbd', shade:'#b6abc8', belly1:'#fcf5ea', belly2:'#efdfca', nail:'#f8eddc', ear1:'#fcd0dc', ear2:'#ee8dab', sole:'#f9efe4', pad:'#f597b3', blush:'#f7809e', blushOp:.5, eye1:'#1f0f0b', eye2:'#86513a', mouth:'#5c2236', tongue:'#f27896', hi:.45, tuft:'#9d92b0' },
+  dark:  { ol:'#100b1f', b1:'#5f6891', b2:'#2b3050', shade:'#363c60', belly1:'#ada4e6', belly2:'#7469b4', nail:'#a197da', ear1:'#e29aff', ear2:'#7a2fd8', sole:'#958bd0', pad:'#ff8cc6', blush:'#ff66b0', blushOp:.55, eye1:'#0e0720', eye2:'#7548c2', mouth:'#2a0f2e', tongue:'#ff7fb0', hi:.2, tuft:'#3a4166', neon:true }
+};
+const SW = 7;
+const r1 = v => Math.round(v * 10) / 10;
+const E = (cx, cy, rx, ry) => `M${r1(cx - rx)} ${r1(cy)} a${rx} ${ry} 0 1 0 ${2 * rx} 0 a${rx} ${ry} 0 1 0 ${-2 * rx} 0 Z`;
+function mapP(d, fn) { const tk = d.match(/[A-Za-z]|-?\d*\.?\d+/g), out = []; let px = null; for (const k of tk) { if (/[A-Za-z]/.test(k)) { out.push(k); continue; } if (px === null) px = +k; else { const [x, y] = fn(px, +k); out.push(r1(x) + ' ' + r1(y)); px = null; } } return out.join(' '); }
+const T = (dx, dy) => (x, y) => [x + dx, y + dy];
+const MX = cx => (x, y) => [2 * cx - x, y];
+const EAR_L = 'M120 92 C60 70 12 110 14 170 C16 230 50 280 100 282 C125 283 140 262 140 240 L160 200 Z';
+const EAR_R = 'M292 86 C350 64 396 104 394 165 C392 225 362 270 320 270 C300 270 290 252 292 232 L260 200 Z';
+const EAR_LI = 'M112 112 C66 100 34 130 34 175 C34 225 62 262 98 262 C116 262 124 248 124 232 Z';
+const EAR_RI = 'M300 106 C344 94 374 124 374 168 C374 218 350 250 322 250 C308 250 302 240 304 226 Z';
+const HAIR = 'M193 42 C186 22 204 6 225 14 C211 16 204 27 209 40';
+const STRAND = 'M174 46 Q178 35 190 35';
+const TAIL_TUFT = 'M76 322 C62 316 58 300 64 290 C70 300 76 302 78 295 C84 304 86 314 80 322 Z';
+const MOUTH = 'M200 214 Q211 218 222 213 C223 225 217 230 211 230 C205 230 200 225 200 214 Z';
+
+function bez(P, t) { const u = 1 - t; return [0, 1].map(i => u * u * u * P[0][i] + 3 * u * u * t * P[1][i] + 3 * u * t * t * P[2][i] + t * t * t * P[3][i]); }
+function bezD(P, t) { const u = 1 - t; return [0, 1].map(i => 3 * u * u * (P[1][i] - P[0][i]) + 6 * u * t * (P[2][i] - P[1][i]) + 3 * t * t * (P[3][i] - P[2][i])); }
+function trunkGeo(P, ra, rb) {
+  const pt = t => { const p = bez(P, t), d = bezD(P, t), L = Math.hypot(d[0], d[1]) || 1, Tn = [d[0] / L, d[1] / L], n = [-Tn[1], Tn[0]], r = ra + (rb - ra) * t; return { p, T: Tn, rad: r, l: [p[0] + n[0] * r, p[1] + n[1] * r], r: [p[0] - n[0] * r, p[1] - n[1] * r] }; };
+  const f = q => r1(q[0]) + ' ' + r1(q[1]);
+  const splits = [0, .4, .72, 1];
+  const segs = [0, 1, 2].map(i => {
+    const a = splits[i], b = splits[i + 1], N = 16, pts = [];
+    for (let k = 0; k <= N; k++) pts.push(pt(a + (b - a) * k / N));
+    const L = pts.map(q => f(q.l)), R = pts.map(q => f(q.r)).reverse(), ea = pts[0], eb = pts[N];
+    return {
+      fill: `M${L.join(' L')} A${r1(eb.rad)} ${r1(eb.rad)} 0 0 0 ${R[0]} L${R.join(' L')} A${r1(ea.rad)} ${r1(ea.rad)} 0 0 0 ${L[0]} Z`,
+      sides: `M${L.join(' L')} M${R.slice().reverse().join(' L')}`, a: ea, b: eb
+    };
+  });
+  return { segs, pt };
+}
+
+function ctxNew(theme, u) {
+  let n = 0;
+  const c = { t: TH[theme], theme, dark: theme === 'dark', u, parts: [], cid: () => u + 'c' + (n++), add(p) { c.parts.push(p); return p; } };
+  return c;
+}
+function shade(c, d, o = {}) {
+  const id = c.cid();
+  return `<clipPath id="${id}"><path d="${d}"/></clipPath><path d="${d}" fill="${o.base || c.t.shade}"/><g clip-path="url(#${id})"><path d="${d}" transform="translate(${o.lx ?? -10} ${o.ly ?? -12})" fill="url(#${c.u}body)" opacity="${o.lo ?? 1}" filter="url(#${c.u}soft)"/></g><path d="${d}" fill="none" stroke="${c.t.ol}" stroke-width="${SW}" stroke-linejoin="round"/>`;
+}
+function shadow(c, cx, cy, rx, ry) {
+  c.add({ id:'ground-shadow', label:'Ground shadow', svg:`<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${c.dark ? '#000' : c.t.ol}" opacity="${c.dark ? .5 : .16}" filter="url(#${c.u}sh)"/>`, pivot:[cx, cy] });
+}
+function leg(c, id, label, x, top, bot, w, nail, o = {}) {
+  const h = w / 2, k = w * .32, ol = c.t.ol;
+  const lower = `L${x - h} ${bot - k} Q${x - h} ${bot} ${x} ${bot} Q${x + h} ${bot} ${x + h} ${bot - k}`;
+  const d = o.open ? `M${x - h} ${top} ${lower} L${x + h} ${top} Z` : `M${x - h} ${top + h} Q${x - h} ${top} ${x} ${top} Q${x + h} ${top} ${x + h} ${top + h} L${x + h} ${bot - k} Q${x + h} ${bot} ${x} ${bot} Q${x - h} ${bot} ${x - h} ${bot - k} Z`;
+  const pos = nail === 'front' ? [-.28, 0, .28] : nail === '3q' ? [-.16, .08, .3] : nail === 'side' ? [.1, .31] : [];
+  const rn = w * .12;
+  const nails = pos.map(s => { const cx = x + s * w, by = bot - 2 - k * (2 * s) ** 2, ty = by - rn * 1.7; return `<path d="M${r1(cx - rn)} ${r1(by)} Q${r1(cx - rn)} ${r1(ty)} ${r1(cx)} ${r1(ty)} Q${r1(cx + rn)} ${r1(ty)} ${r1(cx + rn)} ${r1(by)} Z" fill="${c.t.nail}" stroke="${ol}" stroke-width="3" stroke-linejoin="round"/>`; }).join('');
+  const body = o.open
+    ? `<path d="${d}" fill="url(#${c.u}body)"/><path d="M${x - h} ${top} ${lower} L${x + h} ${top}" fill="none" stroke="${ol}" stroke-width="${SW}" stroke-linecap="round" stroke-linejoin="round"/>`
+    : shade(c, d, o.far ? { base: c.t.b2, lo: .55 } : {});
+  return c.add({ id, label, svg: body + nails, sil: [{ d }], pivot: [x, top + (o.open ? 12 : h + 4)] });
+}
+function bodyPart(c, cx, cy, rx, ry) { c.add({ id:'body', label:'Body', svg: shade(c, E(cx, cy, rx, ry)), sil:[{ d: E(cx, cy, rx, ry) }], pivot:[cx, cy] }); }
+function belly(c, d, pivot, hidden) { c.add({ id:'belly-patch', label:'Belly patch', svg:`<path d="${d}" fill="url(#${c.u}belly)"/>`, pivot, hidden }); }
+function tail(c, d, ang) {
+  const nums = d.match(/-?\d*\.?\d+/g).map(Number), start = [nums[0], nums[1]], end = [nums[nums.length - 2], nums[nums.length - 1]];
+  const prev = [nums[nums.length - 4], nums[nums.length - 3]];
+  const a = ang ?? Math.atan2(end[0] - prev[0], -(end[1] - prev[1])) * 180 / Math.PI;
+  c.add({ id:'tail', label:'Tail', svg:`<path d="${d}" fill="none" stroke="${c.t.ol}" stroke-width="${10 + SW * 2}" stroke-linecap="round"/><path d="${d}" fill="none" stroke="${c.t.shade}" stroke-width="10" stroke-linecap="round"/>`, sil:[{ d, w:10 }], pivot:start });
+  const tf = `translate(${end[0]} ${end[1]}) rotate(${r1(a)}) translate(-78 -320)`;
+  c.add({ id:'tail-tuft', label:'Tail tuft', svg:`<path d="${TAIL_TUFT}" transform="${tf}" fill="${c.t.tuft}" stroke="${c.t.ol}" stroke-width="5" stroke-linejoin="round"/>`, sil:[{ d:TAIL_TUFT, tf }], pivot:end });
+}
+function head(c, hx, hy, rx, ry) {
+  c.add({ id:'head', label:'Head', svg: shade(c, E(hx, hy, rx, ry), { lx:-11, ly:-11 }) + `<ellipse cx="${hx - 65}" cy="${hy - 57}" rx="34" ry="13" transform="rotate(-28 ${hx - 65} ${hy - 57})" fill="#fff" opacity="${c.t.hi}"/>`, sil:[{ d: E(hx, hy, rx, ry) }], pivot:[hx, r1(hy + ry * .78)] });
+}
+function hair(c, dx, dy) {
+  const d = mapP(HAIR, T(dx, dy)), s = mapP(STRAND, T(dx, dy)), ol = c.t.ol;
+  c.add({ id:'hair-tuft', label:'Hair tuft', svg:`<path d="${d} Z" fill="url(#${c.u}body)"/><path d="${d}" fill="none" stroke="${ol}" stroke-width="${SW}" stroke-linecap="round" stroke-linejoin="round"/><path d="${s}" fill="none" stroke="${ol}" stroke-width="4" stroke-linecap="round"/>`, sil:[{ d: d + ' Z' }], pivot:[200 + dx, 41 + dy] });
+}
+function ear(c, id, label, d, di, pivot, o = {}) {
+  let s = `<path d="${d}" fill="${o.fill || `url(#${c.u}body)`}" stroke="${c.t.ol}" stroke-width="${SW}" stroke-linejoin="round"/>`;
+  if (di) s += `<path d="${di}" fill="url(#${c.u}ear)"/>` + (c.dark && !o.noGlow ? `<path d="${di}" fill="${c.t.ear1}" opacity=".5" filter="url(#${c.u}soft)"/>` : '');
+  c.add({ id, label, svg: s, sil:[{ d }], pivot });
+}
+function face(c, F) {
+  const t = c.t, ol = t.ol;
+  if (F.mouth) {
+    c.add({ id:'mouth', label:'Mouth', svg:`<path d="${F.mouth}" fill="${t.mouth}" stroke="${ol}" stroke-width="3.5" stroke-linejoin="round"/>`, pivot:F.tongue });
+    const id = c.cid();
+    c.add({ id:'tongue', label:'Tongue', svg:`<clipPath id="${id}"><path d="${F.mouth}"/></clipPath><g clip-path="url(#${id})"><ellipse cx="${F.tongue[0]}" cy="${F.tongue[1]}" rx="7.5" ry="5.5" fill="${t.tongue}"/></g>`, pivot:F.tongue });
+  }
+  if (F.brows) c.add({ id:'eyebrows', label:'Eyebrows', svg: F.brows.map(d => `<path d="${d}" fill="none" stroke="${ol}" stroke-width="4.5" stroke-linecap="round"/>`).join(''), pivot:F.browPivot });
+  (F.eyes || []).forEach(e => {
+    const [cx, cy, rx, ry] = e.e;
+    c.add({ id:e.id, label:e.label, hidden:e.hidden, svg:`<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="url(#${c.u}eye)" stroke="${ol}" stroke-width="4"/><ellipse cx="${cx}" cy="${r1(cy + ry * .45)}" rx="${r1(rx * .6)}" ry="${r1(ry * .3)}" fill="${t.eye2}" opacity=".55" filter="url(#${c.u}soft)"/><path d="M${cx - rx} ${cy - 3} A${rx} ${ry} 0 0 1 ${cx + rx} ${cy - 3}" fill="none" stroke="${ol}" stroke-width="6.5" stroke-linecap="round"/>`, pivot:[cx, cy] });
+  });
+  const vis = (F.eyes || []).filter(e => !e.hidden);
+  if (vis.length) {
+    c.add({ id:'eye-highlights', label:'Eye highlights', svg: vis.map(({ e:[cx, cy, rx, ry] }) => `<circle cx="${r1(cx - rx * .34)}" cy="${r1(cy - ry * .36)}" r="${r1(rx * .37)}" fill="#fff"/><circle cx="${r1(cx + rx * .36)}" cy="${r1(cy + ry * .38)}" r="${r1(rx * .16)}" fill="#fff"/>`).join(''), pivot: vis[0].e.slice(0, 2) });
+    c.add({ id:'eyelids', label:'Upper eyelids (closed)', hidden:true, svg: vis.map(({ e:[cx, cy, rx, ry] }) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx + 3}" ry="${ry + 3}" fill="url(#${c.u}body)"/><path d="M${cx - rx} ${cy - 2} Q${cx} ${r1(cy + ry * .55)} ${cx + rx} ${cy - 2}" fill="none" stroke="${ol}" stroke-width="5.5" stroke-linecap="round"/>`).join(''), pivot: vis[0].e.slice(0, 2) });
+  }
+  if (F.blush) c.add({ id:'cheeks', label:'Cheeks / blush', svg: F.blush.map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="13" ry="7" fill="${t.blush}" opacity="${t.blushOp}" filter="url(#${c.u}soft)"/><ellipse cx="${x}" cy="${y}" rx="10.5" ry="5.5" fill="${t.blush}" opacity="${t.blushOp}"/><path d="M${x - 6} ${y + 2.5} l3 -4.5 M${x - .5} ${y + 3} l3 -4.5 M${x + 5} ${y + 2.5} l3 -4.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" opacity=".9"/>`).join(''), pivot:F.blush[0] });
+  if (F.trunk) trunk(c, F.trunk.P, F.trunk.ra, F.trunk.rb, F.trunk.endFace);
+}
+function trunk(c, P, ra, rb, endFace) {
+  const { segs, pt } = trunkGeo(P, ra, rb), ol = c.t.ol;
+  const ids = ['trunk-base', 'trunk-middle', 'trunk-tip'], labels = ['Trunk · base', 'Trunk · middle', 'Trunk · curled tip'];
+  segs.forEach((s, i) => {
+    const ink = i === 0 ? `<path d="${s.sides}" fill="none" stroke="${ol}" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>` : `<path d="${s.fill}" fill="none" stroke="${ol}" stroke-width="13" stroke-linejoin="round"/>`;
+    let fill = `<path d="${s.fill}" fill="url(#${c.u}body)"/>`;
+    if (i === 0) fill += [.13, .24].map(tt => { const q = pt(tt), m = (a, b) => r1(q.p[a] + (b[a] - q.p[a]) * .75); return `<path d="M${m(0, q.l)} ${m(1, q.l)} Q${r1(q.p[0] + q.T[0] * 5)} ${r1(q.p[1] + q.T[1] * 5)} ${m(0, q.r)} ${m(1, q.r)}" fill="none" stroke="${ol}" stroke-width="2.4" stroke-linecap="round" opacity=".3"/>`; }).join('');
+    if (i === 2) {
+      const e = s.b;
+      if (endFace) fill += `<ellipse cx="${r1(e.p[0])}" cy="${r1(e.p[1])}" rx="${r1(e.rad * .95)}" ry="${r1(e.rad * .62)}" fill="${c.t.b1}" stroke="${ol}" stroke-width="4"/><ellipse cx="${r1(e.p[0] - e.rad * .36)}" cy="${r1(e.p[1])}" rx="${r1(e.rad * .16)}" ry="${r1(e.rad * .24)}" fill="${ol}" opacity=".75"/><ellipse cx="${r1(e.p[0] + e.rad * .36)}" cy="${r1(e.p[1])}" rx="${r1(e.rad * .16)}" ry="${r1(e.rad * .24)}" fill="${ol}" opacity=".75"/>`;
+      else { const nx = e.p[0] + e.T[0] * e.rad * .45, ny = e.p[1] + e.T[1] * e.rad * .45, ang = Math.atan2(e.T[1], e.T[0]) * 180 / Math.PI + 90; fill += `<ellipse cx="${r1(nx)}" cy="${r1(ny)}" rx="4.2" ry="2.6" transform="rotate(${r1(ang)} ${r1(nx)} ${r1(ny)})" fill="${ol}" opacity=".75"/>`; }
+    }
+    c.add({ id: ids[i], label: labels[i], ink, svg: fill, sil:[{ d: s.fill }], pivot:[r1(s.a.p[0]), r1(s.a.p[1])] });
+  });
+}
+function pads(c, x, y, w, hidden = true) {
+  const rx = w * .42;
+  c.add({ id:'paw-pads', label:'Paw pads (sole, for lifted-foot poses)', hidden, svg:`<ellipse cx="${x}" cy="${y}" rx="${r1(rx)}" ry="11" fill="${c.t.sole}" stroke="${c.t.ol}" stroke-width="4"/><ellipse cx="${x}" cy="${y + 2}" rx="${r1(rx * .45)}" ry="5" fill="${c.t.pad}"/>${[-.55, 0, .55].map(s => `<circle cx="${r1(x + s * rx)}" cy="${y - 5}" r="3" fill="${c.t.pad}"/>`).join('')}`, pivot:[x, y] });
+}
+function sole(c, id, label, cx, cy, rx, ry, rot) {
+  const p = (dx, dy, a, b) => `<ellipse cx="${r1(cx + dx)}" cy="${r1(cy + dy)}" rx="${r1(a)}" ry="${r1(b)}" fill="${c.t.pad}"/>`;
+  c.add({ id, label, svg:`<g transform="rotate(${rot} ${cx} ${cy})"><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${c.t.sole}" stroke="${c.t.ol}" stroke-width="${SW}"/>${p(0, ry * .32, rx * .43, ry * .3)}${p(-rx * .48, -ry * .34, rx * .17, ry * .16)}${p(0, -ry * .55, rx * .19, ry * .18)}${p(rx * .48, -ry * .34, rx * .17, ry * .16)}</g>`, sil:[{ d: E(cx, cy, rx, ry), tf:`rotate(${rot} ${cx} ${cy})` }], pivot:[cx, cy - ry] });
+}
+
+/* ---------- faces per view ---------- */
+function frontHead(c, hx, hy) {
+  const dl = mapP(EAR_L, T(hx - 205, hy - 145)), dli = mapP(EAR_LI, T(hx - 205, hy - 145));
+  ear(c, 'ear-right', 'Right ear (viewer left)', dl, dli, [hx - 80, hy + 10]);
+  ear(c, 'ear-left', 'Left ear (viewer right)', mapP(dl, MX(hx)), mapP(dli, MX(hx)), [hx + 80, hy + 10]);
+  head(c, hx, hy, 122, 110); hair(c, hx - 205, hy - 145);
+  face(c, {
+    mouth:`M${hx - 11} ${hy + 76} Q${hx} ${hy + 80} ${hx + 11} ${hy + 75} C${hx + 12} ${hy + 87} ${hx + 6} ${hy + 92} ${hx} ${hy + 92} C${hx - 6} ${hy + 92} ${hx - 12} ${hy + 87} ${hx - 11} ${hy + 76} Z`, tongue:[hx, hy + 91],
+    brows:[`M${hx - 80} ${hy - 26} Q${hx - 66} ${hy - 34} ${hx - 50} ${hy - 29}`, `M${hx + 80} ${hy - 26} Q${hx + 66} ${hy - 34} ${hx + 50} ${hy - 29}`], browPivot:[hx, hy - 30],
+    eyes:[{ id:'eye-right', label:'Right eye', e:[hx - 56, hy + 22, 25, 30] }, { id:'eye-left', label:'Left eye', e:[hx + 56, hy + 22, 25, 30] }],
+    blush:[[hx - 84, hy + 66], [hx + 84, hy + 66]],
+    trunk:{ P:[[hx, hy + 36], [hx - 3, hy + 72], [hx + 3, hy + 90], [hx, hy + 108]], ra:22, rb:15, endFace:true }
+  });
+}
+function threeQHead(c, dx, dy) {
+  const m = d => mapP(d, T(dx, dy)), p = (x, y) => [x + dx, y + dy];
+  ear(c, 'ear-right', 'Right ear (far)', m(EAR_R), m(EAR_RI), p(278, 170));
+  ear(c, 'ear-left', 'Left ear (near)', m(EAR_L), m(EAR_LI), p(132, 175));
+  head(c, 205 + dx, 145 + dy, 122, 110); hair(c, dx, dy);
+  face(c, {
+    mouth: m(MOUTH), tongue: p(211, 229),
+    brows:[m('M140 122 Q152 114 166 119'), m('M266 119 Q280 114 292 122')], browPivot: p(216, 118),
+    eyes:[{ id:'eye-left', label:'Left eye (near)', e:[...p(160, 168), 25, 30] }, { id:'eye-right', label:'Right eye (far)', e:[...p(272, 168), 25, 30] }],
+    blush:[p(144, 212), p(288, 212)],
+    trunk:{ P:[p(213, 186), p(211, 238), p(250, 254), p(259, 213)], ra:21, rb:9 }
+  });
+}
+function sideHead(c, ox, oy) {
+  const m = d => mapP(d, T(ox, oy)), p = (x, y) => [x + ox, y + oy];
+  ear(c, 'ear-right', 'Right ear (far side)', m('M352 90 C304 62 226 80 212 142 C202 200 226 262 280 272 C314 278 342 250 346 222 C352 178 356 132 352 90 Z'), null, p(348, 160), { fill: c.t.shade });
+  head(c, 334 + ox, 158 + oy, 114, 108); hair(c, 115 + ox, 15 + oy);
+  ear(c, 'ear-left', 'Left ear (near)', m('M346 98 C296 74 222 94 210 156 C200 218 230 278 290 286 C324 290 348 260 352 230 C358 186 356 140 346 98 Z'), m('M343 114 C352 150 354 204 348 226 C339 200 337 146 343 114 Z'), p(350, 165), { noGlow:true });
+  face(c, {
+    mouth: m('M404 228 Q414 232 424 227 C425 238 419 243 413 243 C407 243 403 238 404 228 Z'), tongue: p(414, 242),
+    brows:[m('M372 124 Q386 116 402 122')], browPivot: p(387, 120),
+    eyes:[{ id:'eye-right', label:'Right eye (far, hidden)', hidden:true, e:[...p(444, 166), 9, 24] }, { id:'eye-left', label:'Left eye (near)', e:[...p(392, 168), 21, 29] }],
+    blush:[p(384, 214)],
+    trunk:{ P:[p(424, 190), p(456, 198), p(474, 266), p(500, 236)], ra:21, rb:9 }
+  });
+}
+function backHead(c, hx, hy) {
+  const dl = `M${hx - 92} ${hy - 60} C${hx - 150} ${hy - 92} ${hx - 240} ${hy - 40} ${hx - 238} ${hy + 22} C${hx - 236} ${hy + 88} ${hx - 190} ${hy + 130} ${hx - 130} ${hy + 128} C${hx - 104} ${hy + 126} ${hx - 92} ${hy + 100} ${hx - 96} ${hy + 70} C${hx - 104} ${hy + 20} ${hx - 100} ${hy - 20} ${hx - 92} ${hy - 60} Z`;
+  head(c, hx, hy, 122, 110); hair(c, hx - 205, hy - 145);
+  ear(c, 'ear-left', 'Left ear (viewer left)', dl, null, [hx - 98, hy + 10]);
+  ear(c, 'ear-right', 'Right ear (viewer right)', mapP(dl, MX(hx)), null, [hx + 98, hy + 10]);
+}
+
+/* ---------- figures ---------- */
+function build(view, pose, theme, u) {
+  const c = ctxNew(theme, u);
+  if (view === '3q' && pose === 'sit') {
+    shadow(c, 262, 421, 175, 13);
+    c.add({ id:'dumbo', label:'Dumbo (master 3/4 sit)', svg: pet3q(theme, u + 'm').replace(/<svg viewBox="-12 -6 424 424" width="100%" height="100%"[^>]*>/, '<svg x="48" y="12" width="424" height="424" viewBox="-12 -6 424 424" overflow="visible">'), pivot:[260, 230] });
+    return c;
+  }
+  if (pose === 'stand') {
+    if (view === '3q') {
+      shadow(c, 250, 434, 200, 14);
+      leg(c, 'leg-back-right', 'Back-right leg (far)', 206, 270, 420, 50, '3q', { far:true });
+      leg(c, 'leg-front-right', 'Front-right leg (far)', 348, 250, 418, 50, '3q', { far:true });
+      tail(c, 'M122 284 C90 282 70 298 63 324');
+      leg(c, 'leg-back-left', 'Back-left leg', 156, 280, 430, 58, '3q');
+      leg(c, 'leg-front-left', 'Front-left leg', 298, 280, 432, 60, '3q');
+      bodyPart(c, 238, 296, 136, 82);
+      belly(c, 'M202 348 C238 370 300 370 334 344 C314 328 222 330 202 348 Z', [270, 360]);
+      pads(c, 298, 430, 60);
+      threeQHead(c, 90, 6);
+    } else if (view === 'side') {
+      shadow(c, 228, 434, 200, 14);
+      leg(c, 'leg-back-right', 'Back-right leg (far)', 98, 280, 424, 54, 'side', { far:true });
+      leg(c, 'leg-front-right', 'Front-right leg (far)', 292, 280, 424, 54, 'side', { far:true });
+      tail(c, 'M88 280 C62 282 46 300 41 326');
+      leg(c, 'leg-back-left', 'Back-left leg', 124, 290, 432, 60, 'side');
+      leg(c, 'leg-front-left', 'Front-left leg', 318, 290, 432, 60, 'side');
+      bodyPart(c, 214, 298, 140, 82);
+      belly(c, 'M152 354 C196 374 284 374 324 350 C294 336 178 336 152 354 Z', [236, 370]);
+      pads(c, 318, 430, 60);
+      sideHead(c, 0, 0);
+    } else if (view === 'front') {
+      shadow(c, 260, 434, 170, 14);
+      tail(c, 'M262 300 C300 300 328 292 340 270', 30);
+      leg(c, 'leg-back-right', 'Back-right leg (far)', 176, 300, 420, 54, 'front', { far:true });
+      leg(c, 'leg-back-left', 'Back-left leg (far)', 344, 300, 420, 54, 'front', { far:true });
+      bodyPart(c, 260, 318, 112, 80);
+      belly(c, 'M232 280 C224 316 236 344 260 354 C284 344 296 316 288 280 Z', [260, 320]);
+      leg(c, 'leg-front-right', 'Front-right leg', 208, 330, 432, 62, 'front', { open:true });
+      leg(c, 'leg-front-left', 'Front-left leg', 312, 330, 432, 62, 'front', { open:true });
+      pads(c, 312, 430, 62);
+      frontHead(c, 260, 158);
+    } else {
+      shadow(c, 260, 434, 170, 14);
+      leg(c, 'leg-front-left', 'Front-left leg (far)', 176, 300, 420, 54, 'none', { far:true });
+      leg(c, 'leg-front-right', 'Front-right leg (far)', 344, 300, 420, 54, 'none', { far:true });
+      backHead(c, 260, 150);
+      bodyPart(c, 260, 316, 114, 86);
+      belly(c, 'M232 380 C246 392 274 392 288 380 Z', [260, 386], true);
+      leg(c, 'leg-back-left', 'Back-left leg', 206, 330, 432, 62, 'none', { open:true });
+      leg(c, 'leg-back-right', 'Back-right leg', 314, 330, 432, 62, 'none', { open:true });
+      pads(c, 206, 430, 62);
+      tail(c, 'M260 304 C263 330 257 350 261 374');
+    }
+  } else {
+    if (view === 'front') {
+      shadow(c, 260, 420, 180, 14);
+      bodyPart(c, 260, 322, 96, 78);
+      belly(c, 'M232 266 C226 294 238 318 260 330 C282 318 294 294 288 266 C276 257 244 257 232 266 Z', [260, 300]);
+      leg(c, 'leg-front-right', 'Front-right leg', 232, 340, 404, 56, 'front', { open:true });
+      leg(c, 'leg-front-left', 'Front-left leg', 288, 340, 404, 56, 'front', { open:true });
+      sole(c, 'leg-back-right', 'Back-right foot', 156, 356, 44, 50, -12);
+      sole(c, 'leg-back-left', 'Back-left foot', 364, 356, 44, 50, 12);
+      frontHead(c, 260, 150);
+    } else if (view === 'side') {
+      shadow(c, 236, 432, 180, 12);
+      tail(c, 'M150 392 C118 404 96 406 72 398');
+      c.add({ id:'foot-far', label:'Back-right foot (far)', svg: shade(c, E(304, 402, 40, 20), { base: c.t.b2, lo:.55 }), sil:[{ d:E(304, 402, 40, 20) }], pivot:[270, 400] });
+      leg(c, 'leg-front-right', 'Front-right leg (far)', 300, 262, 424, 50, 'side', { far:true });
+      leg(c, 'leg-front-left', 'Front-left leg', 324, 262, 430, 54, 'side');
+      bodyPart(c, 240, 318, 98, 90);
+      c.add({ id:'thigh', label:'Back-left thigh', svg: shade(c, E(214, 360, 70, 56)), sil:[{ d:E(214, 360, 70, 56) }], pivot:[214, 330] });
+      c.add({ id:'foot-near', label:'Back-left foot', svg: shade(c, E(286, 406, 50, 24)) + [318, 330].map(x => `<path d="M${x - 6} 427 Q${x - 6} 417 ${x} 417 Q${x + 6} 417 ${x + 6} 427 Z" fill="${c.t.nail}" stroke="${c.t.ol}" stroke-width="3"/>`).join(''), sil:[{ d:E(286, 406, 50, 24) }], pivot:[250, 404] });
+      sideHead(c, -30, -10);
+    } else {
+      shadow(c, 260, 420, 180, 14);
+      c.add({ id:'feet', label:'Back feet (heels)', svg: shade(c, E(164, 402, 44, 24)) + shade(c, E(356, 402, 44, 24)), sil:[{ d:E(164, 402, 44, 24) }, { d:E(356, 402, 44, 24) }], pivot:[260, 402] });
+      backHead(c, 260, 148);
+      bodyPart(c, 260, 322, 102, 86);
+      tail(c, 'M262 396 C238 414 206 418 182 408');
+    }
+  }
+  if (c.dark) c.parts.splice(1, 0, { id:'neon-rim', label:'Neon rim glow', svg: rimSvg(c), pivot:[260, 230] });
+  return c;
+}
+function rimSvg(c) {
+  const col = `url(#${c.u}rim)`;
+  const g = sw => c.parts.filter(p => p.sil && !p.hidden).map(p => p.sil.map(s => s.w ? `<path d="${s.d}" fill="none" stroke="${col}" stroke-width="${s.w + sw}" stroke-linecap="round"/>` : `<path d="${s.d}"${s.tf ? ` transform="${s.tf}"` : ''} fill="${col}" stroke="${col}" stroke-width="${sw}" stroke-linejoin="round"/>`).join('')).join('');
+  return `<g filter="url(#${c.u}glow)" opacity=".8">${g(20)}</g><g>${g(13)}</g>`;
+}
+function defs(c) {
+  const t = c.t, u = c.u;
+  return `<defs>
+<linearGradient id="${u}body" gradientUnits="userSpaceOnUse" x1="80" y1="40" x2="420" y2="440"><stop offset="0" stop-color="${t.b1}"/><stop offset="1" stop-color="${t.b2}"/></linearGradient>
+<linearGradient id="${u}belly" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t.belly1}"/><stop offset="1" stop-color="${t.belly2}"/></linearGradient>
+<radialGradient id="${u}ear" cx=".45" cy=".5" r=".65"><stop offset="0" stop-color="${t.ear1}"/><stop offset="1" stop-color="${t.ear2}"/></radialGradient>
+<linearGradient id="${u}eye" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t.eye1}"/><stop offset=".5" stop-color="${t.eye1}"/><stop offset="1" stop-color="${t.eye2}"/></linearGradient>
+<linearGradient id="${u}rim" gradientUnits="userSpaceOnUse" x1="40" y1="140" x2="480" y2="320"><stop offset="0" stop-color="#3be6ff"/><stop offset=".5" stop-color="#7e6bff"/><stop offset="1" stop-color="#ff4fd8"/></linearGradient>
+<filter id="${u}glow" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="9"/></filter>
+<filter id="${u}soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4"/></filter>
+<filter id="${u}sh" x="-30%" y="-200%" width="160%" height="500%"><feGaussianBlur stdDeviation="6"/></filter>
+</defs>`;
+}
+function assemble(c, o = {}) {
+  let body = '', inkDone = false;
+  for (const p of c.parts) {
+    if (p.ink && !inkDone) { inkDone = true; body += `<g id="trunk-ink" data-name="Trunk line art (bind each child to its trunk bone)">${c.parts.filter(q => q.ink).map(q => `<g id="${q.id}-ink" data-bone="${q.id}">${q.ink}</g>`).join('')}</g>`; }
+    body += `<g id="${p.id}" data-name="${p.label}" data-pivot="${r1(p.pivot[0])},${r1(p.pivot[1])}"${p.hidden ? ' style="display:none"' : ''}>${p.svg}</g>`;
+  }
+  if (o.pivots) body += `<g id="pivots-guide">${c.parts.filter(p => !p.hidden && !['ground-shadow', 'neon-rim', 'dumbo'].includes(p.id)).map(p => `<circle cx="${p.pivot[0]}" cy="${p.pivot[1]}" r="4.5" fill="#22d3ee" stroke="#fff" stroke-width="2"/>`).join('')}</g>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${o.vb || '0 0 520 460'}" width="${o.w || 520}" height="${o.h || 460}">${defs(c)}${body}</svg>`;
+}
+
+/* ---------- master 3/4 sitting Dumbo (unchanged) ---------- */
+const P3 = {
+  EAR_L, EAR_R, EAR_LI, EAR_RI,
+  LEG_L:'M156 346 L156 384 Q156 403 185 403 Q214 403 214 384 L214 356', LEG_R:'M214 356 L214 384 Q214 403 243 403 Q272 403 272 384 L272 346',
+  TAIL:'M128 350 C100 352 82 338 74 318', FOOT_L:'cx="110" cy="350" rx="44" ry="50" transform="rotate(-14 110 350)"', FOOT_R:'cx="318" cy="348" rx="34" ry="46" transform="rotate(14 318 348)"',
+  TR:{ d:'M198 184 C192 216 206 247 234 247 C254 247 268 236 272 220 C275 206 266 198 258 201 C252 204 251 211 248 214 C244 218 240 214 240 206 C240 199 240 193 241 186', n:[265,205,50] }
+};
+function pet3q(theme, u) {
+  const t = TH[theme], tk = P3.TR, id = s => u + s, ol = t.ol;
+  const tg = 'transform="translate(-6 0) translate(218 184) scale(1 1.12) translate(-218 -184)"', tsw = SW / 1.05;
+  const sil = (cc, sw) => `<path d="${P3.TAIL}" fill="none" stroke="${cc}" stroke-width="${10 + sw}" stroke-linecap="round"/><path d="${TAIL_TUFT}" fill="${cc}" stroke="${cc}" stroke-width="${sw}"/><path d="${EAR_L}" fill="${cc}" stroke="${cc}" stroke-width="${sw}"/><path d="${EAR_R}" fill="${cc}" stroke="${cc}" stroke-width="${sw}"/><ellipse cx="210" cy="318" rx="92" ry="78" fill="${cc}" stroke="${cc}" stroke-width="${sw}"/><path d="${P3.LEG_L}Z" fill="${cc}" stroke="${cc}" stroke-width="${sw}"/><path d="${P3.LEG_R}Z" fill="${cc}" stroke="${cc}" stroke-width="${sw}"/><ellipse ${P3.FOOT_L} fill="${cc}" stroke="${cc}" stroke-width="${sw}"/><ellipse ${P3.FOOT_R} fill="${cc}" stroke="${cc}" stroke-width="${sw}"/><ellipse cx="205" cy="145" rx="122" ry="110" fill="${cc}" stroke="${cc}" stroke-width="${sw}"/><path d="${HAIR}Z" fill="${cc}" stroke="${cc}" stroke-width="${sw}"/><g ${tg}><path d="${tk.d}Z" fill="${cc}" stroke="${cc}" stroke-width="${sw}"/></g>`;
+  const eye = (cx, cy, rx, ry) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="url(#${id('eye')})" stroke="${ol}" stroke-width="4"/><ellipse cx="${cx}" cy="${cy + ry * .45}" rx="${rx * .6}" ry="${ry * .3}" fill="${t.eye2}" opacity=".55" filter="url(#${id('soft')})"/><path d="M${cx - rx} ${cy - 3} A${rx} ${ry} 0 0 1 ${cx + rx} ${cy - 3}" fill="none" stroke="${ol}" stroke-width="6.5" stroke-linecap="round"/><circle cx="${cx - rx * .34}" cy="${cy - ry * .36}" r="${rx * .37}" fill="#fff"/><circle cx="${cx + rx * .36}" cy="${cy + ry * .38}" r="${rx * .16}" fill="#fff"/>`;
+  const pad = (cx, cy, rx, ry, rot) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" transform="rotate(${rot} ${cx} ${cy})" fill="${t.pad}"/>`;
+  const blush = x => `<ellipse cx="${x}" cy="212" rx="13" ry="7" fill="${t.blush}" opacity="${t.blushOp}" filter="url(#${id('soft')})"/><ellipse cx="${x}" cy="212" rx="10.5" ry="5.5" fill="${t.blush}" opacity="${t.blushOp}"/><path d="M${x - 6} 214.5 l3 -4.5 M${x - .5} 215 l3 -4.5 M${x + 5} 214.5 l3 -4.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" opacity=".9"/>`;
+  return `<svg viewBox="-12 -6 424 424" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="display:block;overflow:visible"><defs>
+<linearGradient id="${id('body')}" gradientUnits="userSpaceOnUse" x1="110" y1="40" x2="300" y2="400"><stop offset="0" stop-color="${t.b1}"/><stop offset="1" stop-color="${t.b2}"/></linearGradient>
+<linearGradient id="${id('trunk')}" x1="0" y1="0" x2=".35" y2="1"><stop offset="0" stop-color="${t.shade}" stop-opacity="0"/><stop offset=".5" stop-color="${t.shade}" stop-opacity="0"/><stop offset="1" stop-color="${t.b2}" stop-opacity=".8"/></linearGradient>
+<linearGradient id="${id('belly')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t.belly1}"/><stop offset="1" stop-color="${t.belly2}"/></linearGradient>
+<radialGradient id="${id('ear')}" cx=".45" cy=".5" r=".65"><stop offset="0" stop-color="${t.ear1}"/><stop offset="1" stop-color="${t.ear2}"/></radialGradient>
+<linearGradient id="${id('eye')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t.eye1}"/><stop offset=".5" stop-color="${t.eye1}"/><stop offset="1" stop-color="${t.eye2}"/></linearGradient>
+<linearGradient id="${id('rim')}" gradientUnits="userSpaceOnUse" x1="20" y1="120" x2="390" y2="300"><stop offset="0" stop-color="#3be6ff"/><stop offset=".5" stop-color="#7e6bff"/><stop offset="1" stop-color="#ff4fd8"/></linearGradient>
+<filter id="${id('glow')}" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="9"/></filter>
+<filter id="${id('soft')}" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4"/></filter>
+<clipPath id="${id('head')}"><ellipse cx="205" cy="145" rx="122" ry="110"/></clipPath>
+<clipPath id="${id('bod')}"><ellipse cx="210" cy="318" rx="92" ry="78"/></clipPath>
+<clipPath id="${id('mouth')}"><path d="${MOUTH}"/></clipPath></defs>
+${t.neon ? `<g filter="url(#${id('glow')})" opacity=".8">${sil(`url(#${id('rim')})`, 20)}</g><g>${sil(`url(#${id('rim')})`, 13)}</g>` : ''}
+<path d="${P3.TAIL}" fill="none" stroke="${ol}" stroke-width="${10 + SW * 2}" stroke-linecap="round"/><path d="${P3.TAIL}" fill="none" stroke="${t.shade}" stroke-width="10" stroke-linecap="round"/><path d="${TAIL_TUFT}" fill="${t.tuft}" stroke="${ol}" stroke-width="5" stroke-linejoin="round"/>
+<path d="${EAR_R}" fill="url(#${id('body')})" stroke="${ol}" stroke-width="${SW}" stroke-linejoin="round"/><path d="${EAR_RI}" fill="url(#${id('ear')})"/>
+<path d="${EAR_L}" fill="url(#${id('body')})" stroke="${ol}" stroke-width="${SW}" stroke-linejoin="round"/><path d="${EAR_LI}" fill="url(#${id('ear')})"/>
+${t.neon ? `<g opacity=".55" filter="url(#${id('soft')})"><path d="${EAR_LI}" fill="${t.ear1}" transform="translate(6 4) scale(.96)"/><path d="${EAR_RI}" fill="${t.ear1}" transform="translate(12 6) scale(.96)"/></g>` : ''}
+<ellipse cx="210" cy="318" rx="92" ry="78" fill="${t.shade}"/><g clip-path="url(#${id('bod')})"><ellipse cx="198" cy="306" rx="90" ry="76" fill="url(#${id('body')})" filter="url(#${id('soft')})"/></g><ellipse cx="210" cy="318" rx="92" ry="78" fill="none" stroke="${ol}" stroke-width="${SW}"/>
+<path d="M188 266 C182 294 194 318 215 330 C236 318 248 294 242 266 C230 257 200 257 188 266 Z" fill="url(#${id('belly')})"/>
+<path d="${P3.LEG_L}Z" fill="url(#${id('body')})"/><path d="${P3.LEG_L}" fill="none" stroke="${ol}" stroke-width="${SW}" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="${P3.LEG_R}Z" fill="url(#${id('body')})"/><path d="${P3.LEG_R}" fill="none" stroke="${ol}" stroke-width="${SW}" stroke-linecap="round" stroke-linejoin="round"/>
+${[172,185,198,230,243,256].map(x => `<path d="M${x - 7} 400 Q${x - 7} 389 ${x} 389 Q${x + 7} 389 ${x + 7} 400" fill="${t.nail}" stroke="${ol}" stroke-width="3" stroke-linejoin="round"/>`).join('')}
+<ellipse ${P3.FOOT_L} fill="${t.sole}" stroke="${ol}" stroke-width="${SW}"/>${pad(114,366,19,15,-14)}${pad(86,334,7.5,8,-14)}${pad(105,321,8.5,9,-14)}${pad(127,324,7.5,8,-14)}
+<ellipse ${P3.FOOT_R} fill="${t.sole}" stroke="${ol}" stroke-width="${SW}"/>${pad(320,362,14,12,14)}${pad(302,330,5.5,6,14)}${pad(317,320,6,6.5,14)}${pad(333,327,5.5,6,14)}
+<ellipse cx="210" cy="260" rx="78" ry="14" fill="${ol}" opacity=".18" filter="url(#${id('soft')})"/>
+<ellipse cx="205" cy="145" rx="122" ry="110" fill="${t.shade}"/><g clip-path="url(#${id('head')})"><ellipse cx="194" cy="134" rx="120" ry="106" fill="url(#${id('body')})" filter="url(#${id('soft')})"/></g><ellipse cx="205" cy="145" rx="122" ry="110" fill="none" stroke="${ol}" stroke-width="${SW}"/>
+<ellipse cx="140" cy="88" rx="34" ry="13" transform="rotate(-28 140 88)" fill="#fff" opacity="${t.hi}"/>
+<path d="${HAIR}Z" fill="url(#${id('body')})"/><path d="${HAIR}" fill="none" stroke="${ol}" stroke-width="${SW}" stroke-linecap="round" stroke-linejoin="round"/><path d="${STRAND}" fill="none" stroke="${ol}" stroke-width="4" stroke-linecap="round"/>
+<path d="M140 122 Q152 114 166 119" fill="none" stroke="${ol}" stroke-width="4.5" stroke-linecap="round"/><path d="M266 119 Q280 114 292 122" fill="none" stroke="${ol}" stroke-width="4.5" stroke-linecap="round"/>
+${eye(160,168,25,30)}${eye(272,168,25,30)}${blush(144)}${blush(288)}
+<path d="${MOUTH}" fill="${t.mouth}" stroke="${ol}" stroke-width="3.5" stroke-linejoin="round"/><g clip-path="url(#${id('mouth')})"><ellipse cx="211" cy="229" rx="7.5" ry="5.5" fill="${t.tongue}"/></g>
+<g clip-path="url(#${id('head')})"><g ${tg}><path d="${tk.d}Z" fill="${ol}" opacity=".12" transform="translate(4 5)" filter="url(#${id('soft')})"/></g></g>
+<g ${tg}><path d="${tk.d}Z" fill="url(#${id('body')})"/><path d="${tk.d}Z" fill="url(#${id('trunk')})"/><path d="${tk.d}" fill="none" stroke="${ol}" stroke-width="${tsw}" stroke-linecap="round" stroke-linejoin="round"/><path d="M203 197 Q216 201 231 196 M205 206 Q216 210 229 205" fill="none" stroke="${ol}" stroke-width="2.4" stroke-linecap="round" opacity=".3"/><ellipse cx="${tk.n[0]}" cy="${tk.n[1]}" rx="4.2" ry="2.6" transform="rotate(${tk.n[2]} ${tk.n[0]} ${tk.n[1]})" fill="${ol}" opacity=".75"/></g>
+</svg>`;
+}
+
+
+const HEADSET = new Set(['ear-right','head','hair-tuft','ear-left','mouth','tongue','eyebrows','eye-left','eye-right','eye-highlights','eyelids','cheeks','trunk-base','trunk-middle','trunk-tip']);
+const LEGK = { fl:'leg-front-left', ff:'leg-front-right', bl:'leg-back-left', bf:'leg-back-right', thigh:'thigh', fn:'foot-near', fx:'foot-far' };
+const rot = (a, p) => a ? ` rotate(${a} ${r1(p[0])} ${r1(p[1])})` : '';
+const parseE = d => { const m = d.match(/M(-?[\d.]+) (-?[\d.]+) a([\d.]+) ([\d.]+)/); return { cx: +m[1] + +m[3], cy: +m[2], rx: +m[3], ry: +m[4] }; };
+const HOOD = { light:{ h1:'#e6d8f8', h2:'#ad94d8', rib:'#a089cf', lin:'#8f76bf', str:'#fffaf3' }, dark:{ h1:'#3a3846', h2:'#131218', rib:'#1f1d26', lin:'#0c0b10', str:'#3be6ff' } };
+
+function propSVG(c, k) {
+  const ol = c.t.ol, dk = c.dark, u = c.u;
+  const win = dk ? ['#221d33', '#3d3560', '#2c2645'] : ['#ffffff', '#cbc2d6', '#efeaf4'];
+  const glowLine = (d, w) => dk ? `<path d="${d}" fill="none" stroke="url(#${u}rim)" stroke-width="${w * 3}" opacity=".5" filter="url(#${u}soft)" stroke-linecap="round"/><path d="${d}" fill="none" stroke="url(#${u}rim)" stroke-width="${w}" stroke-linecap="round"/>` : '';
+  switch (k.k) {
+    case 'window': { const { x, y, w, h } = k; return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="14" fill="${win[0]}" stroke="${win[1]}" stroke-width="4"/><path d="M${x} ${y + 30} L${x + w} ${y + 30}" stroke="${win[1]}" stroke-width="3"/>${[0, 1, 2].map(i => `<circle cx="${x + 20 + i * 16}" cy="${y + 15}" r="5" fill="${['#ff8fa6', '#ffd27a', '#8fe0b0'][i]}"/>`).join('')}${[0, 1, 2, 3].map(i => `<rect x="${x + 20}" y="${y + 48 + i * 22}" width="${Math.max(20, w - 60 - i * 26)}" height="9" rx="4.5" fill="${win[2]}"/>`).join('')}${dk ? `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="14" fill="none" stroke="url(#${u}rim)" stroke-width="2" opacity=".7"/>` : ''}`; }
+    case 'laptop': { const { x, y } = k; return `<g transform="rotate(-14 ${x + 116} ${y - 12})"><rect x="${x + 108}" y="${y - 112}" width="12" height="102" rx="6" fill="${dk ? '#2c2840' : '#d9d2e3'}" stroke="${ol}" stroke-width="5"/>${dk ? `<rect x="${x + 100}" y="${y - 108}" width="8" height="94" rx="4" fill="#3be6ff" opacity=".7" filter="url(#${u}soft)"/>` : `<rect x="${x + 104}" y="${y - 106}" width="4" height="90" rx="2" fill="#bfe8ff"/>`}</g><rect x="${x}" y="${y - 14}" width="124" height="14" rx="7" fill="${dk ? '#2c2840' : '#e4ddeb'}" stroke="${ol}" stroke-width="5"/><path d="M${x + 14} ${y - 14} L${x + 100} ${y - 14}" stroke="${dk ? '#ff4fd8' : '#b6abc8'}" stroke-width="3" stroke-dasharray="7 4"/>`; }
+    case 'cable': return `<path d="${k.d}" fill="none" stroke="${ol}" stroke-width="8" stroke-linecap="round"/><path d="${k.d}" fill="none" stroke="${dk ? '#5a5478' : '#b9aecb'}" stroke-width="4" stroke-linecap="round"/>${glowLine(k.d, 1.6)}`;
+    case 'plug': return `<g transform="translate(${k.x} ${k.y}) rotate(${k.r || 0})"><path d="M14 -5 L26 -5 M14 5 L26 5" stroke="${ol}" stroke-width="5" stroke-linecap="round"/><path d="M14 -5 L25 -5 M14 5 L25 5" stroke="${dk ? '#ffd27a' : '#e8c46a'}" stroke-width="2.4" stroke-linecap="round"/><rect x="-16" y="-12" width="32" height="24" rx="8" fill="${dk ? '#2c2840' : '#fbf7ff'}" stroke="${ol}" stroke-width="4.5"/><circle cx="0" cy="0" r="3.5" fill="${dk ? '#3be6ff' : '#8fe0b0'}"/></g>`;
+    case 'socket': return `<rect x="${k.x - 18}" y="${k.y - 26}" width="36" height="52" rx="9" fill="${dk ? '#2c2840' : '#fbf7ff'}" stroke="${ol}" stroke-width="4.5"/><circle cx="${k.x}" cy="${k.y}" r="9" fill="${dk ? '#141020' : '#e4ddeb'}" stroke="${ol}" stroke-width="3"/>`;
+    case 'rope': return `<path d="${k.d}" fill="none" stroke="${ol}" stroke-width="7" stroke-linecap="round"/><path d="${k.d}" fill="none" stroke="${dk ? '#ff6fd0' : '#ff9ac1'}" stroke-width="3.4" stroke-linecap="round"/>`;
+    case 'cursor': return `<g transform="translate(${k.x} ${k.y}) rotate(${k.r || -8})"><path d="M0 0 L0 34 L9 26 L16 41 L22 38 L15 23 L27 23 Z" fill="#fff" stroke="#2b1f2a" stroke-width="3.5" stroke-linejoin="round"/></g>`;
+    case 'dust': return [0, 1, 2].map(i => `<circle cx="${k.x - i * 16}" cy="${k.y - i * 5}" r="${9 - i * 2.5}" fill="${dk ? '#4a4466' : '#d8d0e0'}" opacity="${.9 - i * .25}"/>`).join('');
+    case 'motion': return `<path d="${k.d}" fill="none" stroke="${dk ? '#8fa0ff' : ol}" stroke-width="4" stroke-linecap="round" opacity=".4"/>`;
+    case 'bubble': { const w = k.text.length * 11.5 + 36; return `<rect x="${k.x}" y="${k.y}" width="${w}" height="46" rx="23" fill="${dk ? '#221d33' : '#ffffff'}" stroke="${dk ? '#7e6bff' : ol}" stroke-width="4"/><path d="M${k.x + 30} ${k.y + 44} L${k.x + 22} ${k.y + 62} L${k.x + 46} ${k.y + 44}" fill="${dk ? '#221d33' : '#ffffff'}" stroke="${dk ? '#7e6bff' : ol}" stroke-width="4" stroke-linejoin="round"/><rect x="${k.x + 24}" y="${k.y + 38}" width="24" height="8" fill="${dk ? '#221d33' : '#ffffff'}"/><text x="${k.x + w / 2}" y="${k.y + 30}" text-anchor="middle" font-family="Nunito, system-ui, sans-serif" font-weight="800" font-size="20" fill="${dk ? '#f2ecff' : ol}">${k.text}</text>`; }
+  }
+  return '';
+}
+
+function poseSVG(theme, P, u) {
+  const base = P.base || 'stand', c = build('side', base, theme, u), t = c.t, ol = t.ol, dark = c.dark;
+  const parts = c.parts.filter(p => p.id !== 'neon-rim' && p.id !== 'ground-shadow');
+  const byId = Object.fromEntries(parts.map(p => [p.id, p]));
+  const hd = parseE(byId.head.sil[0].d), bd = parseE(byId.body.sil[0].d);
+  const eye = byId['eye-left'].svg.match(/cx="([\d.]+)" cy="([\d.]+)" rx="([\d.]+)" ry="([\d.]+)"/).slice(1).map(Number);
+  const hp = byId.head.pivot, R = P.root || [0, 0, 0], rp = P.rp || [230, 432], H = P.head || [0, 0, 0];
+  const rootT = `translate(${R[0]} ${R[1]})` + rot(R[2], rp), headT = ` translate(${H[0]} ${H[1]})` + rot(H[2], hp);
+  const tm = byId['trunk-middle'].pivot, tt = byId['trunk-tip'].pivot, tb = P.trunk || [0, 0], ea = P.ears || [0, 0], legs = P.legs || {};
+  const hide = new Set(P.hide || []);
+  const tf = id => {
+    const p = byId[id]; let s = rootT;
+    if ((id === 'body' || id === 'belly-patch') && P.breathe) { const yb = r1(bd.cy + bd.ry); s += ` translate(0 ${yb}) scale(1 ${P.breathe}) translate(0 ${-yb})`; }
+    if (HEADSET.has(id)) s += headT;
+    if (id === 'ear-left') s += rot(ea[0], p.pivot);
+    if (id === 'ear-right') s += rot(ea[1], p.pivot);
+    const t0 = byId['trunk-base'].pivot;
+    if (id.startsWith('trunk-')) s += rot(r1(tb[0] * .55), t0);
+    if (id === 'trunk-middle' || id === 'trunk-tip') s += rot(r1(tb[0] * .45), tm);
+    if (id === 'trunk-tip') s += rot(tb[1], tt);
+    if (id === 'tail' || id === 'tail-tuft') s += rot(P.tail || 0, byId.tail.pivot);
+    for (const k in legs) if (LEGK[k] === id) s += rot(legs[k], p.pivot);
+    return s;
+  };
+  const spaceT = s => s === 'none' ? '' : s === 'root' ? rootT : s === 'head' ? rootT + headT : tf(s);
+  const X = [];
+  const add = (at, space, svg, sil) => X.push({ at, space, svg, sil });
+  const [ex, ey, erx, ery] = eye;
+  if (['closed', 'happy', 'strain'].includes(P.eyes)) {
+    hide.add('eye-left'); hide.add('eye-highlights');
+    const d = P.eyes === 'closed' ? `M${ex - 16} ${ey + 2} Q${ex} ${ey + 14} ${ex + 15} ${ey + 1}` : P.eyes === 'happy' ? `M${ex - 16} ${ey + 7} Q${ex} ${ey - 14} ${ex + 15} ${ey + 6}` : `M${ex - 12} ${ey - 10} Q${ex + 4} ${ey - 2} ${ex + 8} ${ey} Q${ex + 4} ${ey + 2} ${ex - 12} ${ey + 10}`;
+    add('after:eye-left', 'head', `<path d="${d}" fill="none" stroke="${ol}" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>`);
+  }
+  if (P.eyes === 'half') {
+    const yb = ey - ery + ery * 1.05;
+    add('after:eye-highlights', 'head', `<clipPath id="${u}lid"><ellipse cx="${ex}" cy="${ey}" rx="${erx + 1.5}" ry="${ery + 1.5}"/></clipPath><g clip-path="url(#${u}lid)"><path d="M${ex - erx - 4} ${ey - ery - 4} L${ex + erx + 4} ${ey - ery - 4} L${ex + erx + 4} ${r1(yb)} Q${ex} ${r1(yb + 9)} ${ex - erx - 4} ${r1(yb)} Z" fill="url(#${u}body)"/></g><path d="M${ex - erx + 1} ${r1(yb + 1)} Q${ex} ${r1(yb + 9)} ${ex + erx - 1} ${r1(yb + 1)}" fill="none" stroke="${ol}" stroke-width="5" stroke-linecap="round"/><ellipse cx="${ex}" cy="${ey}" rx="${erx}" ry="${ery}" fill="none" stroke="${ol}" stroke-width="4"/>`);
+  }
+  if (P.brows) {
+    hide.add('eyebrows');
+    const bx = ex - 5, by = ey - 46;
+    const d = P.brows === 'worried' ? `M${bx - 15} ${by + 3} Q${bx} ${by - 3} ${bx + 15} ${by - 7}` : P.brows === 'determined' ? `M${bx - 15} ${by - 4} Q${bx} ${by - 4} ${bx + 15} ${by + 3}` : `M${bx - 15} ${by - 4} Q${bx - 1} ${by - 14} ${bx + 15} ${by - 6}`;
+    add('after:eyebrows', 'head', `<path d="${d}" fill="none" stroke="${ol}" stroke-width="4.5" stroke-linecap="round"/>`);
+  }
+  if (P.mouth) {
+    hide.add('mouth'); hide.add('tongue');
+    const [tx, ty] = byId.mouth.pivot, mx = tx, my = ty - 7;
+    const M = {
+      laugh:`M${mx - 12} ${my - 8} Q${mx} ${my - 3} ${mx + 12} ${my - 9} C${mx + 14} ${my + 8} ${mx + 6} ${my + 14} ${mx} ${my + 14} C${mx - 7} ${my + 14} ${mx - 13} ${my + 7} ${mx - 12} ${my - 8} Z`,
+      pout:`M${mx - 5} ${my} Q${mx} ${my - 6} ${mx + 5} ${my} Q${mx} ${my + 6} ${mx - 5} ${my} Z`,
+      flat:`M${mx - 7} ${my} Q${mx} ${my + 2} ${mx + 7} ${my - 1}`, smile:`M${mx - 9} ${my - 3} Q${mx} ${my + 7} ${mx + 9} ${my - 4}`
+    }[P.mouth];
+    if (M) add('after:tongue', 'head', P.mouth === 'flat' || P.mouth === 'smile' ? `<path d="${M}" fill="none" stroke="${ol}" stroke-width="4" stroke-linecap="round"/>` : `<path d="${M}" fill="${t.mouth}" stroke="${ol}" stroke-width="3.5" stroke-linejoin="round"/>` + (P.mouth === 'laugh' ? `<clipPath id="${u}mc"><path d="${M}"/></clipPath><g clip-path="url(#${u}mc)"><ellipse cx="${mx}" cy="${my + 12}" rx="8" ry="6" fill="${t.tongue}"/></g>` : ''));
+  }
+  if (P.blush) { const [cx, cy] = byId.cheeks.pivot; add('after:cheeks', 'head', `<ellipse cx="${cx}" cy="${cy}" rx="17" ry="9" fill="${t.blush}" opacity=".5" filter="url(#${u}soft)"/>`); }
+  const HC = HOOD[theme];
+  if (P.hood) {
+    hide.add('belly-patch');
+    const tor = E(bd.cx, bd.cy - 4, bd.rx + 9, bd.ry + 9), hemY = bd.cy + bd.ry - 10;
+    let ribs = ''; for (let x = bd.cx - bd.rx; x <= bd.cx + bd.rx; x += 12) ribs += `M${x} ${hemY} L${x} ${hemY + 40} `;
+    const neon = d => dark ? `<path d="${d}" fill="none" stroke="url(#${u}rim)" stroke-width="7" opacity=".5" filter="url(#${u}soft)" stroke-linecap="round"/><path d="${d}" fill="none" stroke="url(#${u}rim)" stroke-width="2.4" stroke-linecap="round"/>` : '';
+    add(base === 'stand' ? 'after:belly-patch' : 'after:body', 'root', `<clipPath id="${u}tor"><path d="${tor}"/></clipPath><path d="${tor}" fill="url(#${u}hd)"/><g clip-path="url(#${u}tor)"><rect x="${bd.cx - bd.rx - 20}" y="${hemY}" width="${bd.rx * 2 + 40}" height="60" fill="${HC.rib}"/><path d="${ribs}" stroke="${ol}" stroke-width="2" opacity=".18"/></g><path d="M${bd.cx - bd.rx - 6} ${hemY} Q${bd.cx} ${hemY + 12} ${bd.cx + bd.rx + 6} ${hemY}" fill="none" stroke="${ol}" stroke-width="3" opacity=".35"/><path d="${tor}" fill="none" stroke="${ol}" stroke-width="7"/><rect x="${r1(bd.cx + bd.rx * .12)}" y="${r1(bd.cy + bd.ry * .12)}" width="78" height="36" rx="11" fill="url(#${u}hd)" stroke="${ol}" stroke-width="4.5"/><path d="M${r1(bd.cx + bd.rx * .12 + 72)} ${r1(bd.cy + bd.ry * .12 + 6)} L${r1(bd.cx + bd.rx * .12 + 66)} ${r1(bd.cy + bd.ry * .12 + 30)}" stroke="${HC.lin}" stroke-width="5" stroke-linecap="round"/>`, [{ d: tor }]);
+    const lg = byId['leg-front-left'], nums = lg.sil[0].d.match(/-?\d*\.?\d+/g).map(Number), lx = nums[4], top = nums[3], hw = lx - nums[0], bot = Math.max(...nums.filter((v, i) => i % 2 === 1));
+    const sl = `M${lx - hw - 5} ${top - 6} L${lx - hw - 5} ${bot - 30} L${lx + hw + 5} ${bot - 30} L${lx + hw + 5} ${top - 6} Z`;
+    const cuff = `M${lx - hw - 8} ${bot - 40} Q${lx} ${bot - 46} ${lx + hw + 8} ${bot - 40} L${lx + hw + 8} ${bot - 22} Q${lx} ${bot - 15} ${lx - hw - 8} ${bot - 22} Z`;
+    add('after:leg-front-left', 'leg-front-left', `<path d="${sl}" fill="url(#${u}hd)" stroke="${ol}" stroke-width="6" stroke-linejoin="round"/><path d="${cuff}" fill="${HC.rib}" stroke="${ol}" stroke-width="5" stroke-linejoin="round"/>${neon(`M${lx - hw - 6} ${bot - 40} Q${lx} ${bot - 45} ${lx + hw + 6} ${bot - 40}`)}`, [{ d: sl }, { d: cuff }]);
+    const hx = hd.cx, hy = hd.cy, rx = hd.rx, ry = hd.ry;
+    const strings = [[hx + 4, hy + ry - 6, -4], [hx + 26, hy + ry - 12, 4]].map(([x, y, b]) => `<path d="M${x} ${y} q${b} 24 ${b / 2} 44" fill="none" stroke="${ol}" stroke-width="7.5" stroke-linecap="round"/><path d="M${x} ${y} q${b} 24 ${b / 2} 44" fill="none" stroke="${HC.str}" stroke-width="3.6" stroke-linecap="round"/><circle cx="${x + b / 2}" cy="${y + 48}" r="6" fill="${dark ? '#ff4fd8' : '#f59bb6'}" stroke="${ol}" stroke-width="3"/>`).join('');
+    if (P.hood === 'down') {
+      const lump = E(r1(hx - rx * .58), r1(hy + ry * .7), 62, 36);
+      add('before:head', 'head', `<path d="${lump}" fill="url(#${u}hd)" stroke="${ol}" stroke-width="7"/><path d="${E(r1(hx - rx * .52), r1(hy + ry * .62), 44, 20)}" fill="${HC.lin}" opacity=".8"/>${neon(`M${r1(hx - rx * .58 - 58)} ${r1(hy + ry * .7 + 12)} Q${r1(hx - rx * .58)} ${r1(hy + ry * .7 + 46)} ${r1(hx - rx * .58 + 58)} ${r1(hy + ry * .7 + 12)}`)}`, [{ d: lump }]);
+      add('after:ear-left', 'head', strings);
+    } else {
+      hide.add('hair-tuft');
+      const outer = E(hx - 8, hy - 6, rx + 16, ry + 16), open = E(hx + 46, hy + 16, r1(rx * .64), r1(ry * .76));
+      add('after:hair-tuft', 'head', `<path d="${outer} ${open}" fill-rule="evenodd" fill="url(#${u}hd)" stroke="${ol}" stroke-width="7"/><path d="${open}" fill="none" stroke="${HC.rib}" stroke-width="12" transform="translate(${hx + 46} ${hy + 16}) scale(1.08) translate(${-(hx + 46)} ${-(hy + 16)})"/><path d="${open}" fill="none" stroke="${ol}" stroke-width="5"/>${neon(open)}<path d="M${hx - 60} ${hy - ry - 4} Q${hx - 20} ${hy - ry - 18} ${hx + 30} ${hy - ry - 6}" fill="none" stroke="${ol}" stroke-width="3" opacity=".2"/>`, [{ d: outer }]);
+      add('after:ear-left', 'head', strings);
+    }
+  }
+  const defsX = `<defs><linearGradient id="${u}hd" gradientUnits="userSpaceOnUse" x1="60" y1="20" x2="460" y2="440"><stop offset="0" stop-color="${HC.h1}"/><stop offset="1" stop-color="${HC.h2}"/></linearGradient></defs>`;
+  const xs = at => X.filter(x => x.at === at).map(x => `<g transform="${spaceT(x.space)}">${x.svg}</g>`).join('');
+  let body = '', inkDone = false;
+  for (const p of parts) {
+    if (p.ink && !inkDone) { inkDone = true; body += `<g id="trunk-ink">${parts.filter(q => q.ink).map(q => `<g transform="${tf(q.id)}">${q.ink}</g>`).join('')}</g>`; }
+    body += xs('before:' + p.id);
+    const vis = !(hide.has(p.id) || (p.hidden && !(P.show || []).includes(p.id)));
+    if (vis) body += `<g id="${p.id}" transform="${tf(p.id)}">${p.svg}</g>`;
+    body += xs('after:' + p.id);
+  }
+  let rim = '';
+  if (dark) {
+    const col = `url(#${u}rim)`;
+    const sils = sw => parts.filter(p => p.sil && !p.hidden && !hide.has(p.id)).map(p => `<g transform="${tf(p.id)}">${p.sil.map(s => s.w ? `<path d="${s.d}" fill="none" stroke="${col}" stroke-width="${s.w + sw}" stroke-linecap="round"/>` : `<path d="${s.d}"${s.tf ? ` transform="${s.tf}"` : ''} fill="${col}" stroke="${col}" stroke-width="${sw}" stroke-linejoin="round"/>`).join('')}</g>`).join('') + X.filter(x => x.sil).map(x => `<g transform="${spaceT(x.space)}">${x.sil.map(s => `<path d="${s.d}" fill="${col}" stroke="${col}" stroke-width="${sw}"/>`).join('')}</g>`).join('');
+    rim = `<g id="neon-rim"><g filter="url(#${u}glow)" opacity=".8">${sils(20)}</g>${sils(13)}</g>`;
+  }
+  const sh = P.shadow === false ? '' : (() => { const s = Math.max(.45, 1 + Math.min(0, R[1]) / 220); const cx = (P.shadowX ?? 236); return `<ellipse cx="${cx}" cy="434" rx="${r1(190 * s)}" ry="${r1(13 * s)}" fill="${dark ? '#000' : ol}" opacity="${dark ? .5 : .14 * s}" filter="url(#${u}sh)"/>`; })();
+  const props = z => (P.props || []).filter(k => (k.z || 'front') === z).map(k => propSVG(c, k)).join('');
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-60 -110 700 560">${defs(c)}${defsX}${props('back')}${sh}${rim}${body}${props('front')}</svg>`;
+}
+
+const RUNE = { eyes:'happy', mouth:'laugh', ears:[32, 26] };
+const POSES = [
+  ['idle', 'Idle breathing + blink', 'subtle 2–3% chest scale, head bob', [
+    ['Inhale', {}], ['Exhale', { breathe:1.035, head:[0, -3, 0], ears:[3, 2] }], ['Blink', { breathe:1.015, eyes:'closed' }]]],
+  ['sleep', 'Falls asleep → curled up', '', [
+    ['Drowsy', { base:'sit', eyes:'half', head:[0, 6, 6], ears:[-6, -4], brows:'worried' }],
+    ['Nodding off', { base:'sit', eyes:'closed', head:[-4, 24, 18], ears:[-12, -8], trunk:[20, 10], mouth:'flat' }],
+    ['Curled up asleep', { base:'sit', root:[-10, 36, 0], breathe:.94, eyes:'closed', head:[-30, 62, 24], ears:[-18, -12], trunk:[40, 34], tail:-55, legs:{ fl:-62, ff:-58 }, mouth:'flat', blush:1 }]]],
+  ['walk', 'Walk cycle', '4 keys · contact / passing', [
+    ['Contact A', { legs:{ fl:-18, bl:18, ff:18, bf:-18 }, tail:6 }], ['Passing A', { root:[0, -6, 0], legs:{ fl:2, bl:-2, ff:-2, bf:2 }, head:[0, -2, -2], ears:[4, 4] }],
+    ['Contact B', { legs:{ fl:18, bl:-18, ff:-18, bf:18 }, tail:-6 }], ['Passing B', { root:[0, -6, 0], legs:{ fl:-2, bl:2, ff:2, bf:-2 }, head:[0, -2, -2], ears:[4, 4] }]]],
+  ['run', 'Run cycle', '4 keys · ears flap back', [
+    ['Reach', { root:[0, -10, -4], legs:{ fl:-40, ff:-30, bl:40, bf:30 }, ears:[30, 24], trunk:[14, 10], tail:24, eyes:'happy', mouth:'laugh' }],
+    ['Gather', { root:[0, -30, 3], legs:{ fl:26, ff:20, bl:-28, bf:-22 }, ears:[38, 30], trunk:[20, 14], tail:30, eyes:'happy', mouth:'laugh' }],
+    ['Push', { root:[0, -4, 4], legs:{ fl:10, ff:20, bl:-10, bf:-20 }, ears:[24, 18], trunk:[10, 6], tail:18, eyes:'happy', mouth:'laugh' }],
+    ['Float', { root:[0, -36, -2], legs:{ fl:-26, ff:-20, bl:34, bf:26 }, ears:[40, 32], trunk:[22, 16], tail:34, eyes:'happy', mouth:'laugh' }]]],
+  ['sitdown', 'Sit down / stand up', 'play forward to sit, reverse to stand', [
+    ['Stand', {}], ['Lowering', { root:[0, 6, -14], rp:[110, 432], legs:{ bl:-26, bf:-26, fl:14, ff:14 }, head:[0, 0, 12], ears:[-6, -4] }], ['Sit', { base:'sit' }]]],
+  ['coding', 'Coding at the laptop', 'hood down typing → hood up focused', [
+    ['Typing · hood down', { base:'sit', hood:'down', head:[0, 4, 8], legs:{ fl:-38, ff:-26 }, trunk:[-14, 0], mouth:'smile', props:[{ k:'laptop', x:356, y:432 }] }],
+    ['Typing · other foot', { base:'sit', hood:'down', head:[0, 4, 8], legs:{ fl:-26, ff:-38 }, trunk:[-14, 0], mouth:'smile', props:[{ k:'laptop', x:356, y:432 }] }],
+    ['Focused · hood up', { base:'sit', hood:'up', head:[0, 6, 10], legs:{ fl:-34, ff:-30 }, trunk:[-10, 0], brows:'determined', mouth:'flat', props:[{ k:'laptop', x:356, y:432 }] }]]],
+  ['pushups', 'Push-ups', '', [
+    ['Up', { root:[0, -4, 0], legs:{ fl:-8, ff:-8, bl:8, bf:8 }, brows:'determined', mouth:'flat' }],
+    ['Down', { root:[0, 22, 9], rp:[110, 432], legs:{ fl:-44, ff:-44, bl:-6, bf:-6 }, head:[0, 4, -6], eyes:'strain', brows:'determined', mouth:'flat', ears:[8, 6] }]]],
+  ['rope', 'Skipping rope', '', [
+    ['Jump up', { root:[0, -62, 0], legs:{ fl:-20, ff:-20, bl:20, bf:20 }, ears:[24, 18], eyes:'happy', mouth:'laugh', tail:20, props:[{ k:'rope', d:'M500 176 C560 560, -60 560, 41 266' }] }],
+    ['Land', { root:[0, 6, 0], breathe:.96, ears:[-12, -10], mouth:'smile', props:[{ k:'rope', d:'M500 242 C580 -170, -60 -170, 41 332', z:'back' }] }]]],
+  ['earflap', 'Happy ear flapping', '', [
+    ['Ears mid', { eyes:'happy', mouth:'laugh', blush:1 }], ['Ears up', { eyes:'happy', mouth:'laugh', blush:1, ears:[30, 24], root:[0, -8, 0] }], ['Ears down', { eyes:'happy', mouth:'laugh', blush:1, ears:[-14, -12] }]]],
+  ['wave', 'Waving with trunk', '', [
+    ['Trunk up', { trunk:[-58, -24], mouth:'smile', brows:'raised' }], ['Wave out', { trunk:[-74, 14], mouth:'laugh', brows:'raised', ears:[8, 6] }], ['Wave in', { trunk:[-50, -46], mouth:'smile', brows:'raised' }]]],
+  ['trip', 'Tripping over its own trunk', '', [
+    ['Stumble', { root:[10, 0, 12], rp:[340, 432], trunk:[44, 64], legs:{ fl:-20, bl:24, ff:10, bf:32 }, brows:'raised', mouth:'pout', ears:[18, 14] }],
+    ['Flop', { root:[34, 26, 30], rp:[360, 432], legs:{ bl:44, bf:44, fl:-56, ff:-56 }, eyes:'strain', ears:[34, 26], trunk:[-30, -20], tail:40, mouth:'flat' }],
+    ['Sit up, embarrassed', { base:'sit', blush:1, brows:'worried', eyes:'half', head:[0, 0, -6], ears:[-14, -10], mouth:'flat', trunk:[30, 40] }]]],
+  ['flex', 'Flexing · "unplug me, I\'m full!"', 'up on back legs', [
+    ['Flex', { root:[150, -44, -62], rp:[124, 432], head:[0, 0, 56], legs:{ bl:62, bf:62, fl:-120, ff:-96 }, brows:'raised', mouth:'smile', blush:1, tail:50, shadowX:170, props:[{ k:'cable', d:'M-24 400 C0 430 40 434 60 432', z:'back' }, { k:'plug', x:-34, y:398, r:-90, z:'back' }] }],
+    ['Point at plug', { root:[150, -44, -62], rp:[124, 432], head:[0, 0, 56], legs:{ bl:62, bf:62, fl:-40, ff:-96 }, brows:'raised', mouth:'laugh', blush:1, tail:50, trunk:[-26, 0], shadowX:170, props:[{ k:'cable', d:'M-24 400 C0 430 40 434 60 432', z:'back' }, { k:'plug', x:-34, y:398, r:-90, z:'back' }, { k:'bubble', x:280, y:-96, text:'unplug me, I\'m full!' }] }]]],
+  ['tired', 'Tired · "charge me pls"', 'holding a tiny plug', [
+    ['Slumped', { base:'sit', root:[0, 10, 0], breathe:.95, head:[0, 22, 16], eyes:'half', brows:'worried', ears:[-16, -12], trunk:[24, -40], props:[{ k:'cable', d:'M462 250 C500 330 520 420 600 430' }, { k:'plug', x:460, y:244, r:-60 }, { k:'bubble', x:300, y:-80, text:'charge me pls' }] }],
+    ['Deeper slump', { base:'sit', root:[0, 16, 0], breathe:.93, head:[-4, 30, 22], eyes:'closed', brows:'worried', ears:[-20, -14], trunk:[30, -36], props:[{ k:'cable', d:'M452 266 C500 340 520 420 600 430' }, { k:'plug', x:450, y:262, r:-50 }] }]]],
+  ['charged', 'Charger connected · bounce + run', '', [
+    ['Bounce up', { root:[0, -46, 0], legs:{ fl:-14, ff:-14, bl:14, bf:14 }, ears:[30, 24], eyes:'happy', mouth:'laugh', blush:1, tail:30, props:[{ k:'socket', x:-30, y:380, z:'back' }, { k:'cable', d:'M-30 380 C-20 300 10 280 41 280', z:'back' }] }],
+    ['Squash', { root:[0, 4, 0], breathe:.94, ears:[-10, -8], eyes:'happy', mouth:'smile', blush:1, props:[{ k:'socket', x:-30, y:380, z:'back' }, { k:'cable', d:'M-30 380 C-20 360 10 340 41 330', z:'back' }] }],
+    ['Run!', { ...RUNE, root:[30, -26, -3], legs:{ fl:-40, ff:-30, bl:40, bf:30 }, trunk:[18, 12], tail:28, props:[{ k:'socket', x:-30, y:380, z:'back' }, { k:'cable', d:'M-30 380 C0 400 40 300 70 270', z:'back' }] }]]],
+  ['scruff', 'Dragged by the scruff', 'happy vs pouting', [
+    ['Happy dangle', { root:[0, -96, -6], rp:[160, 222], legs:{ fl:8, ff:-2, bl:-8, bf:4 }, tail:24, ears:[-8, -6], eyes:'happy', mouth:'smile', blush:1, props:[{ k:'cursor', x:150, y:120, r:-14 }] }],
+    ['Pouting dangle', { root:[0, -96, 4], rp:[160, 222], legs:{ fl:-8, ff:10, bl:8, bf:-10 }, tail:-12, ears:[-16, -12], brows:'determined', mouth:'pout', blush:1, trunk:[40, 50], props:[{ k:'cursor', x:162, y:120, r:-4 }] }]]],
+  ['petted', 'Petted & tickled', '', [
+    ['Petted · happy lean', { root:[0, 0, -3], head:[-6, 4, -10], eyes:'happy', mouth:'smile', blush:1, ears:[-12, -8], props:[{ k:'cursor', x:300, y:-2, r:-20 }] }],
+    ['Tickled · squirm', { root:[0, -4, 6], legs:{ fl:-30, bl:30, ff:20, bf:-20 }, eyes:'happy', mouth:'laugh', blush:1, ears:[22, 16], trunk:[-30, -30], tail:30, props:[{ k:'cursor', x:250, y:330, r:-30 }, { k:'motion', d:'M180 400 Q200 410 220 400' }] }],
+    ['Tickled · other way', { root:[0, -2, -5], legs:{ fl:20, bl:-24, ff:-24, bf:24 }, eyes:'happy', mouth:'laugh', blush:1, ears:[-8, -6], trunk:[-50, 10], tail:-20, props:[{ k:'cursor', x:262, y:338, r:-10 }] }]]],
+  ['peek', 'Peeking curiously', 'lean in, ears up, trunk sniffing', [
+    ['Lean in', { root:[16, 0, 6], rp:[124, 432], head:[18, 0, -6], ears:[20, 16], brows:'raised', mouth:'pout', trunk:[-40, 30], props:[{ k:'window', x:540, y:-60, w:200, h:500, z:'front' }] }],
+    ['Sniff sniff', { root:[22, 0, 7], rp:[124, 432], head:[26, -4, -10], ears:[26, 20], brows:'raised', mouth:'pout', trunk:[-60, 44], props:[{ k:'window', x:540, y:-60, w:200, h:500, z:'front' }] }]]],
+  ['eatwindow', 'Trying to eat a window corner', '', [
+    ['Chomp!', { root:[0, 0, -12], rp:[124, 432], head:[0, 0, -10], eyes:'happy', mouth:'laugh', trunk:[-86, -30], ears:[14, 10], props:[{ k:'window', x:392, y:-110, w:300, h:186, z:'back' }] }],
+    ['Nom', { root:[0, 0, -12], rp:[124, 432], head:[0, 0, -10], eyes:'closed', mouth:'flat', blush:1, trunk:[-96, -40], ears:[6, 4], props:[{ k:'window', x:392, y:-110, w:300, h:186, z:'back' }] }]]],
+  ['push', 'Pushing a window · failing', '', [
+    ['Push!', { root:[56, 10, 10], rp:[124, 432], legs:{ bl:36, bf:36, fl:-26, ff:-26 }, head:[8, 0, -4], eyes:'strain', brows:'determined', mouth:'flat', ears:[-8, -6], tail:20, props:[{ k:'window', x:560, y:-40, w:200, h:480 }, { k:'dust', x:70, y:426 }] }],
+    ['Slipping', { root:[30, 26, 16], rp:[124, 432], legs:{ bl:58, bf:58, fl:-34, ff:-34 }, head:[8, 4, -6], eyes:'strain', brows:'worried', mouth:'pout', ears:[-12, -10], tail:30, props:[{ k:'window', x:560, y:-40, w:200, h:480 }, { k:'dust', x:40, y:426 }, { k:'motion', d:'M10 396 L-30 396 M20 412 L-14 412' }] }]]],
+  ['windowsit', 'Sitting on a window edge', 'legs dangling', [
+    ['Dangle A', { base:'sit', root:[-40, -60, 0], legs:{ fl:-10, ff:8 }, mouth:'smile', shadow:false, props:[{ k:'window', x:-20, y:372, w:560, h:240, z:'back' }] }],
+    ['Dangle B', { base:'sit', root:[-40, -60, 0], legs:{ fl:12, ff:-8 }, eyes:'happy', mouth:'smile', shadow:false, props:[{ k:'window', x:-20, y:372, w:560, h:240, z:'back' }] }]]]
+];
+const toURL = s => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s);
+
+class Component extends DCLogic {
+  root = React.createRef();
+  cache = {};
+  paint() {
+    const el = this.root.current; if (!el) return;
+    el.querySelectorAll('[data-pose]').forEach(d => {
+      const k = [d.dataset.pose, d.dataset.frame, d.dataset.theme].join('|');
+      if (d.dataset.k === k) return;
+      if (!this.cache[k]) { const P = POSES.find(p => p[0] === d.dataset.pose)[3][+d.dataset.frame][1]; this.cache[k] = toURL(poseSVG(d.dataset.theme, P, 'p')); }
+      d.dataset.k = k;
+      d.innerHTML = `<img alt="" src="${this.cache[k]}" style="width:100%;height:100%;display:block">`;
+    });
+  }
+  componentDidMount() { this.paint(); }
+  componentDidUpdate() { this.paint(); }
+  renderVals() {
+    return { root: this.root, poses: POSES.map(([key, title, note, fr], i) => ({ key, title, note, n: String(i + 1).padStart(2, '0'), frames: fr.map(([label], j) => ({ i: String(j), label })) })) };
+  }
+}
+</script>
+</body>
+</html>

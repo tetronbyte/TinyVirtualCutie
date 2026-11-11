@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
+<style>body{margin:0;background:#ece8ef;font-family:'Nunito',system-ui,sans-serif;color:#2b1f2a}a{color:#7a4a8c}a:hover{color:#3d2433}</style>
+</helmet>
+<div ref="{{ root }}" style="max-width:1240px;margin:0 auto;padding:40px 28px 64px;display:flex;flex-direction:column;gap:36px">
+  <header style="display:flex;flex-direction:column;gap:6px">
+    <div style="font-size:13px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#8a6f86">Desktop pet · mascot v1</div>
+    <h1 style="margin:0;font-size:40px;font-weight:800;color:#3d2433">Dumbo</h1>
+    <p style="margin:0;font-size:16px;color:#6b5869;max-width:620px;text-wrap:pretty">Same silhouette, two themes. Transparent backgrounds shown on a checkerboard; small sizes shown on desktop-like wallpaper at true pixel size.</p>
+  </header>
+
+  <section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:24px">
+    <div style="background:#ffffff;border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline"><strong style="font-size:18px">Light</strong><span style="font-size:13px;color:#8a7a88">lavender-grey · cream · pink</span></div>
+      <div style="height:400px;border-radius:14px;background-color:#f7f5f8;background-image:conic-gradient(#eeeaf0 25%,transparent 0 50%,#eeeaf0 0 75%,transparent 0);background-size:24px 24px;display:flex;align-items:center;justify-content:center">
+        <div data-pet="light" data-trunk="hero" style="width:370px;height:370px"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div style="border-radius:14px;background:linear-gradient(160deg,#cfd9e6,#e9dfe9);padding:14px;display:flex;align-items:flex-end;justify-content:space-between;min-height:130px">
+          <span style="font-size:12px;font-weight:700;color:#4a5466">96px</span>
+          <div data-pet="light" data-trunk="hero" style="width:96px;height:96px"></div>
+        </div>
+        <div style="border-radius:14px;background:linear-gradient(160deg,#cfd9e6,#e9dfe9);padding:14px;display:flex;align-items:flex-end;justify-content:space-between;min-height:130px">
+          <span style="font-size:12px;font-weight:700;color:#4a5466">48px</span>
+          <div data-pet="light" data-trunk="hero" style="width:48px;height:48px"></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="background:#1b1728;border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:16px;color:#e9e4f5">
+      <div style="display:flex;justify-content:space-between;align-items:baseline"><strong style="font-size:18px">Dark · Neon</strong><span style="font-size:13px;color:#a69cc0">slate-navy · violet · cyan→magenta rim</span></div>
+      <div style="height:400px;border-radius:14px;background-color:#15121f;background-image:conic-gradient(#1c1829 25%,transparent 0 50%,#1c1829 0 75%,transparent 0);background-size:24px 24px;display:flex;align-items:center;justify-content:center">
+        <div data-pet="dark" data-trunk="hero" style="width:370px;height:370px"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div style="border-radius:14px;background:linear-gradient(160deg,#0f1630,#2a1838);padding:14px;display:flex;align-items:flex-end;justify-content:space-between;min-height:130px">
+          <span style="font-size:12px;font-weight:700;color:#a9b2d6">96px</span>
+          <div data-pet="dark" data-trunk="hero" style="width:96px;height:96px"></div>
+        </div>
+        <div style="border-radius:14px;background:linear-gradient(160deg,#0f1630,#2a1838);padding:14px;display:flex;align-items:flex-end;justify-content:space-between;min-height:130px">
+          <span style="font-size:12px;font-weight:700;color:#a9b2d6">48px</span>
+          <div data-pet="dark" data-trunk="hero" style="width:48px;height:48px"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <h2 style="margin:0;font-size:24px;font-weight:800;color:#3d2433">Trunk variations</h2>
+      <p style="margin:0;font-size:15px;color:#6b5869">Pick one — set it as the hero trunk in Tweaks.</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:20px">
+      <sc-for list="{{ variants }}" as="v" hint-placeholder-count="3">
+        <div id="{{ v.id }}" style="background:#ffffff;border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;gap:10px;align-items:center">
+            <span style="background:#3d2433;color:#fff;font-weight:800;font-size:13px;border-radius:8px;padding:3px 9px">{{ v.badge }}</span>
+            <strong style="font-size:16px">{{ v.label }}</strong>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div style="border-radius:12px;background:#f5f2f7;display:flex;align-items:center;justify-content:center;height:170px"><div data-pet="light" data-trunk="{{ v.key }}" style="width:160px;height:160px"></div></div>
+            <div style="border-radius:12px;background:#15121f;display:flex;align-items:center;justify-content:center;height:170px"><div data-pet="dark" data-trunk="{{ v.key }}" style="width:160px;height:160px"></div></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <div style="flex:1;border-radius:12px;background:linear-gradient(160deg,#cfd9e6,#e9dfe9);display:flex;align-items:center;justify-content:center;gap:14px;height:70px"><div data-pet="light" data-trunk="{{ v.key }}" style="width:48px;height:48px"></div><div data-pet="light" data-trunk="{{ v.key }}" style="width:32px;height:32px"></div></div>
+            <div style="flex:1;border-radius:12px;background:linear-gradient(160deg,#0f1630,#2a1838);display:flex;align-items:center;justify-content:center;gap:14px;height:70px"><div data-pet="dark" data-trunk="{{ v.key }}" style="width:48px;height:48px"></div><div data-pet="dark" data-trunk="{{ v.key }}" style="width:32px;height:32px"></div></div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;heroTrunk&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;a&quot;,&quot;b&quot;,&quot;c&quot;],&quot;default&quot;:&quot;b&quot;,&quot;tsType&quot;:&quot;'a'|'b'|'c'&quot;}}">
+const TH = {
+  light: { ol:'#3d2433', b1:'#ebe5f0', b2:'#aa9fbd', shade:'#b6abc8', belly1:'#fcf5ea', belly2:'#efdfca', nail:'#f8eddc', ear1:'#fcd0dc', ear2:'#ee8dab', sole:'#f9efe4', pad:'#f597b3', blush:'#f7809e', blushOp:.5, eye1:'#1f0f0b', eye2:'#86513a', mouth:'#5c2236', tongue:'#f27896', hi:.45, tuft:'#9d92b0' },
+  dark:  { ol:'#100b1f', b1:'#5f6891', b2:'#2b3050', shade:'#363c60', belly1:'#ada4e6', belly2:'#7469b4', nail:'#a197da', ear1:'#e29aff', ear2:'#7a2fd8', sole:'#958bd0', pad:'#ff8cc6', blush:'#ff66b0', blushOp:.55, eye1:'#0e0720', eye2:'#7548c2', mouth:'#2a0f2e', tongue:'#ff7fb0', hi:.2, tuft:'#3a4166', neon:true }
+};
+const EAR_L = 'M120 92 C60 70 12 110 14 170 C16 230 50 280 100 282 C125 283 140 262 140 240 L160 200 Z';
+const EAR_R = 'M292 86 C350 64 396 104 394 165 C392 225 362 270 320 270 C300 270 290 252 292 232 L260 200 Z';
+const EAR_LI = 'M112 112 C66 100 34 130 34 175 C34 225 62 262 98 262 C116 262 124 248 124 232 Z';
+const EAR_RI = 'M300 106 C344 94 374 124 374 168 C374 218 350 250 322 250 C308 250 302 240 304 226 Z';
+const LEG_L = 'M156 346 L156 384 Q156 403 185 403 Q214 403 214 384 L214 356';
+const LEG_R = 'M214 356 L214 384 Q214 403 243 403 Q272 403 272 384 L272 346';
+const TAIL = 'M128 350 C100 352 82 338 74 318';
+const TAIL_TUFT = 'M76 322 C62 316 58 300 64 290 C70 300 76 302 78 295 C84 304 86 314 80 322 Z';
+const HAIR = 'M193 42 C186 22 204 6 225 14 C211 16 204 27 209 40';
+const FOOT_L = 'cx="110" cy="350" rx="44" ry="50" transform="rotate(-14 110 350)"';
+const FOOT_R = 'cx="318" cy="348" rx="34" ry="46" transform="rotate(14 318 348)"';
+const TR = {
+  b: { d:'M198 184 C192 216 206 247 234 247 C254 247 268 236 272 220 C275 206 266 198 258 201 C252 204 251 211 248 214 C244 218 240 214 240 206 C240 199 240 193 241 186', n:[265,205,50] },
+  c: { d:'M198 184 C192 218 206 249 234 249 C256 249 272 236 272 216 C272 202 261 195 253 200 C248 203 250 211 246 215 C242 219 238 214 238 207 C238 199 239 193 241 186', n:[261,200,25] }
+};
+
+function pet(theme, trunk, u) {
+  const t = TH[theme], SW = 7;
+  const tk = TR[trunk === 'c' ? 'c' : 'b'];
+  const short = trunk === 'a';
+  const ts = short ? 0.86 : 1;
+  const tg = `transform="translate(-6 0) translate(218 184) scale(${ts} ${ts * 1.12}) translate(-218 -184)"`;
+  const tsw = SW / (ts * 1.05);
+  const id = s => u + s;
+  const sil = (c, sw) => `
+    <path d="${TAIL}" fill="none" stroke="${c}" stroke-width="${10 + sw}" stroke-linecap="round"/>
+    <path d="${TAIL_TUFT}" fill="${c}" stroke="${c}" stroke-width="${sw}" stroke-linejoin="round"/>
+    <path d="${EAR_L}" fill="${c}" stroke="${c}" stroke-width="${sw}" stroke-linejoin="round"/>
+    <path d="${EAR_R}" fill="${c}" stroke="${c}" stroke-width="${sw}" stroke-linejoin="round"/>
+    <ellipse cx="210" cy="318" rx="92" ry="78" fill="${c}" stroke="${c}" stroke-width="${sw}"/>
+    <path d="${LEG_L}Z" fill="${c}" stroke="${c}" stroke-width="${sw}"/><path d="${LEG_R}Z" fill="${c}" stroke="${c}" stroke-width="${sw}"/>
+    <ellipse ${FOOT_L} fill="${c}" stroke="${c}" stroke-width="${sw}"/><ellipse ${FOOT_R} fill="${c}" stroke="${c}" stroke-width="${sw}"/>
+    <ellipse cx="205" cy="145" rx="122" ry="110" fill="${c}" stroke="${c}" stroke-width="${sw}"/>
+    <path d="${HAIR}Z" fill="${c}" stroke="${c}" stroke-width="${sw}" stroke-linejoin="round"/>
+    <g ${tg}><path d="${tk.d}Z" fill="${c}" stroke="${c}" stroke-width="${sw / ts}" stroke-linejoin="round"/></g>`;
+  const eye = (cx, cy, rx, ry) => `
+    <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="url(#${id('eye')})" stroke="${t.ol}" stroke-width="4"/>
+    <ellipse cx="${cx}" cy="${cy + ry * .45}" rx="${rx * .6}" ry="${ry * .3}" fill="${t.eye2}" opacity=".55" filter="url(#${id('soft')})"/>
+    <path d="M${cx - rx} ${cy - 3} A${rx} ${ry} 0 0 1 ${cx + rx} ${cy - 3}" fill="none" stroke="${t.ol}" stroke-width="6.5" stroke-linecap="round"/>
+    <circle cx="${cx - rx * .34}" cy="${cy - ry * .36}" r="${rx * .37}" fill="#fff"/>
+    <circle cx="${cx + rx * .36}" cy="${cy + ry * .38}" r="${rx * .16}" fill="#fff"/>`;
+  const neon = t.neon ? `
+    <g filter="url(#${id('glow')})" opacity=".8">${sil(`url(#${id('rim')})`, 20)}</g>
+    <g>${sil(`url(#${id('rim')})`, 13)}</g>` : '';
+  const pad = (cx, cy, rx, ry, rot) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" transform="rotate(${rot} ${cx} ${cy})" fill="${t.pad}"/>`;
+  return `<svg viewBox="-12 -6 424 424" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="display:block;overflow:visible">
+  <defs>
+    <linearGradient id="${id('body')}" gradientUnits="userSpaceOnUse" x1="110" y1="40" x2="300" y2="400"><stop offset="0" stop-color="${t.b1}"/><stop offset="1" stop-color="${t.b2}"/></linearGradient>
+    <linearGradient id="${id('trunk')}" x1="0" y1="0" x2=".35" y2="1"><stop offset="0" stop-color="${t.shade}" stop-opacity="0"/><stop offset=".5" stop-color="${t.shade}" stop-opacity="0"/><stop offset="1" stop-color="${t.b2}" stop-opacity=".8"/></linearGradient>
+    <linearGradient id="${id('belly')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t.belly1}"/><stop offset="1" stop-color="${t.belly2}"/></linearGradient>
+    <radialGradient id="${id('ear')}" cx=".45" cy=".5" r=".65"><stop offset="0" stop-color="${t.ear1}"/><stop offset="1" stop-color="${t.ear2}"/></radialGradient>
+    <linearGradient id="${id('eye')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t.eye1}"/><stop offset=".5" stop-color="${t.eye1}"/><stop offset="1" stop-color="${t.eye2}"/></linearGradient>
+    <linearGradient id="${id('rim')}" gradientUnits="userSpaceOnUse" x1="20" y1="120" x2="390" y2="300"><stop offset="0" stop-color="#3be6ff"/><stop offset=".5" stop-color="#7e6bff"/><stop offset="1" stop-color="#ff4fd8"/></linearGradient>
+    <filter id="${id('glow')}" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="9"/></filter>
+    <filter id="${id('soft')}" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4"/></filter>
+    <clipPath id="${id('head')}"><ellipse cx="205" cy="145" rx="122" ry="110"/></clipPath>
+    <clipPath id="${id('bod')}"><ellipse cx="210" cy="318" rx="92" ry="78"/></clipPath>
+    <clipPath id="${id('mouth')}"><path d="M200 214 Q211 218 222 213 C223 225 217 230 211 230 C205 230 200 225 200 214 Z"/></clipPath>
+  </defs>
+  ${neon}
+  <path d="${TAIL}" fill="none" stroke="${t.ol}" stroke-width="${10 + SW * 2}" stroke-linecap="round"/>
+  <path d="${TAIL}" fill="none" stroke="${t.shade}" stroke-width="10" stroke-linecap="round"/>
+  <path d="${TAIL_TUFT}" fill="${t.tuft}" stroke="${t.ol}" stroke-width="5" stroke-linejoin="round"/>
+  <path d="${EAR_R}" fill="url(#${id('body')})" stroke="${t.ol}" stroke-width="${SW}" stroke-linejoin="round"/>
+  <path d="${EAR_RI}" fill="url(#${id('ear')})"/>
+  <path d="${EAR_L}" fill="url(#${id('body')})" stroke="${t.ol}" stroke-width="${SW}" stroke-linejoin="round"/>
+  <path d="${EAR_LI}" fill="url(#${id('ear')})"/>
+  ${t.neon ? `<g opacity=".55" filter="url(#${id('soft')})"><path d="${EAR_LI}" fill="${t.ear1}" transform="translate(6 4) scale(.96)"/><path d="${EAR_RI}" fill="${t.ear1}" transform="translate(12 6) scale(.96)"/></g>` : ''}
+  <ellipse cx="210" cy="318" rx="92" ry="78" fill="${t.shade}"/>
+  <g clip-path="url(#${id('bod')})"><ellipse cx="198" cy="306" rx="90" ry="76" fill="url(#${id('body')})" filter="url(#${id('soft')})"/></g>
+  <ellipse cx="210" cy="318" rx="92" ry="78" fill="none" stroke="${t.ol}" stroke-width="${SW}"/>
+  <path d="M188 266 C182 294 194 318 215 330 C236 318 248 294 242 266 C230 257 200 257 188 266 Z" fill="url(#${id('belly')})"/>
+  <path d="${LEG_L}Z" fill="url(#${id('body')})"/><path d="${LEG_L}" fill="none" stroke="${t.ol}" stroke-width="${SW}" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="${LEG_R}Z" fill="url(#${id('body')})"/><path d="${LEG_R}" fill="none" stroke="${t.ol}" stroke-width="${SW}" stroke-linecap="round" stroke-linejoin="round"/>
+  ${[172,185,198,230,243,256].map(x => `<path d="M${x - 7} 400 Q${x - 7} 389 ${x} 389 Q${x + 7} 389 ${x + 7} 400" fill="${t.nail}" stroke="${t.ol}" stroke-width="3" stroke-linejoin="round"/>`).join('')}
+  <ellipse ${FOOT_L} fill="${t.sole}" stroke="${t.ol}" stroke-width="${SW}"/>
+  ${pad(114,366,19,15,-14)}${pad(86,334,7.5,8,-14)}${pad(105,321,8.5,9,-14)}${pad(127,324,7.5,8,-14)}
+  <ellipse ${FOOT_R} fill="${t.sole}" stroke="${t.ol}" stroke-width="${SW}"/>
+  ${pad(320,362,14,12,14)}${pad(302,330,5.5,6,14)}${pad(317,320,6,6.5,14)}${pad(333,327,5.5,6,14)}
+  <ellipse cx="210" cy="260" rx="78" ry="14" fill="${t.ol}" opacity=".18" filter="url(#${id('soft')})"/>
+  <ellipse cx="205" cy="145" rx="122" ry="110" fill="${t.shade}"/>
+  <g clip-path="url(#${id('head')})"><ellipse cx="194" cy="134" rx="120" ry="106" fill="url(#${id('body')})" filter="url(#${id('soft')})"/></g>
+  <ellipse cx="205" cy="145" rx="122" ry="110" fill="none" stroke="${t.ol}" stroke-width="${SW}"/>
+  <ellipse cx="140" cy="88" rx="34" ry="13" transform="rotate(-28 140 88)" fill="#fff" opacity="${t.hi}"/>
+  <path d="${HAIR}Z" fill="url(#${id('body')})"/>
+  <path d="${HAIR}" fill="none" stroke="${t.ol}" stroke-width="${SW}" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M174 46 Q178 35 190 35" fill="none" stroke="${t.ol}" stroke-width="4" stroke-linecap="round"/>
+  <path d="M140 122 Q152 114 166 119" fill="none" stroke="${t.ol}" stroke-width="4.5" stroke-linecap="round"/>
+  <path d="M266 119 Q280 114 292 122" fill="none" stroke="${t.ol}" stroke-width="4.5" stroke-linecap="round"/>
+  ${eye(160,168,25,30)}${eye(272,168,25,30)}
+  <ellipse cx="144" cy="212" rx="13" ry="7" fill="${t.blush}" opacity="${t.blushOp}" filter="url(#${id('soft')})"/>
+  <ellipse cx="144" cy="212" rx="10.5" ry="5.5" fill="${t.blush}" opacity="${t.blushOp}"/>
+  <path d="M138 214.5 l3 -4.5 M143.5 215 l3 -4.5 M149 214.5 l3 -4.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" opacity=".9"/>
+  <ellipse cx="288" cy="212" rx="13" ry="7" fill="${t.blush}" opacity="${t.blushOp}" filter="url(#${id('soft')})"/>
+  <ellipse cx="288" cy="212" rx="10.5" ry="5.5" fill="${t.blush}" opacity="${t.blushOp}"/>
+  <path d="M282 214.5 l3 -4.5 M287.5 215 l3 -4.5 M293 214.5 l3 -4.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" opacity=".9"/>
+  <path d="M200 214 Q211 218 222 213 C223 225 217 230 211 230 C205 230 200 225 200 214 Z" fill="${t.mouth}" stroke="${t.ol}" stroke-width="3.5" stroke-linejoin="round"/>
+  <g clip-path="url(#${id('mouth')})"><ellipse cx="211" cy="229" rx="7.5" ry="5.5" fill="${t.tongue}"/></g>
+  <g clip-path="url(#${id('head')})"><g ${tg}><path d="${tk.d}Z" fill="${t.ol}" opacity=".12" transform="translate(4 5)" filter="url(#${id('soft')})"/></g></g>
+  <g ${tg}>
+    <path d="${tk.d}Z" fill="url(#${id('body')})"/><path d="${tk.d}Z" fill="url(#${id('trunk')})"/>
+    <path d="${tk.d}" fill="none" stroke="${t.ol}" stroke-width="${tsw}" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M203 197 Q216 201 231 196 M205 206 Q216 210 229 205" fill="none" stroke="${t.ol}" stroke-width="2.4" stroke-linecap="round" opacity=".3"/>
+    <ellipse cx="${tk.n[0]}" cy="${tk.n[1]}" rx="4.2" ry="2.6" transform="rotate(${tk.n[2]} ${tk.n[0]} ${tk.n[1]})" fill="${t.ol}" opacity=".75"/>
+  </g>
+</svg>`;
+}
+
+class Component extends DCLogic {
+  root = React.createRef();
+  paint() {
+    const el = this.root.current; if (!el) return;
+    const hero = this.props.heroTrunk ?? 'b';
+    let n = 0;
+    el.querySelectorAll('[data-pet]').forEach(d => {
+      const tr = d.dataset.trunk === 'hero' ? hero : d.dataset.trunk;
+      d.innerHTML = pet(d.dataset.pet, tr, 'p' + (n++) + '_');
+    });
+  }
+  componentDidMount() { this.paint(); }
+  componentDidUpdate() { this.paint(); }
+  renderVals() {
+    return {
+      root: this.root,
+      variants: [
+        { id:'a', key:'a', badge:'A', label:'Slightly shorter' },
+        { id:'b', key:'b', badge:'B', label:'Current' },
+        { id:'c', key:'c', badge:'C', label:'Slightly more curled' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
