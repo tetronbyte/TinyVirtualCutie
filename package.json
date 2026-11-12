@@ -2,7 +2,7 @@
   "name": "tinyvirtualcutie",
   "productName": "Dumbo",
   "private": true,
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Dumbo \u2014 a tiny desktop pet",
   "main": "electron/boot.cjs",
   "updates": {
