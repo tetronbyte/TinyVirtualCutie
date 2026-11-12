@@ -24,6 +24,7 @@
 - Every drawn frame costs ~10–30 ms CPU in Electron (SVG redraw + transparent window present). Don't add continuous animations (no CSS infinite animations, no always-on rAF). Keep clips at 8–14 fps; eyes jump in single-frame saccades.
 - Measure CPU with `Get-Counter '\Process(electron*)\% Processor Time'` (bench script). `Get-Process` CPU deltas gave wrong (zero) numbers.
 - The Browser pane can stall when the app window is hidden; use `scripts/snap.cjs` for visual checks. GDI screen capture can't see the pet window.
+- Click-through (`setIgnoreMouseEvents` + forward): never rely only on forwarded mousemove; the host hover poll covers him moving under a still cursor. `DUMBO_BENCH` runs log `over true/false`.
 - Renderer errors and `host.log()` print to the Electron main stdout as `[pet] ...`.
 
 ## Rules

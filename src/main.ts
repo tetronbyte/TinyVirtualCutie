@@ -669,8 +669,20 @@ async function stretchCheck(): Promise<boolean> {
 // ---------- interactions ----------
 // Click-through: the window ignores the mouse except over Dumbo's actual pixels.
 let overPet = false;
-const hitPet = (x: number, y: number) => { const el = document.elementFromPoint(x, y); return !!el && el !== art && art.contains(el) && el.tagName !== 'svg'; };
-function setOver(v: boolean) { if (v !== overPet) { overPet = v; host.ignoreMouse(!v); } }
+const hitAt = (x: number, y: number) => { const el = document.elementFromPoint(x, y); return !!el && el !== art && art.contains(el) && el.tagName !== 'svg'; };
+// A few px of slack so thin bits (trunk tip, tail, legs) and the gaps between them are easy to grab.
+const SLACK = [[0, 0], [6, 0], [-6, 0], [0, 6], [0, -6]];
+const hitPet = (x: number, y: number) => SLACK.some(([dx, dy]) => hitAt(x + dx, y + dy));
+function setOver(v: boolean) {
+  if (v === overPet) return;
+  overPet = v; host.ignoreMouse(!v);
+  if ((window.host as any)?.bench) host.log(`over ${v}`);
+}
+// Host says where the cursor is while it's inside his window (see startHoverPoll in electron/main.cjs).
+host.onHover(p => {
+  if (dragging || down) return;
+  setOver(!!p && hitPet(p.x, p.y));
+});
 
 let down: { x: number; y: number } | null = null;
 let dragging = false;
@@ -680,7 +692,8 @@ const rub: Array<{ x: number; t: number }> = [];
 let moveEvents = 0;
 document.addEventListener('mousemove', e => {
   moveEvents++;
-  if (dragging) return;
+  if (dragging) { if (!(e.buttons & 1)) endDrag(); return; } // button released where we didn't see the mouseup
+  if (down && !(e.buttons & 1)) down = null; // same for a press that never turned into a drag
   if (down && (e.buttons & 1) && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 4) { startDrag(down.x, down.y); return; }
   const hit = hitPet(e.clientX, e.clientY);
   setOver(hit || !!down);

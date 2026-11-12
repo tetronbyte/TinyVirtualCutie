@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('host', {
   foreground: () => ipcRenderer.invoke('fg:get'),
   idleSeconds: () => ipcRenderer.invoke('idle:get'),
   onCursor: on('cursor'),
+  onHover: on('hover'),
   onAction: on('action'),
   onSettings: on('settings'),
   onBatteryPresent: on('battery:present'),

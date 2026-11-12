@@ -95,7 +95,7 @@ function createPet() {
   if (IS_MAC) pet.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true }); // stays with you across Spaces
   if (!process.env.DUMBO_NOFWD) pet.setIgnoreMouseEvents(true, { forward: true }); // renderer turns this off while the cursor is over Dumbo
   load(pet, 'index.html');
-  pet.once('ready-to-show', () => { pet.showInactive(); updater.markGood(); });
+  pet.once('ready-to-show', () => { pet.showInactive(); updater.markGood(); startHoverPoll(); });
   pet.on('closed', () => app.quit());
 }
 
@@ -300,6 +300,22 @@ ipcMain.on('drag:start', (_e, ox, oy) => {
   }, 16);
 });
 ipcMain.on('drag:end', () => { clearInterval(dragTimer); dragTimer = null; });
+
+// Grab fallback. The pet window lets clicks through except over Dumbo, and the renderer only learns the
+// cursor is over him from forwarded mouse moves. Those don't come when he moves under a still cursor
+// (walking, falling, peeking) or when Windows drops the forward hook, so he couldn't be grabbed.
+// While the cursor is inside his window, send its position so the renderer re-checks. Cheap: no redraw.
+let hoverTimer = null, hoverInside = false;
+function startHoverPoll() {
+  clearInterval(hoverTimer);
+  hoverTimer = setInterval(() => {
+    if (!pet || pet.isDestroyed() || !pet.isVisible() || dragTimer) return;
+    const c = screen.getCursorScreenPoint(), b = pet.getBounds();
+    const inside = c.x >= b.x && c.y >= b.y && c.x < b.x + b.width && c.y < b.y + b.height;
+    if (inside || hoverInside) pet.webContents.send('hover', inside ? { x: c.x - b.x, y: c.y - b.y } : null);
+    hoverInside = inside;
+  }, 200);
+}
 
 // Cursor tracking for "looks at you": only runs while the renderer asks for it, ~4 Hz, sends only on change.
 let trackTimer = null, lastCursor = '';

@@ -45,6 +45,8 @@ interface Host {
   foreground(): Promise<Foreground | null>;
   idleSeconds(): Promise<number>;
   onCursor(cb: (c: Cursor) => void): () => void;
+  /** Cursor inside his window (window coords), or null when it just left. ~5 Hz, from the host. */
+  onHover(cb: (p: { x: number; y: number } | null) => void): () => void;
   onAction(cb: (a: string) => void): () => void;
   onSettings(cb: (s: Settings) => void): () => void;
   onBatteryPresent(cb: (b: boolean) => void): () => void;
@@ -65,5 +67,5 @@ export const host: Host = window.host ?? {
   winInfo: async () => ({ bounds: { x: 0, y: 0, width: 240, height: 220 }, workArea: { x: 0, y: 0, width: 1280, height: 720 } }),
   move: noop, savePos: noop, dragStart: noop, dragEnd: noop, track: noop, openSettings: noop,
   foreground: async () => null, idleSeconds: async () => 0,
-  onCursor: () => noop, onAction: () => noop, onSettings: () => noop, onBatteryPresent: () => noop, onSay: () => noop, onHold: () => noop, tryAction: noop, onTry: () => noop,
+  onCursor: () => noop, onHover: () => noop, onAction: () => noop, onSettings: () => noop, onBatteryPresent: () => noop, onSay: () => noop, onHold: () => noop, tryAction: noop, onTry: () => noop,
 };
