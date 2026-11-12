@@ -1,7 +1,7 @@
 import type { Theme } from './art/dumbo.js';
 import { Animator, FRONT_REST, type FrontState } from './engine/animator';
 import { clips, STAND, SIT } from './engine/clips';
-import { host, type Settings, type Cursor, type Foreground, type ReactionAction } from './host';
+import { host, type Settings, type Cursor, type Foreground, type ReactionAction, type Hold, type HoldKind } from './host';
 
 // ======================================================================
 //  Dumbo's brain. Event-driven: timers + input events, no polling loops.
@@ -67,6 +67,18 @@ const LINES = {
   stretch: ["let's stretch! 🙆", 'break time! move with me', 'stretchy time!'],
   stretchDone: ['your turn! 🙆', 'feels good right?'],
   welcome: ['welcome back!', "you're back! 🥰", 'missed you'],
+  pinned: ["I'll stay right here 📌", 'not moving!', 'staying put!'],
+  unpinned: ['free to roam!', 'wheee, free!'],
+  timeUp: ["time's up! back to normal 🐘", 'all done!'],
+  stillSleeping: ['5 more minutes…', 'zzz… mm?', '*snore*'],
+};
+const HOLD_LINES: Record<HoldKind, string[]> = {
+  free: ['back to normal!'],
+  sleep: ['nap time 💤'],
+  awake: ["I'm wide awake!", 'no naps today!'],
+  coding: ['coding mode 💻', "let's ship it!"],
+  exercise: ['workout time! 💪', 'getting strong!'],
+  walk: ['going for a walk!', 'stroll time 🐾'],
 };
 const appName = (n: string) => n.replace(/\.exe$/i, '').replace(/^\w/, c => c.toUpperCase());
 const REACT_LINES: Record<ReactionAction, (a: string) => string[]> = {
@@ -88,6 +100,8 @@ let facingLeft = false;
 let decideTimer = 0, blinkTimer = 0, exprTimer = 0;
 let awakeSince = Date.now();
 let lastInteraction = Date.now();
+// Owner's "stay here" pin and "keep doing…" state (tray), with an optional timer kept by the host.
+let hold: Hold = { pin: false, kind: 'free', until: 0 };
 
 const schedule = (ms: number) => { clearTimeout(decideTimer); decideTimer = window.setTimeout(decide, ms); };
 function setFacing(left: boolean) { facingLeft = left; stage.classList.toggle('left', left); }
@@ -180,14 +194,18 @@ function isNight() {
 async function decide() {
   if (mode === 'held' || mode === 'busy' || mode === 'side') return schedule(rand(3000, 6000));
   if (mode === 'sleep') {
+    if (hold.kind === 'sleep') return schedule(rand(60_000, 120_000));
+    if (hold.kind !== 'free') { await wake(false); return schedule(500); }
     if (stretchDue && !isNight()) { await wake(true); return schedule(500); }
     if (isNight()) return schedule(rand(600_000, 1_200_000));
     await wake(false);
     return schedule(rand(6000, 12000));
   }
+  if (hold.kind === 'sleep') return sleep();
+  if (hold.kind === 'coding' || hold.kind === 'exercise' || hold.kind === 'walk') return holdActivity();
   const awakeFor = Date.now() - awakeSince;
   const awakeBudget = (isNight() ? 45_000 : rand(90_000, 240_000) * (1.4 - S.sleepiness));
-  if (awakeFor > awakeBudget && Date.now() - lastInteraction > 20_000) return sleep();
+  if (hold.kind !== 'awake' && awakeFor > awakeBudget && Date.now() - lastInteraction > 20_000) return sleep();
 
   if (await batteryCheck()) return schedule(rand(8000, 15000));
   if (await stretchCheck()) return schedule(rand(10_000, 20_000));
@@ -202,15 +220,15 @@ async function decide() {
     return schedule(rand(8000, 18_000));
   }
 
-  if (S.visitWindows && !lowBattery && chance(0.35)) {
+  if (S.visitWindows && !hold.pin && !lowBattery && chance(0.35)) {
     const fg = await getFg();
     if (fg && await canPerch(fg) && chance(0.6)) { await hopOnto(fg); return schedule(rand(8000, 15_000)); }
     if (fg && await canPush(fg) && chance(0.5)) { await pushWindow(fg); return schedule(rand(10_000, 20_000)); }
   }
 
   const next = lowBattery
-    ? pickW<string>([['nothing', 6], ['walk', 1]])
-    : pickW<string>([['nothing', 6], ['walk', 3], ['earflap', 1.5], ['wave', 1], ['coding', 1.6], ['pushups', .7], ['rope', .7]]);
+    ? pickW<string>([['nothing', 6], ['walk', hold.pin ? 0 : 1]])
+    : pickW<string>([['nothing', 6], ['walk', hold.pin ? 0 : 3], ['earflap', 1.5], ['wave', 1], ['coding', 1.6], ['pushups', .7], ['rope', .7]]);
   switch (next) {
     case 'walk': await walk(rand(3000, 8000)); break;
     case 'earflap': await frontEarFlap(); break;
@@ -220,6 +238,24 @@ async function decide() {
     case 'rope': say(pick(LINES.exercise)); await sideAction(clips.rope(5 + Math.floor(rand(0, 5)))); break;
   }
   schedule(rand(10_000, 25_000)); // calm pace: every drawn frame costs CPU
+}
+
+/** "Keep doing…" from the tray: the same activity over and over, with short breaks facing you. */
+async function holdActivity() {
+  switch (hold.kind) {
+    case 'coding':
+      if (chance(0.2)) say(pick(LINES.coding));
+      await sideAction(clips.coding(3), false);
+      return schedule(rand(2500, 6000));
+    case 'exercise':
+      if (chance(0.3)) say(pick(LINES.exercise));
+      await sideAction(chance(0.5) ? clips.pushups(6) : clips.rope(8));
+      return schedule(rand(3000, 7000));
+    case 'walk':
+      if (hold.pin) return schedule(rand(4000, 8000)); // pinned wins: no walking off
+      await walk(rand(6000, 14_000));
+      return schedule(rand(1500, 4000));
+  }
 }
 
 async function sideAction(clip: ReturnType<typeof clips.wave>, stand = true) {
@@ -270,11 +306,26 @@ async function wake(byUser: boolean) {
   awakeSince = Date.now();
   mode = 'front';
   await toFront(byUser ? 'happy' : 'smile');
+  await settle();
+}
+
+/** If he's up in the air (pin just released), drop to the ground. */
+async function settle() {
+  if (hold.pin || perch || mode !== 'front') return;
+  const { bounds, workArea } = await host.winInfo();
+  if (bounds.y >= workArea.y + workArea.height - bounds.height - 3) return;
+  mode = 'busy';
+  host.track(false);
+  anim.setSide(STAND);
+  await fallToGround();
+  host.savePos();
+  await toFront('happy');
 }
 
 // ---------- walking / running along the ground ----------
 let walkStop: (() => void) | null = null;
 async function walk(ms: number, speed = 36, clip = clips.walk(), targetX?: number, thenFront = true) {
+  if (hold.pin) { if (mode === 'side') { mode = 'busy'; await toFront('smile'); } return; } // pinned: stays put
   mode = 'side';
   await toSide(true);
   if (mode !== 'side') return;
@@ -313,6 +364,7 @@ async function walk(ms: number, speed = 36, clip = clips.walk(), targetX?: numbe
 
 // ---------- gravity: dropped mid-air → falls to the taskbar ----------
 async function fallToGround() {
+  if (hold.pin) return false; // pinned: stays exactly where you put him, even mid-air
   const { bounds, workArea } = await host.winInfo();
   const groundY = perch ? perchY(bounds) : workArea.y + workArea.height - bounds.height;
   if (bounds.y >= groundY - 3) return false;
@@ -488,7 +540,7 @@ function watchApps() {
 async function onAppSwitch(fg: Foreground) {
   const rule = S.appReactions.find(r => r.app && r.app.toLowerCase() === fg.name.toLowerCase());
   const now = Date.now();
-  if (rule && rule.action !== 'none' && mode === 'front' && now - (reactedAt[fg.name] ?? 0) > 10 * 60_000) {
+  if (rule && rule.action !== 'none' && mode === 'front' && (hold.kind === 'free' || hold.kind === 'awake') && now - (reactedAt[fg.name] ?? 0) > 10 * 60_000) {
     reactedAt[fg.name] = now;
     return appReaction(rule.action, appName(fg.name));
   }
@@ -543,7 +595,7 @@ function watchActivity() {
     if (!wasAway) return;
     if ((await host.idleSeconds()) < 5) {
       wasAway = false;
-      if (mode === 'sleep' && chance(0.5)) { await wake(true); schedule(rand(6000, 12000)); }
+      if (mode === 'sleep' && hold.kind !== 'sleep' && chance(0.5)) { await wake(true); schedule(rand(6000, 12000)); }
       if (mode === 'front') { say(pick(LINES.welcome), 2600); frontEarFlap(); }
     }
   }, 4000);
@@ -605,6 +657,7 @@ document.addEventListener('mouseup', e => {
 });
 
 async function clicked() {
+  if (mode === 'sleep' && hold.kind === 'sleep') { say(pick(LINES.stillSleeping), 2000); return; }
   if (mode === 'sleep') { await wake(true); return schedule(rand(6000, 12000)); }
   if (mode !== 'front') return;
   mode = 'busy';
@@ -651,7 +704,7 @@ async function endDrag() {
   mode = 'busy';
   // Dropped onto the top edge of the window you're using? He sits on it.
   perch = null; clearInterval(perchWatch);
-  if (S.visitWindows) {
+  if (S.visitWindows && !hold.pin) {
     const [fg, { bounds }] = await Promise.all([getFg(), host.winInfo()]);
     const feetY = bounds.y + bounds.height - 3, cx = bounds.x + bounds.width / 2;
     if (fg && !fg.max && cx > fg.x + 20 && cx < fg.x + fg.w - 20 && feetY > fg.y - 70 && feetY < fg.y + 25) {
@@ -665,6 +718,7 @@ async function endDrag() {
   if (!fell) await anim.play(clips.toStand());
   host.savePos();
   awakeSince = Date.now();
+  if (hold.kind === 'sleep') { await toFront('pout'); return sleep(); } // put down → back to his nap
   await toFront(grumpy ? 'pout' : 'happy');
   if (grumpy) setExpr('pout', 3000);
   schedule(rand(5000, 10000));
@@ -694,7 +748,7 @@ async function onChargingChange() {
   updateLow();
   if (!battery.charging) { flexCount = 0; return; }
   // Plugged in → excited, bounces, runs around, then back to normal life.
-  if (mode === 'held') return;
+  if (mode === 'held' || hold.kind === 'sleep') return;
   walkStop?.();
   if (mode === 'sleep') await wake(false);
   clearTimeout(decideTimer);
@@ -736,6 +790,28 @@ host.onAction(async a => {
   if (a === 'wake' && mode === 'sleep') { await wake(true); schedule(rand(6000, 12000)); }
 });
 host.onSettings(s => { S = s; applyTheme(); updateLow(); });
+host.onHold(h => { applyHold(h).catch(e => host.log(`hold failed: ${e?.stack || e}`)); });
+
+async function applyHold(h: Hold) {
+  const prev = hold;
+  hold = h;
+  if (h.pin && !prev.pin) {
+    walkStop?.();
+    if (perch) { perch = null; clearInterval(perchWatch); } // stays on that spot even if the window moves
+    host.savePos();
+    say(pick(LINES.pinned), 2400);
+  }
+  if (h.kind !== prev.kind) {
+    walkStop?.();
+    if (h.kind === 'sleep' && mode !== 'sleep' && mode !== 'held') { anim.stop(); clearTimeout(decideTimer); sleep(); }
+    else if (h.kind !== 'sleep' && h.kind !== 'free' && mode === 'sleep') { await wake(false); schedule(500); }
+    else if (h.kind !== 'free') schedule(800);
+    if (h.reason === 'user' && h.kind !== 'sleep' && h.kind !== 'free') say(pick(HOLD_LINES[h.kind]), 2600);
+  }
+  if (h.reason === 'timer') say(pick(LINES.timeUp), 3000);
+  else if (!h.pin && prev.pin && h.kind === prev.kind) say(pick(LINES.unpinned), 2000);
+  if (!h.pin && prev.pin && mode !== 'held') await settle();
+}
 host.onBatteryPresent(b => { hasBattery = b; initBattery(); });
 host.onSay(t => say(t, 5000)); // host messages (updates)
 
@@ -743,6 +819,7 @@ host.onSay(t => say(t, 5000)); // host messages (updates)
 async function boot() {
   const st = await host.getState();
   S = st.settings; hasBattery = st.hasBattery;
+  if (st.hold) hold = st.hold;
   applyTheme();
   setOver(false);
   initBattery();
@@ -754,7 +831,7 @@ async function boot() {
   await frontEarFlap();
   watchApps();
   watchActivity();
-  schedule(rand(6000, 12000));
+  schedule(hold.kind !== 'free' ? 1500 : rand(6000, 12000));
 }
 const BENCH = (window.host as any)?.bench as string | null;
 if (BENCH) {

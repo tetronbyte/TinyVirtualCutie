@@ -26,4 +26,5 @@ contextBridge.exposeInMainWorld('host', {
   onSettings: on('settings'),
   onBatteryPresent: on('battery:present'),
   onSay: on('say'),
+  onHold: on('hold'),
 });

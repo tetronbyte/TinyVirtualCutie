@@ -16,12 +16,15 @@ export interface Settings {
 }
 export type ReactionAction = 'coding' | 'dance' | 'wave' | 'exercise' | 'run' | 'none';
 export interface AppReaction { app: string; action: ReactionAction }
+/** Tray "Stay here" (pin) + "Keep him…" (kind), with an optional timer (until = epoch ms, 0 = none). */
+export type HoldKind = 'free' | 'sleep' | 'awake' | 'coding' | 'exercise' | 'walk';
+export interface Hold { pin: boolean; kind: HoldKind; until: number; reason?: 'user' | 'timer' | 'restore' }
 export interface Foreground { name: string; x: number; y: number; w: number; h: number; max: boolean }
 export interface Rect { x: number; y: number; width: number; height: number }
 export interface Cursor { x: number; y: number; w: number; h: number }
 
 interface Host {
-  getState(): Promise<{ settings: Settings; hasBattery: boolean; platform?: string }>;
+  getState(): Promise<{ settings: Settings; hasBattery: boolean; platform?: string; hold?: Hold }>;
   getSettings(): Promise<Settings>;
   setSettings(s: Partial<Settings>): void;
   log(m: string): void;
@@ -40,6 +43,7 @@ interface Host {
   onSettings(cb: (s: Settings) => void): () => void;
   onBatteryPresent(cb: (b: boolean) => void): () => void;
   onSay(cb: (text: string) => void): () => void;
+  onHold(cb: (h: Hold) => void): () => void;
 }
 
 declare global { interface Window { host: Host } }
@@ -53,5 +57,5 @@ export const host: Host = window.host ?? {
   winInfo: async () => ({ bounds: { x: 0, y: 0, width: 240, height: 220 }, workArea: { x: 0, y: 0, width: 1280, height: 720 } }),
   move: noop, savePos: noop, dragStart: noop, dragEnd: noop, track: noop, openSettings: noop,
   foreground: async () => null, idleSeconds: async () => 0,
-  onCursor: () => noop, onAction: () => noop, onSettings: () => noop, onBatteryPresent: () => noop, onSay: () => noop,
+  onCursor: () => noop, onAction: () => noop, onSettings: () => noop, onBatteryPresent: () => noop, onSay: () => noop, onHold: () => noop,
 };

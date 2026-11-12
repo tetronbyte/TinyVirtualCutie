@@ -145,7 +145,10 @@ function buildTrayMenu() {
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: pet.isVisible() ? `Hide ${s.name}` : `Show ${s.name}`, click: togglePet },
     { label: 'Sleep', click: () => pet.webContents.send('action', 'sleep') },
-    { label: 'Wake up', click: () => pet.webContents.send('action', 'wake') },
+    { label: 'Wake up', click: () => { if (hold.kind === 'sleep') setHold({ kind: 'free' }); pet.webContents.send('action', 'wake'); } },
+    { type: 'separator' },
+    ...holdMenu(),
+    { type: 'separator' },
     { label: 'Theme', submenu: ['auto', 'light', 'dark'].map(theme) },
     { label: 'Settings…', click: openSettings },
     { type: 'separator' },
@@ -155,6 +158,46 @@ function buildTrayMenu() {
     ...updateMenu(),
     { label: 'Quit', click: () => app.quit() },
   ]));
+}
+
+// ---------- "Stay here" + "Keep him…" (owner holds), with an optional timer ----------
+// Lives here (not in the renderer) so the timer and the pin survive restarts (state.json).
+const HOLD_KINDS = [['free', 'Whatever he likes'], ['sleep', 'Sleeping'], ['awake', 'Staying awake'], ['coding', 'Coding'], ['exercise', 'Exercising'], ['walk', 'Walking around']];
+const TIMERS = [[15, '15 minutes'], [30, '30 minutes'], [60, '1 hour'], [120, '2 hours'], [0, 'No timer']];
+const FREE = { pin: false, kind: 'free', until: 0 };
+let hold = (() => { const h = state.hold; return h && (!h.until || h.until > Date.now()) ? { pin: !!h.pin, kind: HOLD_KINDS.some(k => k[0] === h.kind) ? h.kind : 'free', until: h.until || 0 } : { ...FREE }; })();
+let holdTimer = null, holdTick = null;
+const holdActive = () => hold.pin || hold.kind !== 'free';
+/** Any change restarts the timer from now (if one is chosen). */
+function setHold(patch, reason = 'user') {
+  hold = { ...hold, ...patch };
+  if (hold.pin && hold.kind === 'walk') hold.kind = 'free'; // can't stay put and walk around
+  const min = state.holdMinutes || 0;
+  hold.until = holdActive() && min ? Date.now() + min * 60e3 : 0;
+  state.hold = hold; saveState();
+  armHoldTimer();
+  pet?.webContents.send('hold', { ...hold, reason });
+  if (tray) buildTrayMenu();
+}
+function armHoldTimer() {
+  clearTimeout(holdTimer); clearInterval(holdTick);
+  if (!hold.until) return;
+  holdTimer = setTimeout(() => {
+    hold = { ...FREE }; state.hold = hold; saveState();
+    clearInterval(holdTick);
+    pet?.webContents.send('hold', { ...hold, reason: 'timer' });
+    if (tray) buildTrayMenu();
+  }, Math.max(0, hold.until - Date.now()));
+  holdTick = setInterval(() => tray && buildTrayMenu(), 60e3); // keeps "N min left" fresh
+}
+function holdMenu() {
+  const min = state.holdMinutes || 0;
+  const left = hold.until ? Math.max(1, Math.ceil((hold.until - Date.now()) / 60e3)) : 0;
+  return [
+    { label: 'Stay here', type: 'checkbox', checked: hold.pin, click: i => setHold({ pin: i.checked }) },
+    { label: 'Keep him…', submenu: HOLD_KINDS.map(([k, l]) => ({ label: l, type: 'radio', checked: hold.kind === k, enabled: !(k === 'walk' && hold.pin), click: () => setHold({ kind: k }) })) },
+    { label: left ? `Timer (${left} min left)` : 'Timer', submenu: TIMERS.map(([m, l]) => ({ label: l, type: 'radio', checked: min === m, click: () => { state.holdMinutes = m; saveState(); if (holdActive()) setHold({}); else buildTrayMenu(); } })) },
+  ];
 }
 
 // ---------- updates (electron/updater.cjs) ----------
@@ -200,7 +243,7 @@ function togglePet() {
 }
 
 // ---------- IPC ----------
-ipcMain.handle('state:get', () => ({ settings: settings(), hasBattery, platform: process.platform }));
+ipcMain.handle('state:get', () => ({ settings: settings(), hasBattery, platform: process.platform, hold: { ...hold, reason: 'restore' } }));
 ipcMain.handle('settings:get', () => settings());
 ipcMain.on('settings:set', (_e, next) => applySettings(next));
 ipcMain.on('log', (_e, msg) => console.log('[pet]', msg));
@@ -275,6 +318,7 @@ app.whenReady().then(() => {
   if (!IS_MAC) tray.on('click', togglePet); // macOS: a click opens the menu, as menu-bar apps do
   buildTrayMenu();
   if (!DEV_URL) updater.start(settings().autoUpdate);
+  armHoldTimer();
   setAutostart(settings().startWithWindows); // always reconcile: repairs or removes stale entries from older installs
   // Installer build (electron-builder NSIS) makes and removes its own shortcuts; only the portable copy makes them itself.
   const INSTALLED = fs.existsSync(path.join(path.dirname(process.execPath), 'Uninstall Dumbo.exe'));
