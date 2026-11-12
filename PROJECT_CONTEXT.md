@@ -102,5 +102,5 @@ Source material: owner's handwritten notes (2026-11-11), `suggestions_idea.txt` 
 5. AI phase (local model, on demand, permission-gated).
 
 ## 9. Open questions / blockers
-- Owner creating: private source repo + public releases repo. Needed: public repo `owner/name` into package.json `updates.repo` (empty = updates off), push source to private repo, add secrets `UPDATE_SIGNING_KEY` (owner has the key file in Documents) + `PUBLIC_RELEASE_TOKEN`, then reinstall owner copy (`npm run install-app`) so it has the updater. Copies installed before this (≤0.3.0 without updater) need one manual update. Signing key lost = no more auto-updates for existing copies (would need new key + manual reinstall).
+- Repos: source `tetronbyte/TinyVirtualCutie` (temporarily public; owner plans private), releases `tetronbyte/tinyvirtualcutie-releases` (set in package.json `updates.repo`). Source pushed 2026-11-12; owner copy reinstalled with the updater (v0.3.0). Still owner-side: add a first commit (README) to the releases repo, add secrets `UPDATE_SIGNING_KEY` + `PUBLIC_RELEASE_TOKEN` to the source repo, then first real release (v0.3.1) to verify CI end to end. Copies given out before this need one manual update. Signing key lost = no more auto-updates for existing copies.
 - None blocking. Owner to judge cuteness/pace and acceptable CPU/RAM.
