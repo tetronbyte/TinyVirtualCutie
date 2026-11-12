@@ -11,7 +11,7 @@
 - Install/update for this user: `npm run install-app` (packages, copies to `%USERPROFILE%\Apps\Dumbo\Dumbo\`, launches via Explorer; settings kept; Dumbo makes his own shortcuts)
 - Regenerate icons after art changes: `npm run icons`
 - Animation preview in a normal browser: `npx vite` → http://localhost:1420/preview.html
-- Installer exe (CI only, never locally): GitHub Actions → "Build Dumbo" → Run workflow, or `git tag v0.3.1 && git push --tags`
+- Installers (CI only, never locally): GitHub Actions → "Build Dumbo" → Run workflow → Windows Setup exe + zip, macOS .dmg (`scripts/mac-dmg.sh`, runs on the mac runner only)
 - Release: bump `version` in package.json, commit, `git tag v<version>` + `git push origin main --tags` (CI signs + publishes to public repo; installed copies self-update)
 - Perf benchmark: `scripts/bench.sh live|idle|f10|s10` (avg % of one core, 60 s; Git Bash)
 - Offscreen screenshot of any HTML: `npx electron scripts/snap.cjs <in.html> <out.png> [w] [h]`
@@ -40,3 +40,8 @@ TypeScript strict, ES modules, no UI framework. Electron main/preload are Common
 - Never commit the update signing key (Ed25519 private PEM). It lives only in the private repo secret `UPDATE_SIGNING_KEY` and the owner's backup. Public half is in `electron/common.cjs`; changing it locks out existing installs.
 - Updates swap Dumbo's code/art only. A change that needs a new Electron runtime (bumping `electron` major) can't auto-update: users get "Download vX" instead.
 - Test updates with a copy of `release/Dumbo` + `DUMBO_STATE_DIR=<temp> DUMBO_UPDATE_URL=http://localhost:<port> DUMBO_UPDATE_DELAY=3000` — never against `%USERPROFILE%\Apps\Dumbo`. Pre-set `shortcutsFor` in the test state.json or the test copy overwrites the real Desktop shortcut.
+
+## macOS
+- Host code branches on `IS_MAC` / `IS_WIN` in `electron/main.cjs`. Windows-only: winwatch (PowerShell UIA), shortcuts, NSIS. macOS: menu-bar tray (`assets/tray.png` as 2x), `pmset` battery, `app.dock.hide()` + `LSUIElement`, state in `~/Library/Application Support/Dumbo`.
+- No Apple Developer account: the app is ad-hoc signed in CI; users click "Open Anyway" once. Don't add notarization/hardened-runtime steps without a paid account.
+- Nobody on the team can run macOS locally; every Mac change is verified only by CI + a real Mac user.

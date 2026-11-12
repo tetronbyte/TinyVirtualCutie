@@ -36,6 +36,7 @@ for (const f of readdirSync(path.join(out, 'locales'))) if (f !== 'en-US.pak') r
 console.log('3/5 packing app into resources/app.asar…');
 mkdirSync(stage, { recursive: true });
 for (const d of ['dist', 'electron', 'assets']) cpSync(path.join(root, d), path.join(stage, d), { recursive: true });
+rmSync(path.join(stage, 'assets', 'icon-mac.png')); // build-time only (macOS .icns), keeps updates small
 writeFileSync(path.join(stage, 'package.json'), JSON.stringify({ name: 'dumbo', productName: 'Dumbo', version: pkg.version, main: pkg.main, updates: pkg.updates }, null, 2));
 await createPackage(stage, path.join(out, 'resources', 'app.asar'));
 rmSync(stage, { recursive: true, force: true });

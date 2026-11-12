@@ -1,11 +1,12 @@
-# Builds Dumbo on GitHub's Windows machines (this private repo) and publishes releases to the
+# Builds Dumbo for Windows and macOS on GitHub's machines (this repo) and publishes releases to the
 # public releases repo (package.json "updates.repo") that installed copies check for updates.
 #
 #   Test build:  Actions → "Build Dumbo" → Run workflow   → files under the run's Artifacts
 #   Release:     bump "version" in package.json, commit, then
-#                  git tag v0.3.1 && git push origin main --tags
+#                  git tag v0.3.2 && git push origin main --tags
 #                → GitHub Release in the public repo with:
-#                  Dumbo-Setup-<v>.exe, Dumbo-<v>-win-x64.zip, dumbo-app-<v>.asar, update.json (signed)
+#                  Dumbo-Setup-<v>.exe, Dumbo-<v>-win-x64.zip, Dumbo-<v>-mac.dmg,
+#                  dumbo-app-<v>.asar + update.json (signed; one update for both platforms)
 #
 # Secrets needed in THIS repo (Settings → Secrets and variables → Actions):
 #   UPDATE_SIGNING_KEY     the Ed25519 private key (PEM text) — signs update.json
@@ -66,17 +67,58 @@ jobs:
             release/update.json
           if-no-files-found: error
 
+  mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build pages
+        run: npm run build
+
+      - name: Dumbo.app (Intel + Apple Silicon)
+        run: npx --yes electron-builder@25.1.8 --mac dir --universal --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'   # no Apple certificate
+
+      - name: Sign (ad-hoc) + .dmg
+        run: bash scripts/mac-dmg.sh
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: Dumbo-mac
+          path: release/Dumbo-*-mac.dmg
+          if-no-files-found: error
+
+  publish:
+    # Releases even if the Mac build fails (Windows users and updates still get it); the .dmg is
+    # attached when it exists.
+    needs: [windows, mac]
+    if: always() && startsWith(github.ref, 'refs/tags/v') && needs.windows.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/download-artifact@v7
+        with:
+          path: out
+          merge-multiple: true
+
       - name: Public repo name
-        if: startsWith(github.ref, 'refs/tags/v')
         id: pub
-        shell: bash
         run: |
+          find out -type f
           r=$(node -p "require('./package.json').updates.repo")
           [ -n "$r" ] || { echo 'package.json updates.repo is empty'; exit 1; }
           echo "repo=$r" >> "$GITHUB_OUTPUT"
 
       - name: Publish release to the public repo
-        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v3
         with:
           repository: ${{ steps.pub.outputs.repo }}
@@ -85,11 +127,17 @@ jobs:
           name: Dumbo ${{ github.ref_name }}
           make_latest: 'true'
           body: |
-            **New here?** Download the **Dumbo-Setup** .exe below (or the .zip if your PC has Smart App Control on: unzip, run Dumbo.exe).
+            ### Windows
+            Download **Dumbo-Setup** .exe below and run it. If your PC has Smart App Control on, take the **win-x64.zip** instead: unzip, run Dumbo.exe.
             Windows may say "Windows protected your PC" → More info → Run anyway.
+
+            ### Mac
+            Download the **mac.dmg**, open it and drag Dumbo into Applications. First time only: open Dumbo, click "Done" on the warning, then System Settings → Privacy & Security → **Open Anyway**.
+
             **Already have Dumbo?** He updates himself.
           files: |
-            release/installer/Dumbo-Setup-*.exe
-            release/Dumbo-*-win-x64.zip
-            release/dumbo-app-*.asar
-            release/update.json
+            out/**/Dumbo-Setup-*.exe
+            out/**/Dumbo-*-win-x64.zip
+            out/**/Dumbo-*-mac.dmg
+            out/**/dumbo-app-*.asar
+            out/**/update.json

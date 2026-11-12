@@ -4,7 +4,10 @@ const os = require('os');
 
 // Settings/state/updates live next to the installed app, not in AppData (see main.cjs).
 // DUMBO_STATE_DIR is only for tests, so a test copy never touches the real Dumbo.
-const STATE_DIR = process.env.DUMBO_STATE_DIR || path.join(os.homedir(), 'Apps', 'Dumbo');
+// macOS: the usual place, ~/Library/Application Support/Dumbo.
+const STATE_DIR = process.env.DUMBO_STATE_DIR || (process.platform === 'darwin'
+  ? path.join(os.homedir(), 'Library', 'Application Support', 'Dumbo')
+  : path.join(os.homedir(), 'Apps', 'Dumbo'));
 const UPDATES_DIR = path.join(STATE_DIR, 'updates');
 
 const parse = v => String(v).replace(/^v/, '').split(/[.+-]/).slice(0, 3).map(n => parseInt(n, 10) || 0);

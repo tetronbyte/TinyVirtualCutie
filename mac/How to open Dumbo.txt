@@ -1,0 +1,11 @@
+Dumbo for Mac — a tiny desktop pet
+
+1. Drag Dumbo onto the Applications folder (in this window).
+2. Open Applications and double-click Dumbo.
+3. The first time, macOS says it can't check Dumbo for malware (he isn't from the App Store).
+   Click "Done", then open  System Settings > Privacy & Security, scroll down and click
+   "Open Anyway" next to Dumbo, and confirm with your password.
+   You only do this once. After that he opens normally, and he updates himself.
+
+Dumbo lives in the menu bar (top right, the little elephant). Click it for settings, sleep,
+theme, open at login, updates and quit.

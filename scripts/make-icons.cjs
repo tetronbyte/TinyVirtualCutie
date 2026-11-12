@@ -1,6 +1,6 @@
 // Generates Dumbo's app/tray icons from the real art (dark theme), with a transparent background.
 // Run: npx electron scripts/make-icons.cjs
-// Writes assets/icon.png (256), assets/icon.ico (16–256, PNG-compressed entries), assets/tray.png (32).
+// Writes assets/icon.png (256), assets/icon.ico (16–256, PNG-compressed entries), assets/tray.png (32; also the macOS menu-bar icon at 2x), assets/icon-mac.png (1024, for .icns).
 // Big sizes show the whole sitting Dumbo; small sizes (≤32 px) show just his head so he stays readable.
 const { app, BrowserWindow } = require('electron');
 const fs = require('fs');
@@ -37,7 +37,7 @@ app.whenReady().then(async () => {
   const rim = 'url(#hrim)';
   const head = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-14 -64 438 438">${faceDefs('dark', 'h')}<g filter="url(#hglow)" opacity=".8">${G.sil([rim, 20])}</g>${G.sil([rim, 13])}${G.ears}${G.head}${G.hair}${G.brows}${G.eyes}${G.highlights}${G.blush}${G.mouth}${G.tongue}${G.trunk}</svg>`;
 
-  const win = new BrowserWindow({ width: 256, height: 256, show: false, transparent: true, frame: false, webPreferences: { offscreen: true } });
+  const win = new BrowserWindow({ width: 256, height: 256, enableLargerThanScreen: true, show: false, transparent: true, frame: false, webPreferences: { offscreen: true } });
   async function render(svg, size) {
     const html = `<html><body style="margin:0;background:transparent;overflow:hidden">${svg.replace('<svg ', `<svg width="${size}" height="${size}" `)}</body></html>`;
     win.setContentSize(size, size);
@@ -53,6 +53,9 @@ app.whenReady().then(async () => {
   writeIco(path.join(OUT, 'icon.ico'), pngs);
   fs.writeFileSync(path.join(OUT, 'icon.png'), pngs.find(p => p.size === 256).buf);
   fs.writeFileSync(path.join(OUT, 'tray.png'), pngs.find(p => p.size === 32).buf);
+  // macOS app icon (electron-builder turns a 1024 px PNG into .icns).
+  win.setSize(1024, 1024);
+  fs.writeFileSync(path.join(OUT, 'icon-mac.png'), await render(body, 1024));
   console.log('icons written:', sizes.join(', '));
   app.quit();
 });

@@ -52,7 +52,12 @@ function renderReactions() {
 function saveReactions(list: AppReaction[]) { save({ appReactions: list }); renderReactions(); }
 
 async function init() {
-  S = await host.getSettings();
+  const st = await host.getState();
+  S = st.settings;
+  if (st.platform === 'darwin') {
+    $('appsSection').hidden = true; // window visits / app reactions: Windows only for now
+    $('autostartLabel').textContent = 'Open at login';
+  }
   const name = $<HTMLInputElement>('name'); name.value = S.name;
   name.onchange = () => save({ name: name.value.trim() || 'Dumbo' });
   const range = (id: string, key: keyof Settings, num = Number) => {

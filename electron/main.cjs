@@ -1,6 +1,7 @@
-// Dumbo host process (Electron).
-// Runs on the stock, already-trusted electron.exe so Windows Smart App Control doesn't block it —
-// we never compile our own .exe. All pet logic lives in the renderer (src/).
+// Dumbo host process (Electron), Windows + macOS.
+// Windows: runs on the stock, already-trusted electron.exe so Smart App Control doesn't block it —
+// we never compile our own .exe. macOS: Dumbo.app built in CI (ad-hoc signed, "Open Anyway" once).
+// All pet logic lives in the renderer (src/).
 const { app, BrowserWindow, Tray, Menu, ipcMain, screen, nativeImage, nativeTheme, powerMonitor, shell } = require('electron');
 const { WinWatch } = require('./winwatch.cjs');
 const { Updater } = require('./updater.cjs');
@@ -13,8 +14,10 @@ for (const f of (process.env.DUMBO_FLAGS || '').split(' ').filter(Boolean)) { co
 // App name, userData and the single-instance lock are set up in boot.cjs (the entry point).
 
 const DEV_URL = process.env.DUMBO_DEV_URL; // set by scripts/dev.mjs
+const IS_MAC = process.platform === 'darwin';
+const IS_WIN = process.platform === 'win32';
 const ROOT = path.join(__dirname, '..');
-const ICON = path.join(ROOT, 'assets', 'icon.ico');
+const ICON = path.join(ROOT, 'assets', IS_WIN ? 'icon.ico' : 'icon.png');
 // Portable/packaged layout (scripts/package.mjs): Dumbo.exe + resources/app.asar. The stock runtime
 // finds the app by itself, so no app-path argument is needed — and the icon for Windows shortcuts
 // lives outside the archive at resources/dumbo.ico.
@@ -84,6 +87,7 @@ function createPet() {
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), backgroundThrottling: false, spellcheck: false, additionalArguments: process.env.DUMBO_BENCH ? [`--dumbo-bench=${process.env.DUMBO_BENCH}`] : [] },
   });
   pet.setAlwaysOnTop(true, 'floating');
+  if (IS_MAC) pet.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true }); // stays with you across Spaces
   if (!process.env.DUMBO_NOFWD) pet.setIgnoreMouseEvents(true, { forward: true }); // renderer turns this off while the cursor is over Dumbo
   load(pet, 'index.html');
   pet.once('ready-to-show', () => { pet.showInactive(); updater.markGood(); });
@@ -122,6 +126,7 @@ function applySettings(next) {
 function setAutostart(on) {
   // process.execPath = the stock runtime renamed Dumbo.exe. In the dev/folder layout the app folder
   // must be passed or it boots Electron's default app; the portable layout needs no argument.
+  if (IS_MAC) { if (!DEV_URL) app.setLoginItemSettings({ openAtLogin: on }); return; } // macOS: Login Items of Dumbo.app
   app.setLoginItemSettings({ openAtLogin: on, path: process.execPath, args: LAUNCH_ARGS, name: 'Dumbo' });
 }
 
@@ -136,7 +141,7 @@ function createShortcuts() {
 
 function buildTrayMenu() {
   const s = settings();
-  const theme = t => ({ label: { auto: 'Auto (follow Windows)', light: 'Light', dark: 'Dark' }[t], type: 'radio', checked: s.theme === t, click: () => applySettings({ theme: t }) });
+  const theme = t => ({ label: { auto: IS_MAC ? 'Auto (follow macOS)' : 'Auto (follow Windows)', light: 'Light', dark: 'Dark' }[t], type: 'radio', checked: s.theme === t, click: () => applySettings({ theme: t }) });
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: pet.isVisible() ? `Hide ${s.name}` : `Show ${s.name}`, click: togglePet },
     { label: 'Sleep', click: () => pet.webContents.send('action', 'sleep') },
@@ -144,8 +149,8 @@ function buildTrayMenu() {
     { label: 'Theme', submenu: ['auto', 'light', 'dark'].map(theme) },
     { label: 'Settings…', click: openSettings },
     { type: 'separator' },
-    { label: 'Start with Windows', type: 'checkbox', checked: s.startWithWindows, click: i => applySettings({ startWithWindows: i.checked }) },
-    { label: 'Add Desktop & Start Menu shortcuts', click: createShortcuts },
+    { label: IS_MAC ? 'Open at login' : 'Start with Windows', type: 'checkbox', checked: s.startWithWindows, click: i => applySettings({ startWithWindows: i.checked }) },
+    ...(IS_WIN ? [{ label: 'Add Desktop & Start Menu shortcuts', click: createShortcuts }] : []),
     { type: 'separator' },
     ...updateMenu(),
     { label: 'Quit', click: () => app.quit() },
@@ -179,13 +184,23 @@ function updateMenu() {
   return items;
 }
 
+function trayImage() {
+  if (!IS_MAC) return nativeImage.createFromPath(ICON);
+  // Menu bar: 16 pt, from the 32 px head icon as the Retina (2x) image.
+  const img = nativeImage.createEmpty();
+  const png = fs.readFileSync(path.join(ROOT, 'assets', 'tray.png'));
+  img.addRepresentation({ scaleFactor: 2, buffer: png });
+  img.addRepresentation({ scaleFactor: 1, buffer: nativeImage.createFromBuffer(png).resize({ width: 16, height: 16, quality: 'best' }).toPNG() });
+  return img;
+}
+
 function togglePet() {
   if (pet.isVisible()) pet.hide(); else pet.showInactive();
   buildTrayMenu();
 }
 
 // ---------- IPC ----------
-ipcMain.handle('state:get', () => ({ settings: settings(), hasBattery }));
+ipcMain.handle('state:get', () => ({ settings: settings(), hasBattery, platform: process.platform }));
 ipcMain.handle('settings:get', () => settings());
 ipcMain.on('settings:set', (_e, next) => applySettings(next));
 ipcMain.on('log', (_e, msg) => console.log('[pet]', msg));
@@ -201,6 +216,7 @@ ipcMain.on('open:settings', openSettings);
 // Foreground app (name + rect in DIPs). Never titles or content. Our own windows are ignored.
 const winWatch = new WinWatch();
 ipcMain.handle('fg:get', async () => {
+  if (!IS_WIN) return null; // macOS: window visits / app reactions not built yet (need the Accessibility permission)
   const r = await winWatch.foreground();
   if (!r.name || r.pid === process.pid || /^(Dumbo|electron)$/i.test(r.name)) return null;
   const d = screen.screenToDipRect(null, { x: r.x, y: r.y, width: r.w, height: r.h });
@@ -237,6 +253,13 @@ ipcMain.on('track', (_e, on) => {
 // Does this machine have a battery? (desktop PCs: no battery reactions)
 let hasBattery = false;
 function detectBattery() {
+  if (IS_MAC) {
+    execFile('/usr/bin/pmset', ['-g', 'batt'], { timeout: 15000 }, (err, out) => {
+      hasBattery = !err && /InternalBattery/.test(String(out));
+      pet?.webContents.send('battery:present', hasBattery);
+    });
+    return;
+  }
   execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', '(Get-CimInstance Win32_Battery | Measure-Object).Count'], { windowsHide: true, timeout: 15000 }, (err, out) => {
     hasBattery = !err && parseInt(String(out).trim(), 10) > 0;
     pet?.webContents.send('battery:present', hasBattery);
@@ -246,22 +269,23 @@ function detectBattery() {
 app.whenReady().then(() => {
   detectBattery();
   createPet();
-  tray = new Tray(nativeImage.createFromPath(ICON));
+  if (IS_MAC) app.dock?.hide(); // menu-bar pet: no Dock icon (also LSUIElement in the built app)
+  tray = new Tray(trayImage());
   tray.setToolTip(settings().name);
-  tray.on('click', togglePet);
+  if (!IS_MAC) tray.on('click', togglePet); // macOS: a click opens the menu, as menu-bar apps do
   buildTrayMenu();
   if (!DEV_URL) updater.start(settings().autoUpdate);
   setAutostart(settings().startWithWindows); // always reconcile: repairs or removes stale entries from older installs
   // Installer build (electron-builder NSIS) makes and removes its own shortcuts; only the portable copy makes them itself.
   const INSTALLED = fs.existsSync(path.join(path.dirname(process.execPath), 'Uninstall Dumbo.exe'));
-  if (SELF_CONTAINED && !INSTALLED && !DEV_URL && state.shortcutsFor !== process.execPath) {
+  if (IS_WIN && SELF_CONTAINED && !INSTALLED && !DEV_URL && state.shortcutsFor !== process.execPath) {
     if (createShortcuts()) { state.shortcutsFor = process.execPath; saveState(); }
   }
   // Boot report next to the app, so problems can be diagnosed without the console.
   try {
-    const li = app.getLoginItemSettings({ path: process.execPath, args: LAUNCH_ARGS });
+    const li = IS_MAC ? app.getLoginItemSettings() : app.getLoginItemSettings({ path: process.execPath, args: LAUNCH_ARGS });
     fs.mkdirSync(STATE_DIR, { recursive: true });
-    fs.writeFileSync(path.join(STATE_DIR, 'boot.json'), JSON.stringify({ at: new Date().toISOString(), exe: process.execPath, app: path.resolve(ROOT), selfContained: SELF_CONTAINED, version: APP_VERSION, shippedVersion: app.getVersion(), update: BOOT.overlay, dev: !!DEV_URL, startWithWindows: settings().startWithWindows, loginItem: { openAtLogin: li.openAtLogin, executableWillLaunchAtLogin: li.executableWillLaunchAtLogin, launchItems: li.launchItems } }, null, 2));
+    fs.writeFileSync(path.join(STATE_DIR, 'boot.json'), JSON.stringify({ at: new Date().toISOString(), exe: process.execPath, app: path.resolve(ROOT), selfContained: SELF_CONTAINED, version: APP_VERSION, shippedVersion: app.getVersion(), update: BOOT.overlay, platform: process.platform, dev: !!DEV_URL, startWithWindows: settings().startWithWindows, loginItem: { openAtLogin: li.openAtLogin, executableWillLaunchAtLogin: li.executableWillLaunchAtLogin, launchItems: li.launchItems } }, null, 2));
   } catch (e) { console.error(e); }
 });
 app.on('second-instance', () => pet?.showInactive());
