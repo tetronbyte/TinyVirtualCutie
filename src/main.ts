@@ -737,6 +737,7 @@ host.onAction(async a => {
 });
 host.onSettings(s => { S = s; applyTheme(); updateLow(); });
 host.onBatteryPresent(b => { hasBattery = b; initBattery(); });
+host.onSay(t => say(t, 5000)); // host messages (updates)
 
 // ---------- boot ----------
 async function boot() {

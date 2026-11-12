@@ -3,15 +3,14 @@
 // we never compile our own .exe. All pet logic lives in the renderer (src/).
 const { app, BrowserWindow, Tray, Menu, ipcMain, screen, nativeImage, nativeTheme, powerMonitor, shell } = require('electron');
 const { WinWatch } = require('./winwatch.cjs');
+const { Updater } = require('./updater.cjs');
+const { STATE_DIR } = require('./common.cjs');
 const path = require('path');
 const fs = require('fs');
 const { execFile } = require('child_process');
 
 for (const f of (process.env.DUMBO_FLAGS || '').split(' ').filter(Boolean)) { const [k, v] = f.replace(/^--/, '').split('='); app.commandLine.appendSwitch(k, v); }
-app.setName('Dumbo');
-app.setPath('userData', path.join(app.getPath('appData'), 'Dumbo')); // same state for dev + installed copy
-app.setAppUserModelId('dev.tinyvirtualcutie.dumbo');
-if (!app.requestSingleInstanceLock()) { app.quit(); return; }
+// App name, userData and the single-instance lock are set up in boot.cjs (the entry point).
 
 const DEV_URL = process.env.DUMBO_DEV_URL; // set by scripts/dev.mjs
 const ROOT = path.join(__dirname, '..');
@@ -19,13 +18,15 @@ const ICON = path.join(ROOT, 'assets', 'icon.ico');
 // Portable/packaged layout (scripts/package.mjs): Dumbo.exe + resources/app.asar. The stock runtime
 // finds the app by itself, so no app-path argument is needed — and the icon for Windows shortcuts
 // lives outside the archive at resources/dumbo.ico.
-const SELF_CONTAINED = /app\.asar$/i.test(ROOT) || path.basename(path.dirname(ROOT)).toLowerCase() === 'resources';
+const SELF_CONTAINED = /\.asar$/i.test(ROOT) || path.basename(path.dirname(ROOT)).toLowerCase() === 'resources';
 const LAUNCH_ARGS = SELF_CONTAINED ? [] : [path.resolve(ROOT)];
 const SHORTCUT_ICON = SELF_CONTAINED ? path.join(process.resourcesPath, 'dumbo.ico') : ICON;
+// Version actually running: the shipped one, or a downloaded update picked by boot.cjs.
+const BOOT = global.dumboBoot || { version: app.getVersion(), overlay: null, currentFile: '' };
+const APP_VERSION = BOOT.version;
 // Settings live next to the installed app (%USERPROFILE%\Apps\Dumbo\state.json), not in AppData:
 // packaged apps (e.g. a terminal inside the Claude desktop app) get AppData silently redirected,
 // which split settings between two invisible copies. One file, same for dev and installed runs.
-const STATE_DIR = path.join(require('os').homedir(), 'Apps', 'Dumbo');
 const STATE_FILE = () => path.join(STATE_DIR, 'state.json');
 function migrateState() {
   const old = path.join(app.getPath('userData'), 'state.json');
@@ -51,7 +52,7 @@ function saveState() {
 const settings = () => ({
   name: 'Dumbo', theme: 'auto', size: 1, startWithWindows: false,
   batteryLow: 30, batteryHigh: 90, sleepStart: '23:00', sleepEnd: '07:00', sleepiness: 0.6,
-  visitWindows: true, stretchEvery: 50,
+  visitWindows: true, stretchEvery: 50, autoUpdate: true,
   appReactions: [
     { app: 'Code', action: 'coding' }, { app: 'Cursor', action: 'coding' }, { app: 'devenv', action: 'coding' },
     { app: 'idea64', action: 'coding' }, { app: 'WindowsTerminal', action: 'coding' },
@@ -85,7 +86,7 @@ function createPet() {
   pet.setAlwaysOnTop(true, 'floating');
   if (!process.env.DUMBO_NOFWD) pet.setIgnoreMouseEvents(true, { forward: true }); // renderer turns this off while the cursor is over Dumbo
   load(pet, 'index.html');
-  pet.once('ready-to-show', () => pet.showInactive());
+  pet.once('ready-to-show', () => { pet.showInactive(); updater.markGood(); });
   pet.on('closed', () => app.quit());
 }
 
@@ -111,6 +112,7 @@ function applySettings(next) {
     pet.setBounds({ x: Math.round(b.x + (b.width - width) / 2), y: b.y + b.height - height, width, height });
   }
   if (s.startWithWindows !== prev.startWithWindows) setAutostart(s.startWithWindows);
+  if (s.autoUpdate !== prev.autoUpdate) updater.start(s.autoUpdate);
   pet.setTitle(s.name);
   tray?.setToolTip(s.name);
   pet.webContents.send('settings', s);
@@ -144,8 +146,37 @@ function buildTrayMenu() {
     { type: 'separator' },
     { label: 'Start with Windows', type: 'checkbox', checked: s.startWithWindows, click: i => applySettings({ startWithWindows: i.checked }) },
     { label: 'Add Desktop & Start Menu shortcuts', click: createShortcuts },
+    { type: 'separator' },
+    ...updateMenu(),
     { label: 'Quit', click: () => app.quit() },
   ]));
+}
+
+// ---------- updates (electron/updater.cjs) ----------
+const PKG = (() => { try { return require(path.join(ROOT, 'package.json')); } catch { return {}; } })();
+const updater = new Updater({ repo: PKG.updates?.repo || '', current: APP_VERSION, running: BOOT.overlay, currentFile: BOOT.currentFile || path.join(STATE_DIR, 'updates', 'current.json'), onChange: onUpdateStatus });
+let announced = '';
+function onUpdateStatus(u) {
+  const name = settings().name;
+  const line =
+    u.state === 'ready' && (u.manual || announced !== u.version) ? `I learned new tricks! Restart me from the tray to get v${u.version} ✨` :
+    u.state === 'reinstall' && (u.manual || announced !== u.version) ? `${name} v${u.version} is out! It needs a fresh download (tray menu).` :
+    u.manual && u.state === 'latest' ? `I'm all up to date! (v${APP_VERSION})` :
+    u.manual && u.state === 'checking' ? 'checking for updates…' :
+    u.manual && u.state === 'error' ? "couldn't reach the update shelf. later!" :
+    u.manual && u.state === 'off' ? 'updates are not set up in this copy' : '';
+  if (u.version) announced = u.version;
+  if (line) pet?.webContents.send('say', line);
+  if (u.state === 'error') console.error('[update]', u.error);
+  if (tray) buildTrayMenu();
+}
+function updateMenu() {
+  const u = updater.status;
+  const items = [{ label: `${settings().name} v${APP_VERSION}`, enabled: false }];
+  if (u.state === 'ready') items.push({ label: `Restart to update (v${u.version})`, click: () => { app.relaunch(); app.quit(); } });
+  else if (u.state === 'reinstall') items.push({ label: `Download v${u.version}…`, click: () => shell.openExternal(updater.releasesPage) });
+  else items.push({ label: u.state === 'checking' ? 'Checking for updates…' : 'Check for updates', enabled: updater.enabled && u.state !== 'checking', click: () => updater.check(true) });
+  return items;
 }
 
 function togglePet() {
@@ -219,6 +250,7 @@ app.whenReady().then(() => {
   tray.setToolTip(settings().name);
   tray.on('click', togglePet);
   buildTrayMenu();
+  if (!DEV_URL) updater.start(settings().autoUpdate);
   setAutostart(settings().startWithWindows); // always reconcile: repairs or removes stale entries from older installs
   // Installer build (electron-builder NSIS) makes and removes its own shortcuts; only the portable copy makes them itself.
   const INSTALLED = fs.existsSync(path.join(path.dirname(process.execPath), 'Uninstall Dumbo.exe'));
@@ -229,9 +261,9 @@ app.whenReady().then(() => {
   try {
     const li = app.getLoginItemSettings({ path: process.execPath, args: LAUNCH_ARGS });
     fs.mkdirSync(STATE_DIR, { recursive: true });
-    fs.writeFileSync(path.join(STATE_DIR, 'boot.json'), JSON.stringify({ at: new Date().toISOString(), exe: process.execPath, app: path.resolve(ROOT), selfContained: SELF_CONTAINED, dev: !!DEV_URL, startWithWindows: settings().startWithWindows, loginItem: { openAtLogin: li.openAtLogin, executableWillLaunchAtLogin: li.executableWillLaunchAtLogin, launchItems: li.launchItems } }, null, 2));
+    fs.writeFileSync(path.join(STATE_DIR, 'boot.json'), JSON.stringify({ at: new Date().toISOString(), exe: process.execPath, app: path.resolve(ROOT), selfContained: SELF_CONTAINED, version: APP_VERSION, shippedVersion: app.getVersion(), update: BOOT.overlay, dev: !!DEV_URL, startWithWindows: settings().startWithWindows, loginItem: { openAtLogin: li.openAtLogin, executableWillLaunchAtLogin: li.executableWillLaunchAtLogin, launchItems: li.launchItems } }, null, 2));
   } catch (e) { console.error(e); }
 });
 app.on('second-instance', () => pet?.showInactive());
 app.on('window-all-closed', () => app.quit());
-app.on('will-quit', () => winWatch.stop());
+app.on('will-quit', () => { winWatch.stop(); updater.stop(); });

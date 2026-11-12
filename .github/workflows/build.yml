@@ -1,8 +1,15 @@
-# Builds Dumbo on GitHub's Windows machines:
-#   - Dumbo-Setup-<version>.exe  (installer, Dumbo's own icon, via electron-builder)
-#   - Dumbo-<version>-win-x64.zip (portable, stock runtime — same as `npm run package`)
-# Run it: Actions tab → "Build Dumbo" → Run workflow (files appear under the run's Artifacts),
-# or push a tag like v0.3.1 to also publish a GitHub Release with both files.
+# Builds Dumbo on GitHub's Windows machines (this private repo) and publishes releases to the
+# public releases repo (package.json "updates.repo") that installed copies check for updates.
+#
+#   Test build:  Actions → "Build Dumbo" → Run workflow   → files under the run's Artifacts
+#   Release:     bump "version" in package.json, commit, then
+#                  git tag v0.3.1 && git push origin main --tags
+#                → GitHub Release in the public repo with:
+#                  Dumbo-Setup-<v>.exe, Dumbo-<v>-win-x64.zip, dumbo-app-<v>.asar, update.json (signed)
+#
+# Secrets needed in THIS repo (Settings → Secrets and variables → Actions):
+#   UPDATE_SIGNING_KEY     the Ed25519 private key (PEM text) — signs update.json
+#   PUBLIC_RELEASE_TOKEN   fine-grained token with "Contents: read and write" on the public repo only
 name: Build Dumbo
 
 on:
@@ -11,7 +18,7 @@ on:
     tags: ['v*']
 
 permissions:
-  contents: write   # only used to create the Release on tag pushes
+  contents: read
 
 jobs:
   windows:
@@ -26,8 +33,23 @@ jobs:
 
       - run: npm ci
 
-      - name: Portable zip
+      - name: Check tag matches package.json version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          v=$(node -p "require('./package.json').version")
+          [ "v$v" = "${GITHUB_REF_NAME}" ] || { echo "Tag ${GITHUB_REF_NAME} != package.json version v$v"; exit 1; }
+
+      - name: Portable zip + update archive
         run: npm run package
+        env:
+          DUMBO_RELEASE_NOTES: ${{ github.event.head_commit.message }}
+
+      - name: Sign update
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: npm run sign-update
+        env:
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
 
       - name: Installer
         run: npx --yes electron-builder@25.1.8 --win nsis --publish never
@@ -40,12 +62,34 @@ jobs:
           path: |
             release/installer/Dumbo-Setup-*.exe
             release/Dumbo-*-win-x64.zip
+            release/dumbo-app-*.asar
+            release/update.json
           if-no-files-found: error
 
-      - name: GitHub Release (tags only)
+      - name: Public repo name
+        if: startsWith(github.ref, 'refs/tags/v')
+        id: pub
+        shell: bash
+        run: |
+          r=$(node -p "require('./package.json').updates.repo")
+          [ -n "$r" ] || { echo 'package.json updates.repo is empty'; exit 1; }
+          echo "repo=$r" >> "$GITHUB_OUTPUT"
+
+      - name: Publish release to the public repo
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          repository: ${{ steps.pub.outputs.repo }}
+          token: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
+          tag_name: ${{ github.ref_name }}
+          name: Dumbo ${{ github.ref_name }}
+          make_latest: 'true'
+          body: |
+            **New here?** Download the **Dumbo-Setup** .exe below (or the .zip if your PC has Smart App Control on: unzip, run Dumbo.exe).
+            Windows may say "Windows protected your PC" → More info → Run anyway.
+            **Already have Dumbo?** He updates himself.
           files: |
             release/installer/Dumbo-Setup-*.exe
             release/Dumbo-*-win-x64.zip
+            release/dumbo-app-*.asar
+            release/update.json

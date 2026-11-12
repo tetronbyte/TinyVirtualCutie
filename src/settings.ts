@@ -71,6 +71,8 @@ async function init() {
   }
   const auto = $<HTMLInputElement>('startWithWindows'); auto.checked = S.startWithWindows;
   auto.onchange = () => save({ startWithWindows: auto.checked });
+  const upd = $<HTMLInputElement>('autoUpdate'); upd.checked = S.autoUpdate;
+  upd.onchange = () => save({ autoUpdate: upd.checked });
   render();
 }
 init();

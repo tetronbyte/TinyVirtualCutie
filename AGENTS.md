@@ -12,6 +12,7 @@
 - Regenerate icons after art changes: `npm run icons`
 - Animation preview in a normal browser: `npx vite` → http://localhost:1420/preview.html
 - Installer exe (CI only, never locally): GitHub Actions → "Build Dumbo" → Run workflow, or `git tag v0.3.1 && git push --tags`
+- Release: bump `version` in package.json, commit, `git tag v<version>` + `git push origin main --tags` (CI signs + publishes to public repo; installed copies self-update)
 - Perf benchmark: `scripts/bench.sh live|idle|f10|s10` (avg % of one core, 60 s; Git Bash)
 - Offscreen screenshot of any HTML: `npx electron scripts/snap.cjs <in.html> <out.png> [w] [h]`
 
@@ -34,3 +35,8 @@
 
 ## Code style
 TypeScript strict, ES modules, no UI framework. Electron main/preload are CommonJS (`.cjs`). Keep the preload bridge narrow and explicit.
+
+## Updates (electron/updater.cjs, boot.cjs)
+- Never commit the update signing key (Ed25519 private PEM). It lives only in the private repo secret `UPDATE_SIGNING_KEY` and the owner's backup. Public half is in `electron/common.cjs`; changing it locks out existing installs.
+- Updates swap Dumbo's code/art only. A change that needs a new Electron runtime (bumping `electron` major) can't auto-update: users get "Download vX" instead.
+- Test updates with a copy of `release/Dumbo` + `DUMBO_STATE_DIR=<temp> DUMBO_UPDATE_URL=http://localhost:<port> DUMBO_UPDATE_DELAY=3000` — never against `%USERPROFILE%\Apps\Dumbo`. Pre-set `shortcutsFor` in the test state.json or the test copy overwrites the real Desktop shortcut.

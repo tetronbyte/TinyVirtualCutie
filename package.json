@@ -4,7 +4,10 @@
   "private": true,
   "version": "0.3.0",
   "description": "Dumbo \u2014 a tiny desktop pet",
-  "main": "electron/main.cjs",
+  "main": "electron/boot.cjs",
+  "updates": {
+    "repo": ""
+  },
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev.mjs",
@@ -13,7 +16,8 @@
     "typecheck": "tsc --noEmit",
     "install-app": "node scripts/install.mjs",
     "package": "node scripts/package.mjs",
-    "icons": "electron scripts/make-icons.cjs"
+    "icons": "electron scripts/make-icons.cjs",
+    "sign-update": "node scripts/sign-update.mjs"
   },
   "devDependencies": {
     "@electron/asar": "^3.4.1",

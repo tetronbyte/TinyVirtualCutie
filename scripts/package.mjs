@@ -10,6 +10,7 @@ import { execFileSync } from 'child_process';
 import { cpSync, rmSync, mkdirSync, writeFileSync, readFileSync, renameSync, readdirSync, statSync, copyFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import { createHash } from 'crypto';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
@@ -35,7 +36,7 @@ for (const f of readdirSync(path.join(out, 'locales'))) if (f !== 'en-US.pak') r
 console.log('3/5 packing app into resources/app.asar…');
 mkdirSync(stage, { recursive: true });
 for (const d of ['dist', 'electron', 'assets']) cpSync(path.join(root, d), path.join(stage, d), { recursive: true });
-writeFileSync(path.join(stage, 'package.json'), JSON.stringify({ name: 'dumbo', productName: 'Dumbo', version: pkg.version, main: 'electron/main.cjs' }, null, 2));
+writeFileSync(path.join(stage, 'package.json'), JSON.stringify({ name: 'dumbo', productName: 'Dumbo', version: pkg.version, main: pkg.main, updates: pkg.updates }, null, 2));
 await createPackage(stage, path.join(out, 'resources', 'app.asar'));
 rmSync(stage, { recursive: true, force: true });
 // Icon outside the archive so Windows shortcuts can use it.
@@ -49,6 +50,17 @@ writeFileSync(path.join(out, 'README.txt'), [
   '',
   'Dumbo.exe is the unmodified Electron runtime (https://www.electronjs.org), renamed. Licenses: LICENSE, LICENSES.chromium.html.',
 ].join('\r\n'));
+
+// Update files (electron/updater.cjs): the same archive under a versioned name + unsigned update.json
+// (scripts/sign-update.mjs adds the signature in CI).
+const asarName = `dumbo-app-${pkg.version}.asar`;
+copyFileSync(path.join(out, 'resources', 'app.asar'), path.join(release, asarName));
+const electronVersion = JSON.parse(readFileSync(path.join(root, 'node_modules', 'electron', 'package.json'), 'utf8')).version;
+writeFileSync(path.join(release, 'update.json'), JSON.stringify({
+  version: pkg.version, electron: electronVersion.split('.')[0], asar: asarName,
+  sha512: createHash('sha512').update(readFileSync(path.join(release, asarName))).digest('base64'),
+  notes: process.env.DUMBO_RELEASE_NOTES || '',
+}, null, 2));
 
 console.log('4/5 zipping…');
 // Windows' built-in tar (System32, Microsoft-signed) writes zip files.
