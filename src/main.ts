@@ -1,6 +1,7 @@
 import type { Theme } from './art/dumbo.js';
 import { Animator, FRONT_REST, type FrontState } from './engine/animator';
 import { clips, STAND, SIT } from './engine/clips';
+import { actionOn, tuneOf, ALL_ACTIONS, type ActionId, type KnobKey } from './actions';
 import { host, type Settings, type Cursor, type Foreground, type ReactionAction, type Hold, type HoldKind } from './host';
 
 // ======================================================================
@@ -28,6 +29,18 @@ const pickW = <T>(xs: Array<[T, number]>): T => {
 const pick = <T>(xs: T[]) => xs[Math.floor(Math.random() * xs.length)];
 const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
+/** Is this action switched on in settings? (settings page: tick list) */
+const on = (id: ActionId) => actionOn(S, id);
+/** Settings ⚙ knob for an action; 0 = Auto (recommended, a little random). */
+const tune = (id: ActionId, key: KnobKey) => tuneOf(S, id, key);
+/** How often: random-pick weight, scaled by the "How often" knob. */
+const often = (id: ActionId) => tune(id, 'often') || 1;
+const w = (id: ActionId, weight: number) => (on(id) ? weight * often(id) : 0);
+/** How long: repetitions — Auto = random in [min, max], otherwise the middle × Short/Long. */
+const reps = (id: ActionId, min: number, max: number) => {
+  const l = tune(id, 'length');
+  return l ? Math.max(1, Math.round(((min + max) / 2) * l)) : min + Math.floor(rand(0, max - min + 1));
+};
 
 // ---------- theme ----------
 const darkMq = window.matchMedia('(prefers-color-scheme: dark)');
@@ -71,6 +84,11 @@ const LINES = {
   unpinned: ['free to roam!', 'wheee, free!'],
   timeUp: ["time's up! back to normal 🐘", 'all done!'],
   stillSleeping: ['5 more minutes…', 'zzz… mm?', '*snore*'],
+  hideStart: ["hide and seek! 🙈 count to ten!", "let's play hide and seek!", "bet you can't find me!"],
+  peekaboo: ['peekaboo! 👀', 'hehe', 'over here!', '👀'],
+  found: ['you found me! 🥰', 'aww, found me!', 'again again!'],
+  notFound: ['you never found me hehe', "I win! 🏆", 'too good at hiding'],
+  noWindow: ["bring a window to the front (not too high) and I'll hop on!", 'no window to sit on…'],
 };
 const HOLD_LINES: Record<HoldKind, string[]> = {
   free: ['back to normal!'],
@@ -212,7 +230,7 @@ async function decide() {
 
   if (perch) {
     // Up on a window: look around, peek over the edge, nibble the corner, then hop down.
-    const p = Date.now() - perch.since > perch.stay ? 'down' : pickW<string>([['nothing', 4], ['peek', 2], ['nibble', 1.5], ['stroll', 1.5]]);
+    const p = Date.now() - perch.since > perch.stay ? 'down' : pickW<string>([['nothing', 4], ['peek', w('peek', 2)], ['nibble', w('nibble', 1.5)], ['stroll', w('walk', 1.5)]]);
     if (p === 'down') await hopDown();
     else if (p === 'peek') { say(pick(LINES.peek), 2200); await perchedAction(clips.peek()); }
     else if (p === 'nibble') await nibbleCorner();
@@ -222,20 +240,22 @@ async function decide() {
 
   if (S.visitWindows && !hold.pin && !lowBattery && chance(0.35)) {
     const fg = await getFg();
-    if (fg && await canPerch(fg) && chance(0.6)) { await hopOnto(fg); return schedule(rand(8000, 15_000)); }
-    if (fg && await canPush(fg) && chance(0.5)) { await pushWindow(fg); return schedule(rand(10_000, 20_000)); }
+    if (fg && on('perch') && await canPerch(fg) && chance(Math.min(1, 0.6 * often('perch')))) { await hopOnto(fg); return schedule(rand(8000, 15_000)); }
+    if (fg && on('push') && await canPush(fg) && chance(Math.min(1, 0.5 * often('push')))) { await pushWindow(fg); return schedule(rand(10_000, 20_000)); }
   }
 
   const next = lowBattery
-    ? pickW<string>([['nothing', 6], ['walk', hold.pin ? 0 : 1]])
-    : pickW<string>([['nothing', 6], ['walk', hold.pin ? 0 : 3], ['earflap', 1.5], ['wave', 1], ['coding', 1.6], ['pushups', .7], ['rope', .7]]);
+    ? pickW<string>([['nothing', 6], ['walk', hold.pin ? 0 : w('walk', 1)]])
+    : pickW<string>([['nothing', 6], ['walk', hold.pin ? 0 : w('walk', 3)], ['earflap', w('earflap', 1.5)], ['wave', w('wave', 1)], ['coding', w('coding', 1.6)],
+      ['pushups', w('pushups', .7)], ['rope', w('rope', .7)], ['hideSeek', hold.pin ? 0 : w('hideSeek', .45)]]);
   switch (next) {
-    case 'walk': await walk(rand(3000, 8000)); break;
+    case 'walk': await stroll('walk'); break;
     case 'earflap': await frontEarFlap(); break;
     case 'wave': await sideAction(clips.wave()); break;
-    case 'coding': say(pick(LINES.coding)); await sideAction(clips.coding(1 + Math.floor(rand(0, 3))), false); break;
-    case 'pushups': say(pick(LINES.exercise)); await sideAction(clips.pushups(4 + Math.floor(rand(0, 4)))); break;
-    case 'rope': say(pick(LINES.exercise)); await sideAction(clips.rope(5 + Math.floor(rand(0, 5)))); break;
+    case 'coding': say(pick(LINES.coding)); await sideAction(clips.coding(reps('coding', 1, 3)), false); break;
+    case 'pushups': say(pick(LINES.exercise)); await sideAction(clips.pushups(reps('pushups', 4, 7))); break;
+    case 'rope': say(pick(LINES.exercise)); await sideAction(clips.rope(reps('rope', 5, 9))); break;
+    case 'hideSeek': await hideAndSeek(); break;
   }
   schedule(rand(10_000, 25_000)); // calm pace: every drawn frame costs CPU
 }
@@ -245,15 +265,15 @@ async function holdActivity() {
   switch (hold.kind) {
     case 'coding':
       if (chance(0.2)) say(pick(LINES.coding));
-      await sideAction(clips.coding(3), false);
+      await sideAction(clips.coding(reps('coding', 2, 4)), false);
       return schedule(rand(2500, 6000));
     case 'exercise':
       if (chance(0.3)) say(pick(LINES.exercise));
-      await sideAction(chance(0.5) ? clips.pushups(6) : clips.rope(8));
+      await sideAction(chance(0.5) ? clips.pushups(reps('pushups', 5, 8)) : clips.rope(reps('rope', 6, 10)));
       return schedule(rand(3000, 7000));
     case 'walk':
       if (hold.pin) return schedule(rand(4000, 8000)); // pinned wins: no walking off
-      await walk(rand(6000, 14_000));
+      await stroll('walk', true);
       return schedule(rand(1500, 4000));
   }
 }
@@ -279,11 +299,11 @@ async function frontEarFlap() {
 }
 
 // ---------- sleep ----------
-async function sleep() {
+async function sleep(style?: 'doze' | 'curl') {
   mode = 'busy';
   host.track(false);
   clearTimeout(exprTimer); clearTimeout(blinkTimer);
-  sleepStyle = chance(0.6) ? 'doze' : 'curl';
+  sleepStyle = style ?? (on('curl') && (!on('doze') || chance(0.4)) ? 'curl' : 'doze');
   if (sleepStyle === 'doze') {
     if (anim.view !== 'front') await toFront('neutral');
     host.track(false);
@@ -323,6 +343,26 @@ async function settle() {
 }
 
 // ---------- walking / running along the ground ----------
+/** Walk or run using the settings ⚙ knobs: How far (Auto = a short random stroll) and Speed. */
+async function stroll(id: 'walk' | 'run', long = false) {
+  const run = id === 'run';
+  const sp = tune(id, 'speed') || rand(0.85, 1.15);
+  const speed = (run ? 110 : 36) * sp;
+  const clip = run ? clips.run() : clips.walk();
+  // Legs keep up with the speed: faster steps (and a few more redraws) when fast, slower when slow.
+  clip.keys = clip.keys.map(k => ({ ...k, ms: k.ms / Math.sqrt(sp) }));
+  clip.fps = Math.round(clamp((clip.fps ?? 12) * Math.sqrt(sp), 7, 16));
+  const dist = tune(id, 'distance');
+  if (!dist || perch) return walk(run ? rand(3000, 5000) : long ? rand(6000, 14_000) : rand(3000, 8000), speed, clip);
+  const { bounds, workArea } = await host.winInfo();
+  const minX = workArea.x - bounds.width * 0.25, maxX = workArea.x + workArea.width - bounds.width * 0.75;
+  const x = bounds.x, span = (maxX - minX) * dist;
+  const roomR = maxX - x, roomL = x - minX;
+  const dir = dist < 1 && roomR >= span && roomL >= span ? (chance(0.5) ? 1 : -1) : roomR >= roomL ? 1 : -1;
+  const target = dist >= 1 ? (dir > 0 ? maxX : minX) : clamp(x + dir * span, minX, maxX);
+  return walk(180_000, speed, clip, target);
+}
+
 let walkStop: (() => void) | null = null;
 async function walk(ms: number, speed = 36, clip = clips.walk(), targetX?: number, thenFront = true) {
   if (hold.pin) { if (mode === 'side') { mode = 'busy'; await toFront('smile'); } return; } // pinned: stays put
@@ -355,7 +395,7 @@ async function walk(ms: number, speed = 36, clip = clips.walk(), targetX?: numbe
   host.savePos();
   if (mode !== 'side') return;
   if (!thenFront) { await anim.play(clips.toStand()); return; }
-  if (!lowBattery && !perch && chance(0.12)) { say(pick(LINES.trip)); await anim.play(clips.trip()); }
+  if (!lowBattery && !perch && on('trip') && chance(Math.min(1, 0.12 * often('trip')))) { say(pick(LINES.trip)); await anim.play(clips.trip()); }
   else await anim.play(clips.toStand());
   if (mode !== 'side') return;
   mode = 'busy';
@@ -563,11 +603,11 @@ async function appReaction(action: ReactionAction, app: string) {
   if (mode !== 'busy') return;
   mode = 'front';
   switch (action) {
-    case 'coding': await sideAction(clips.coding(3), false); break;
-    case 'dance': await dance(); break;
+    case 'coding': await sideAction(clips.coding(reps('coding', 2, 4)), false); break;
+    case 'dance': if (on('dance')) await dance(); break;
     case 'wave': await sideAction(clips.wave()); break;
-    case 'exercise': await sideAction(chance(0.5) ? clips.pushups(6) : clips.rope(8)); break;
-    case 'run': await walk(rand(3000, 5000), 110, clips.run()); break;
+    case 'exercise': await sideAction(chance(0.5) ? clips.pushups(reps('pushups', 5, 7)) : clips.rope(reps('rope', 6, 9))); break;
+    case 'run': if (on('run')) await stroll('run'); break;
   }
   schedule(rand(10_000, 20_000));
 }
@@ -576,7 +616,7 @@ async function dance() {
   mode = 'busy';
   const sway = (t: number, e: [number, number]) => ({ s: { expr: 'laugh', tilt: t, earAdd: e, bounce: Math.abs(t) }, ms: 300 });
   const beat = [sway(9, [18, -4]), sway(-9, [-4, 18])];
-  await anim.face([...beat, ...beat, ...beat, ...beat, { s: { tilt: 0, earAdd: [0, 0] as [number, number], bounce: 0, expr: 'happy' }, ms: 250 }]);
+  await anim.face([...Array.from({ length: reps('dance', 3, 5) }, () => beat).flat(), { s: { tilt: 0, earAdd: [0, 0] as [number, number], bounce: 0, expr: 'happy' }, ms: 250 }]);
   if (mode === 'busy') { mode = 'front'; setExpr('happy', 2000); }
 }
 
@@ -596,7 +636,7 @@ function watchActivity() {
     if ((await host.idleSeconds()) < 5) {
       wasAway = false;
       if (mode === 'sleep' && hold.kind !== 'sleep' && chance(0.5)) { await wake(true); schedule(rand(6000, 12000)); }
-      if (mode === 'front') { say(pick(LINES.welcome), 2600); frontEarFlap(); }
+      if (mode === 'front' && on('welcome')) { say(pick(LINES.welcome), 2600); frontEarFlap(); }
     }
   }, 4000);
 }
@@ -604,6 +644,7 @@ function watchActivity() {
 async function stretchCheck(): Promise<boolean> {
   if (!stretchDue) return false;
   stretchDue = false;
+  if (!on('stretch')) return false;
   say(pick(LINES.stretch), 3500);
   await sideAction(chance(0.5) ? clips.rope(6) : clips.pushups(5));
   say(pick(LINES.stretchDone), 3000);
@@ -638,8 +679,8 @@ document.addEventListener('mousemove', e => {
   if (now < reactUntil || mode !== 'front') return;
   let flips = 0;
   for (let i = 2; i < rub.length; i++) { const a = rub[i - 1].x - rub[i - 2].x, b = rub[i].x - rub[i - 1].x; if (a * b < 0 && Math.abs(b) > 1) flips++; }
-  if (flips >= 4) { reactUntil = now + 3500; tickled(); }
-  else if (now - hoverStart > 1500) { reactUntil = now + 5000; hoverStart = 0; petted(); }
+  if (flips >= 4) { reactUntil = now + 3500; if (on('tickled')) tickled(); }
+  else if (now - hoverStart > 1500) { reactUntil = now + 5000; hoverStart = 0; if (on('petted')) petted(); }
 });
 document.addEventListener('mouseleave', () => { if (!dragging && !down) setOver(false); });
 
@@ -653,13 +694,14 @@ document.addEventListener('mouseup', e => {
   if (!down) return;
   down = null;
   lastInteraction = Date.now();
+  if (game?.peeking) { game.found = true; game.wake?.(); return; } // hide and seek: found him!
   clicked();
 });
 
 async function clicked() {
   if (mode === 'sleep' && hold.kind === 'sleep') { say(pick(LINES.stillSleeping), 2000); return; }
   if (mode === 'sleep') { await wake(true); return schedule(rand(6000, 12000)); }
-  if (mode !== 'front') return;
+  if (mode !== 'front' || !on('click')) return;
   mode = 'busy';
   if (chance(0.3)) say(pick(LINES.click), 1800);
   await anim.face([{ s: { expr: 'laugh', bounce: 16, earAdd: [14, -14] }, ms: 150 }, { s: { bounce: 0, earAdd: [0, 0] }, ms: 170 }, { s: { bounce: 8 }, ms: 120 }, { s: { bounce: 0 }, ms: 140 }]);
@@ -683,6 +725,7 @@ async function tickled() {
 
 let grumpy = false;
 function startDrag(ox: number, oy: number) {
+  abortGame();
   dragging = true;
   grumpy = mode === 'sleep' || mode === 'side' || mode === 'busy';
   walkStop?.();
@@ -748,7 +791,12 @@ async function onChargingChange() {
   updateLow();
   if (!battery.charging) { flexCount = 0; return; }
   // Plugged in → excited, bounces, runs around, then back to normal life.
-  if (mode === 'held' || hold.kind === 'sleep') return;
+  if (mode === 'held' || hold.kind === 'sleep' || game || !on('charged')) return;
+  await chargedJoy();
+  schedule(rand(6000, 10000));
+}
+
+async function chargedJoy() {
   walkStop?.();
   if (mode === 'sleep') await wake(false);
   clearTimeout(decideTimer);
@@ -760,22 +808,22 @@ async function onChargingChange() {
   mode = 'side';
   await toSide(true);
   await anim.play(clips.chargedBounce());
-  await walk(rand(3500, 6000), 110, clips.run());
-  schedule(rand(6000, 10000));
+  if (on('run')) await stroll('run');
+  else { mode = 'busy'; await toFront('happy'); }
 }
 
 /** Returns true if a battery reaction happened. */
 async function batteryCheck(): Promise<boolean> {
   if (!battery) return false;
   const now = Date.now();
-  if (lowBattery && now - lastLowNag > 8 * 60_000) {
+  if (lowBattery && on('tired') && now - lastLowNag > 8 * 60_000) {
     lastLowNag = now;
     say(pick(LINES.lowBattery), 4000);
     await sideAction(clips.tired(), false);
     anim.setFront({ expr: 'tired' });
     return true;
   }
-  if (battery.charging && battery.level * 100 >= S.batteryHigh && flexCount < 3 && now - lastFlex > 3 * 60_000) {
+  if (battery.charging && on('flex') && battery.level * 100 >= S.batteryHigh && flexCount < 3 && now - lastFlex > 3 * 60_000) {
     flexCount++; lastFlex = now;
     say(pick(LINES.full), 4000);
     await sideAction(clips.flex());
@@ -784,9 +832,154 @@ async function batteryCheck(): Promise<boolean> {
   return false;
 }
 
+// ---------- hide and seek ----------
+// He vanishes, then peeks upside down from the top edge of the screen (up to 3 spots). Click him while
+// he peeks to find him; otherwise he gives up and drops down. The window just goes invisible and
+// moves: no extra drawing while hidden.
+interface Game { found: boolean; abort: boolean; peeking: boolean; wake?: () => void }
+let game: Game | null = null;
+const gameWait = (g: Game, ms: number) => new Promise<void>(r => { const t = setTimeout(r, ms); g.wake = () => { clearTimeout(t); r(); }; });
+function abortGame() {
+  if (!game) return;
+  game.abort = true; game.wake?.(); game = null;
+  document.body.classList.remove('upside', 'hiding');
+}
+function slide(x: number, from: number, to: number, ms: number) {
+  const t0 = performance.now();
+  return new Promise<void>(resolve => {
+    const iv = window.setInterval(() => {
+      const t = Math.min(1, (performance.now() - t0) / ms), e = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      host.move(x, from + (to - from) * e);
+      if (t >= 1) { clearInterval(iv); resolve(); }
+    }, 16);
+  });
+}
+
+async function hideAndSeek(quick = false) {
+  if (hold.pin || perch || game) return;
+  const g: Game = game = { found: false, abort: false, peeking: false };
+  if (anim.view !== 'front' || mode !== 'front') await toFront('giggle');
+  mode = 'busy';
+  host.track(false); clearTimeout(exprTimer); clearTimeout(blinkTimer);
+  say(pick(LINES.hideStart), 2600);
+  await anim.face([{ s: { expr: 'giggle', bounce: 14, earAdd: [16, -16] }, ms: 160 }, { s: { bounce: 0, earAdd: [0, 0] }, ms: 180 }, { s: { expr: 'happy' }, ms: 1100 }]);
+  if (g.abort) return;
+  bubbleEl.classList.remove('show');
+  document.body.classList.add('hiding');
+  const { bounds, workArea } = await host.winInfo();
+  const stageH = bounds.height * 0.5273;
+  const hidden = workArea.y - stageH - 4, peekY = workArea.y - stageH * 0.32;
+  let x = bounds.x;
+  const hideK = tune('hideSeek', 'hide') || 1;
+  await gameWait(g, quick ? rand(1200, 2200) * hideK : rand(10_000, 30_000) * hideK);
+  for (let i = 0; i < 3 && !g.abort && !g.found; i++) {
+    x = rand(workArea.x, workArea.x + workArea.width - bounds.width);
+    host.move(x, hidden);
+    document.body.classList.add('upside');
+    setFacing(chance(0.5));
+    anim.setFront({ ...FRONT_REST, expr: 'giggle', gaze: [0, -8], tilt: rand(-6, 6), shadow: false });
+    await wait(60);
+    document.body.classList.remove('hiding');
+    await slide(x, hidden, peekY, 450);
+    if (g.abort) return;
+    g.peeking = true;
+    say(pick(LINES.peekaboo), 2400);
+    anim.face([{ s: { expr: 'happy', earAdd: [10, -10] }, ms: 300 }, { s: { earAdd: [0, 0], blink: 1 }, ms: 120 }, { s: { blink: 0, expr: 'giggle' }, ms: 160 }]);
+    await gameWait(g, quick ? rand(3500, 5000) : rand(4500, 8000));
+    g.peeking = false;
+    if (g.abort || g.found) break;
+    bubbleEl.classList.remove('show');
+    await slide(x, peekY, hidden, 350);
+    document.body.classList.add('hiding');
+    if (i < 2) await gameWait(g, (quick ? rand(1000, 2000) : rand(6000, 15_000)) * hideK);
+  }
+  if (g.abort) return;
+  if (g.found) {
+    say(pick(LINES.found), 2600);
+    await anim.face([{ s: { expr: 'laugh', bounce: 10, earAdd: [16, -16] }, ms: 180 }, { s: { bounce: 0, earAdd: [0, 0] }, ms: 200 }, { s: { bounce: 6 }, ms: 140 }, { s: { bounce: 0 }, ms: 160 }]);
+    if (g.abort) return;
+  }
+  // Flip upright just under the top edge and drop to the ground.
+  document.body.classList.remove('upside', 'hiding');
+  game = null;
+  host.move(x, workArea.y);
+  anim.setSide(STAND);
+  await fallToGround();
+  host.savePos();
+  if (!g.found) say(pick(LINES.notFound), 2800);
+  awakeSince = Date.now();
+  await toFront(g.found ? 'happy' : 'giggle');
+}
+
+// ---------- ▶ Try (settings page) ----------
+/** Stop whatever he's doing (without the old action resuming) and sit facing you. */
+async function interrupt() {
+  abortGame();
+  walkStop?.();
+  clearTimeout(decideTimer);
+  if (mode === 'sleep') { await wake(false); return; }
+  // 'held' makes every running action bail out at its next step (they all check their own mode).
+  mode = 'held';
+  anim.stop();
+  await wait(40);
+  mode = 'busy';
+  await toFront('smile');
+  await settle();
+}
+
+async function tryAction(id: ActionId) {
+  if (mode === 'held' || dragging) return;
+  lastInteraction = Date.now();
+  await interrupt();
+  const winTarget = async () => { const fg = await getFg(); return fg && !fg.max ? fg : null; };
+  switch (id) {
+    case 'walk': if (hold.pin) say("I'm pinned! 📌", 2000); else await stroll('walk'); break;
+    case 'trip': mode = 'side'; await toSide(true); say(pick(LINES.trip)); await anim.play(clips.trip()); if (mode === 'side') { mode = 'busy'; await toFront('pout'); } break;
+    case 'earflap': await frontEarFlap(); break;
+    case 'wave': await sideAction(clips.wave()); break;
+    case 'coding': say(pick(LINES.coding)); await sideAction(clips.coding(reps('coding', 1, 2)), false); break;
+    case 'pushups': say(pick(LINES.exercise)); await sideAction(clips.pushups(reps('pushups', 4, 5))); break;
+    case 'rope': say(pick(LINES.exercise)); await sideAction(clips.rope(reps('rope', 5, 6))); break;
+    case 'hideSeek': if (hold.pin) say("I'm pinned! 📌", 2000); else await hideAndSeek(true); break;
+    case 'perch': {
+      if (perch) { say(pick(LINES.perch), 2000); break; }
+      const fg = await winTarget();
+      if (fg && !hold.pin && await canPerch(fg)) await hopOnto(fg); else say(hold.pin ? "I'm pinned! 📌" : pick(LINES.noWindow), 3200);
+      break;
+    }
+    case 'peek': say(pick(LINES.peek), 2200); if (perch) await perchedAction(clips.peek()); else await sideAction(clips.peek()); break;
+    case 'nibble':
+      if (perch && !hold.pin) await nibbleCorner();
+      else { say(pick(LINES.nibble), 2200); await sideAction(clips.nibble()); }
+      break;
+    case 'push': {
+      const fg = await winTarget();
+      if (fg && !perch && !hold.pin && await canPush(fg)) await pushWindow(fg);
+      else { say(pick(LINES.push), 2500); await sideAction(clips.push(2)); }
+      break;
+    }
+    case 'click': mode = 'front'; await clicked(); break;
+    case 'petted': await petted(); break;
+    case 'tickled': await tickled(); break;
+    case 'welcome': say(pick(LINES.welcome), 2600); await frontEarFlap(); break;
+    case 'stretch': say(pick(LINES.stretch), 3500); await sideAction(clips.rope(5)); say(pick(LINES.stretchDone), 3000); break;
+    case 'dance': await dance(); break;
+    case 'run': if (hold.pin) say("I'm pinned! 📌", 2000); else await stroll('run'); break;
+    case 'charged': await chargedJoy(); break;
+    case 'flex': say(pick(LINES.full), 4000); await sideAction(clips.flex()); break;
+    case 'tired': say(pick(LINES.lowBattery), 4000); await sideAction(clips.tired(), false); break;
+    case 'doze': case 'curl':
+      await sleep(id);
+      // A short demo nap, then back up (unless you asked him to keep sleeping).
+      setTimeout(async () => { if (mode === 'sleep' && hold.kind !== 'sleep') { await wake(false); schedule(rand(6000, 12000)); } }, 6000);
+      return;
+  }
+  schedule(rand(8000, 15_000));
+}
+
 // ---------- tray / settings ----------
 host.onAction(async a => {
-  if (a === 'sleep' && mode !== 'sleep' && mode !== 'held') { walkStop?.(); anim.stop(); clearTimeout(decideTimer); sleep(); }
+  if (a === 'sleep' && mode !== 'sleep' && mode !== 'held') { abortGame(); walkStop?.(); anim.stop(); clearTimeout(decideTimer); sleep(); }
   if (a === 'wake' && mode === 'sleep') { await wake(true); schedule(rand(6000, 12000)); }
 });
 host.onSettings(s => { S = s; applyTheme(); updateLow(); });
@@ -795,6 +988,7 @@ host.onHold(h => { applyHold(h).catch(e => host.log(`hold failed: ${e?.stack || 
 async function applyHold(h: Hold) {
   const prev = hold;
   hold = h;
+  if (game && (h.pin !== prev.pin || h.kind !== prev.kind)) { abortGame(); mode = 'busy'; await toFront('smile'); }
   if (h.pin && !prev.pin) {
     walkStop?.();
     if (perch) { perch = null; clearInterval(perchWatch); } // stays on that spot even if the window moves
@@ -814,6 +1008,7 @@ async function applyHold(h: Hold) {
 }
 host.onBatteryPresent(b => { hasBattery = b; initBattery(); });
 host.onSay(t => say(t, 5000)); // host messages (updates)
+host.onTry(id => { tryAction(id).catch(e => host.log(`try ${id} failed: ${e?.stack || e}`)); });
 
 // ---------- boot ----------
 async function boot() {
@@ -836,7 +1031,38 @@ async function boot() {
 const BENCH = (window.host as any)?.bench as string | null;
 if (BENCH) {
   // Perf benchmarks (scripts/bench.sh): 'idle' = static pose, no timers; 'fN'/'sN' = N front/side redraws per second.
-  if (BENCH === 'perch') {
+  if (BENCH === 'tryall' || BENCH.startsWith('try:')) {
+    // Scenario test: runs every ▶ Try action once (fake 600×400 window for window actions) and logs
+    // how each one ends. Hide and seek: "finds" him on his second peek.
+    const fake: Foreground = { name: 'FakeApp', x: 350, y: 300, w: 600, h: 400, max: false };
+    getFg = async () => fake;
+    (async () => {
+      await boot();
+      const only = BENCH.startsWith('try:') ? BENCH.slice(4).split(',') : null; // e.g. try:walk,run
+      for (const a of ALL_ACTIONS.filter(x => !only || only.includes(x.id))) {
+        const t0 = Date.now();
+        let peeks = 0;
+        const done = tryAction(a.id);
+        while (Date.now() - t0 < 40_000) {
+          await wait(200);
+          const g = game as Game | null; // (read fresh: changes while we wait)
+          if (g?.peeking) {
+            const { bounds } = await host.winInfo();
+            if (!peeks++) host.log(`  peek: y=${bounds.y} upside=${document.body.classList.contains('upside')}`);
+            else { g.found = true; g.wake?.(); }
+            while (g.peeking) await wait(100);
+          }
+          if (Date.now() - t0 > 1500 && (mode as Mode) === 'front' && !anim.busy && !game) break;
+        }
+        await done;
+        clearTimeout(decideTimer);
+        const { bounds } = await host.winInfo();
+        host.log(`try ${a.id}: ${((Date.now() - t0) / 1000).toFixed(1)}s mode=${mode} perch=${!!perch} at ${bounds.x},${bounds.y}`);
+        await wait(500);
+      }
+      host.log('tryall done');
+    })().catch(e => host.log(`tryall failed: ${e?.stack || e}`));
+  } else if (BENCH === 'perch') {
     // Scenario test: a simulated 500×300 window; Dumbo hops on, nibbles, gets knocked off when it "moves".
     let fake: Foreground | null = { name: 'FakeApp', x: 400, y: 380, w: 500, h: 300, max: false };
     getFg = async () => fake;

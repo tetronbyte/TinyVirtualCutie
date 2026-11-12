@@ -27,4 +27,6 @@ contextBridge.exposeInMainWorld('host', {
   onBatteryPresent: on('battery:present'),
   onSay: on('say'),
   onHold: on('hold'),
+  tryAction: (id) => ipcRenderer.send('try', String(id)),
+  onTry: on('try'),
 });

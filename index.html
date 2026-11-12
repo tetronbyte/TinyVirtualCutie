@@ -21,6 +21,13 @@
       }
       #bubble::after { content: ''; position: absolute; left: 50%; bottom: -.62em; width: .8em; height: .8em; background: inherit; border: inherit; border-top: 0; border-left: 0; transform: translateX(-50%) rotate(45deg); }
       #bubble.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
+      /* Hide and seek: invisible while hiding; hanging upside down from the top edge while peeking
+         (stage moves to the top of the window, bubble goes below him). */
+      body.hiding #stage { visibility: hidden; }
+      body.upside #stage { top: 0; bottom: auto; transform: scaleY(-1); }
+      body.upside #stage.left { transform: scale(-1, -1); }
+      body.upside #bubble { bottom: auto; top: 57%; }
+      body.upside #bubble::after { bottom: auto; top: -.62em; transform: translateX(-50%) rotate(225deg); }
       body.dark #bubble { background: #221d33; color: #f2ecff; border-color: #7e6bff; box-shadow: 0 0 .9em rgba(126,107,255,.45); }
     </style>
   </head>

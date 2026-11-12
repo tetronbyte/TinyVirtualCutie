@@ -55,7 +55,7 @@ function saveState() {
 const settings = () => ({
   name: 'Dumbo', theme: 'auto', size: 1, startWithWindows: false,
   batteryLow: 30, batteryHigh: 90, sleepStart: '23:00', sleepEnd: '07:00', sleepiness: 0.6,
-  visitWindows: true, stretchEvery: 50, autoUpdate: true,
+  visitWindows: true, stretchEvery: 50, autoUpdate: true, actions: {}, tune: {},
   appReactions: [
     { app: 'Code', action: 'coding' }, { app: 'Cursor', action: 'coding' }, { app: 'devenv', action: 'coding' },
     { app: 'idea64', action: 'coding' }, { app: 'WindowsTerminal', action: 'coding' },
@@ -97,7 +97,7 @@ function createPet() {
 function openSettings() {
   if (settingsWin) { settingsWin.show(); settingsWin.focus(); return; }
   settingsWin = new BrowserWindow({
-    width: 460, height: 640, title: `${settings().name} settings`, icon: ICON, autoHideMenuBar: true, resizable: true,
+    width: 600, height: Math.min(820, screen.getPrimaryDisplay().workArea.height - 40), minWidth: 420, minHeight: 400, title: `${settings().name} settings`, icon: ICON, autoHideMenuBar: true, resizable: true,
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#15121f' : '#f4f1f7',
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), spellcheck: false },
   });
@@ -255,10 +255,18 @@ const moveTo = (x, y) => pet.setBounds({ x: Math.round(x), y: Math.round(y), ...
 ipcMain.on('win:move', (_e, x, y) => moveTo(x, y));
 ipcMain.on('win:save', () => { const b = pet.getBounds(); state.pos = { x: b.x, y: b.y }; saveState(); });
 ipcMain.on('open:settings', openSettings);
+// Settings page ▶ buttons: play one action now.
+ipcMain.on('try', (_e, id) => { if (!pet.isVisible()) { pet.showInactive(); buildTrayMenu(); } pet.webContents.send('try', id); });
 
 // Foreground app (name + rect in DIPs). Never titles or content. Our own windows are ignored.
 const winWatch = new WinWatch();
 ipcMain.handle('fg:get', async () => {
+  // Our own settings window counts as "your window" while it's in front: that's what the ▶ buttons
+  // for window actions use (and it works on macOS too). The pet window itself never does.
+  if (settingsWin && !settingsWin.isDestroyed() && settingsWin.isVisible() && settingsWin.isFocused() && !settingsWin.isMinimized()) {
+    const b = settingsWin.getBounds();
+    return { name: 'Dumbo settings', x: b.x, y: b.y, w: b.width, h: b.height, max: settingsWin.isMaximized() || settingsWin.isFullScreen() };
+  }
   if (!IS_WIN) return null; // macOS: window visits / app reactions not built yet (need the Accessibility permission)
   const r = await winWatch.foreground();
   if (!r.name || r.pid === process.pid || /^(Dumbo|electron)$/i.test(r.name)) return null;
