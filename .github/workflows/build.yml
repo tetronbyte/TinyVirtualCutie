@@ -1,0 +1,51 @@
+# Builds Dumbo on GitHub's Windows machines:
+#   - Dumbo-Setup-<version>.exe  (installer, Dumbo's own icon, via electron-builder)
+#   - Dumbo-<version>-win-x64.zip (portable, stock runtime — same as `npm run package`)
+# Run it: Actions tab → "Build Dumbo" → Run workflow (files appear under the run's Artifacts),
+# or push a tag like v0.3.1 to also publish a GitHub Release with both files.
+name: Build Dumbo
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write   # only used to create the Release on tag pushes
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Portable zip
+        run: npm run package
+
+      - name: Installer
+        run: npx --yes electron-builder@25.1.8 --win nsis --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'   # unsigned (no certificate)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Dumbo-windows
+          path: |
+            release/installer/Dumbo-Setup-*.exe
+            release/Dumbo-*-win-x64.zip
+          if-no-files-found: error
+
+      - name: GitHub Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/installer/Dumbo-Setup-*.exe
+            release/Dumbo-*-win-x64.zip

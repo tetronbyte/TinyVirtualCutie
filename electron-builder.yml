@@ -1,0 +1,31 @@
+# Installer build (Dumbo-Setup-<version>.exe with Dumbo's icon). Runs ONLY in GitHub Actions
+# (.github/workflows/build.yml): it creates a new, unsigned exe, which Smart App Control blocks on the
+# owner's PC — never run electron-builder locally. Local sharing build stays scripts/package.mjs.
+appId: dev.tinyvirtualcutie.dumbo
+productName: Dumbo
+directories:
+  output: release/installer
+files:
+  - dist/**
+  - electron/**
+  - assets/**
+  - package.json
+extraResources:
+  - from: assets/icon.ico
+    to: dumbo.ico          # used by main.cjs for shortcuts (SHORTCUT_ICON)
+win:
+  target: nsis
+  icon: assets/icon.ico
+  executableName: Dumbo
+nsis:
+  oneClick: true           # double-click → installed → Dumbo starts; no admin needed
+  perMachine: false        # %LOCALAPPDATA%\Programs\Dumbo
+  runAfterFinish: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Dumbo
+  installerIcon: assets/icon.ico
+  uninstallerIcon: assets/icon.ico
+  artifactName: Dumbo-Setup-${version}.exe
+electronLanguages:
+  - en-US

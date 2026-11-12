@@ -11,6 +11,7 @@
 - Install/update for this user: `npm run install-app` (packages, copies to `%USERPROFILE%\Apps\Dumbo\Dumbo\`, launches via Explorer; settings kept; Dumbo makes his own shortcuts)
 - Regenerate icons after art changes: `npm run icons`
 - Animation preview in a normal browser: `npx vite` → http://localhost:1420/preview.html
+- Installer exe (CI only, never locally): GitHub Actions → "Build Dumbo" → Run workflow, or `git tag v0.3.1 && git push --tags`
 - Perf benchmark: `scripts/bench.sh live|idle|f10|s10` (avg % of one core, 60 s; Git Bash)
 - Offscreen screenshot of any HTML: `npx electron scripts/snap.cjs <in.html> <out.png> [w] [h]`
 

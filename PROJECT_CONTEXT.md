@@ -13,6 +13,7 @@ Source material: owner's handwritten notes (2026-11-11), `suggestions_idea.txt` 
 - State: `%USERPROFILE%\Apps\Dumbo\state.json` (settings + position), shared by dev and installed copies; `boot.json` there = last boot report (exe, app path, autostart status).
 - **Portable package (shareable)**: `npm run package` → `release/Dumbo/` (229 MB: stock `electron.exe` renamed `Dumbo.exe` 180 MB, byte-identical; `resources/app.asar` 0.4 MB = Dumbo; `resources/dumbo.ico`; en-US locale only) + `release/Dumbo-<ver>-win-x64.zip` (~100 MB). Friends unzip and run `Dumbo.exe`; first run creates Desktop + Start Menu shortcuts. No compiled/modified exe → Smart App Control friendly; the .exe icon stays Electron's atom (changing it = modifying the binary). Shortcuts/tray/window use Dumbo's icon.
 - Owner install: `npm run install-app` → packages, then copies to `%USERPROFILE%\Apps\Dumbo\Dumbo\` (state.json/boot.json stay in `%USERPROFILE%\Apps\Dumbo\`) and launches via Explorer. NOT under AppData: the Claude desktop app is MSIX-packaged and its child processes get AppData/HKCU writes redirected into `AppData\Local\Packages\Claude_*\LocalCache` (caused the 2026-11-12 'Unable to find Electron app' bug).
+- **Installer via GitHub Actions** (`.github/workflows/build.yml`, config `electron-builder.yml`): Actions → "Build Dumbo" → Run workflow, or push tag `v*` (also makes a GitHub Release). Outputs `Dumbo-Setup-<ver>.exe` (NSIS one-click, per-user `%LOCALAPPDATA%\Programs\Dumbo`, Dumbo icon on the exe, own shortcuts + uninstaller) and the portable zip. Unsigned → SmartScreen "More info → Run anyway"; Smart App Control PCs (owner's) block it → they use the zip. Never run electron-builder locally. main.cjs skips self-made shortcuts when `Uninstall Dumbo.exe` sits next to the exe.
 - Commands: see `AGENTS.md` (`npm run dev`, `npm run install-app`, bench/snap tools).
 
 ## 3. Structure
@@ -74,6 +75,7 @@ Source material: owner's handwritten notes (2026-11-11), `suggestions_idea.txt` 
 - 2026-11-11 — Design delivered (manual export into `design/`). Reviewed: complete set — rig, turnaround, 15 expressions ×2 themes, hoodie (lilac/mint/peach + dark neon, hood up/down, pull-on), ~60 pose keyframes incl. coding w/ hoodie, charge/flex, window eat/push/sit. Pose sheet is parametric → chosen animation approach.
 - 2026-11-11 — MVP step 1 built: Tauri scaffold, ported generator, animator/clips, behaviours, drag, tray, theme, persistence, browser preview.
 - 2026-11-12 — v0.3.0: portable shareable package (stock runtime + app.asar, zip ~100 MB), self-creating shortcuts, dark transparent icons (full body ≥40 px, head ≤32 px) for shortcut/tray/window.
+- 2026-11-12 — GitHub Actions workflow + electron-builder NSIS config for an installer exe with Dumbo's icon (not yet run: repo has no GitHub remote yet).
 - 2026-11-12 — Fixed launch error: installer had run inside Claude's MSIX sandbox so AppData writes were redirected; install moved to `%USERPROFILE%\Apps\Dumbo`, autostart always passes app path, state beside app, boot report. Fixed pet window growing on each move (Electron rounding at 150% scale). Added window perching/peek/nibble/fake push, app reactions (settings editor), stretch reminder, welcome back.
 - 2026-11-12 — Smart App Control blocked Tauri builds → moved host to stock Electron runtime + per-user install script (works with SAC on). Git repo created (owner: commit continuously). Front-facing "looks at you" view from the design's expression generator (no new art needed). Added click-through, gravity, battery reactions, coding/hoodie, exercises, trip, bubbles, settings window, autostart. Perf investigation: per-frame cost dominates → removed breathing, low-fps clips, saccade gaze.
 
@@ -96,4 +98,5 @@ Source material: owner's handwritten notes (2026-11-11), `suggestions_idea.txt` 
 5. AI phase (local model, on demand, permission-gated).
 
 ## 9. Open questions / blockers
+- GitHub repo not created/pushed yet (owner to do; `gh` not installed). Decide public vs private (both free for this; private = 2000 Actions min/month, Windows counts 2x). If public, `design/` source art becomes public too.
 - None blocking. Owner to judge cuteness/pace and acceptable CPU/RAM.

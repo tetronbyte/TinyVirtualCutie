@@ -220,7 +220,9 @@ app.whenReady().then(() => {
   tray.on('click', togglePet);
   buildTrayMenu();
   setAutostart(settings().startWithWindows); // always reconcile: repairs or removes stale entries from older installs
-  if (SELF_CONTAINED && !DEV_URL && state.shortcutsFor !== process.execPath) {
+  // Installer build (electron-builder NSIS) makes and removes its own shortcuts; only the portable copy makes them itself.
+  const INSTALLED = fs.existsSync(path.join(path.dirname(process.execPath), 'Uninstall Dumbo.exe'));
+  if (SELF_CONTAINED && !INSTALLED && !DEV_URL && state.shortcutsFor !== process.execPath) {
     if (createShortcuts()) { state.shortcutsFor = process.execPath; saveState(); }
   }
   // Boot report next to the app, so problems can be diagnosed without the console.
