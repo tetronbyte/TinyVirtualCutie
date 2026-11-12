@@ -15,8 +15,11 @@ export interface Settings {
   autoUpdate: boolean; // check the public release repo every few hours; applies on next start
   actions: Partial<Record<ActionId, boolean>>; // switched-off actions are false (missing = on)
   tune: Tune; // per-action knobs (missing / 0 = Auto)
+  perfMode: PerfMode; // normal | battery saver | low memory (restart)
+  saverUnplugged: boolean; // battery saver automatically while not charging
   appReactions: AppReaction[];
 }
+export type PerfMode = 'normal' | 'battery' | 'memory';
 export type ReactionAction = 'coding' | 'dance' | 'wave' | 'exercise' | 'run' | 'none';
 export interface AppReaction { app: string; action: ReactionAction }
 /** Tray "Stay here" (pin) + "Keep him…" (kind), with an optional timer (until = epoch ms, 0 = none). */
@@ -37,7 +40,7 @@ interface Host {
   savePos(): void;
   dragStart(ox: number, oy: number): void;
   dragEnd(): void;
-  track(on: boolean): void;
+  track(on: boolean, ms?: number): void;
   openSettings(): void;
   foreground(): Promise<Foreground | null>;
   idleSeconds(): Promise<number>;
@@ -56,7 +59,7 @@ declare global { interface Window { host: Host } }
 /** Falls back to a no-op host in a plain browser (preview page). */
 const noop = () => {};
 export const host: Host = window.host ?? {
-  getState: async () => ({ settings: { name: 'Dumbo', theme: 'auto', size: 1, startWithWindows: false, batteryLow: 30, batteryHigh: 90, sleepStart: '23:00', sleepEnd: '07:00', sleepiness: 0.6, visitWindows: true, stretchEvery: 50, autoUpdate: true, actions: {}, tune: {}, appReactions: [] }, hasBattery: false }),
+  getState: async () => ({ settings: { name: 'Dumbo', theme: 'auto', size: 1, startWithWindows: false, batteryLow: 30, batteryHigh: 90, sleepStart: '23:00', sleepEnd: '07:00', sleepiness: 0.6, visitWindows: true, stretchEvery: 50, autoUpdate: true, actions: {}, tune: {}, perfMode: 'normal', saverUnplugged: false, appReactions: [] }, hasBattery: false }),
   getSettings: async () => (await (host as Host).getState()).settings,
   setSettings: noop, log: (m: string) => console.log(m), ignoreMouse: noop,
   winInfo: async () => ({ bounds: { x: 0, y: 0, width: 240, height: 220 }, workArea: { x: 0, y: 0, width: 1280, height: 720 } }),

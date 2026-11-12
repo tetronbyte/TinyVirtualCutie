@@ -60,50 +60,50 @@ function say(text: string, ms = 3200) {
   bubbleTimer = window.setTimeout(() => bubbleEl.classList.remove('show'), ms);
 }
 const LINES = {
-  hello: () => [`hi! I'm ${S.name}`, 'hello hello!', 'hiii 👋'],
+  hello: () => [`hi! I'm ${S.name}`, 'hello hello!', 'hiii'],
   wake: ['*yawn*', 'mm… morning?', '5 more minutes…'],
-  petted: ['hehe', 'more pls 🥰', 'mmm nice'],
+  petted: ['hehe', 'more pls', 'mmm nice'],
   tickled: ['hehehe stop!', 'ahaha!', 'tickles!!'],
   click: ['hi!', 'boop!', 'hehe', '?'],
   pout: ['hmph!', 'I was busy…', 'put me down!'],
   happyDrop: ['wheee!', 'again again!'],
-  coding: ['tap tap tap', 'shipping it 🚀', 'one more bug…'],
+  coding: ['tap tap tap', 'shipping it', 'one more bug…'],
   exercise: ['1… 2… 3…', 'getting strong!', 'huff puff'],
   trip: ['oops…', 'I meant to do that'],
-  lowBattery: ['charge me pls 🥺', 'so… sleepy… need power', 'battery low…'],
-  charged: ['yay, power!', 'zoom zoom!', 'thank youuu ⚡'],
-  full: ["unplug me, I'm full! 💪", 'all charged! unplug pls'],
+  lowBattery: ['charge me pls', 'so… sleepy… need power', 'battery low…'],
+  charged: ['yay, power!', 'zoom zoom!', 'thank youuu'],
+  full: ["unplug me, I'm full!", 'all charged! unplug pls'],
   perch: ['nice view up here', 'my window now', 'wheee up!'],
   nibble: ['nom nom', 'tastes like pixels', '*crunch*'],
   peek: ["what's in here?", 'ooh', 'sniff sniff'],
   push: ['hnnngh!', "it won't budge…", 'so heavy…'],
-  stretch: ["let's stretch! 🙆", 'break time! move with me', 'stretchy time!'],
-  stretchDone: ['your turn! 🙆', 'feels good right?'],
-  welcome: ['welcome back!', "you're back! 🥰", 'missed you'],
-  pinned: ["I'll stay right here 📌", 'not moving!', 'staying put!'],
+  stretch: ["let's stretch!", 'break time! move with me', 'stretchy time!'],
+  stretchDone: ['your turn!', 'feels good right?'],
+  welcome: ['welcome back!', "you're back!", 'missed you'],
+  pinned: ["I'll stay right here", 'not moving!', 'staying put!'],
   unpinned: ['free to roam!', 'wheee, free!'],
-  timeUp: ["time's up! back to normal 🐘", 'all done!'],
+  timeUp: ["time's up! back to normal", 'all done!'],
   stillSleeping: ['5 more minutes…', 'zzz… mm?', '*snore*'],
-  hideStart: ["hide and seek! 🙈 count to ten!", "let's play hide and seek!", "bet you can't find me!"],
-  peekaboo: ['peekaboo! 👀', 'hehe', 'over here!', '👀'],
-  found: ['you found me! 🥰', 'aww, found me!', 'again again!'],
-  notFound: ['you never found me hehe', "I win! 🏆", 'too good at hiding'],
+  hideStart: ["hide and seek! count to ten!", "let's play hide and seek!", "bet you can't find me!"],
+  peekaboo: ['peekaboo!', 'hehe', 'over here!'],
+  found: ['you found me!', 'aww, found me!', 'again again!'],
+  notFound: ['you never found me hehe', "I win!", 'too good at hiding'],
   noWindow: ["bring a window to the front (not too high) and I'll hop on!", 'no window to sit on…'],
 };
 const HOLD_LINES: Record<HoldKind, string[]> = {
   free: ['back to normal!'],
-  sleep: ['nap time 💤'],
+  sleep: ['nap time'],
   awake: ["I'm wide awake!", 'no naps today!'],
-  coding: ['coding mode 💻', "let's ship it!"],
-  exercise: ['workout time! 💪', 'getting strong!'],
-  walk: ['going for a walk!', 'stroll time 🐾'],
+  coding: ['coding mode', "let's ship it!"],
+  exercise: ['workout time!', 'getting strong!'],
+  walk: ['going for a walk!', 'stroll time'],
 };
 const appName = (n: string) => n.replace(/\.exe$/i, '').replace(/^\w/, c => c.toUpperCase());
 const REACT_LINES: Record<ReactionAction, (a: string) => string[]> = {
-  coding: a => [`${a}! let's code 💻`, 'coding time!', "I'll code too!"],
-  dance: a => [`${a}! 🎶`, 'music!! 🎵', 'dance time!'],
-  wave: a => [`hi ${a} friends! 👋`, 'say hi from me!'],
-  exercise: () => ['workout time! 💪'],
+  coding: a => [`${a}! let's code`, 'coding time!', "I'll code too!"],
+  dance: a => [`${a}!`, 'music!!', 'dance time!'],
+  wave: a => [`hi ${a} friends!`, 'say hi from me!'],
+  exercise: () => ['workout time!'],
   run: () => ['zoom zoom!'],
   none: () => [],
 };
@@ -121,7 +121,22 @@ let lastInteraction = Date.now();
 // Owner's "stay here" pin and "keep doing…" state (tray), with an optional timer kept by the host.
 let hold: Hold = { pin: false, kind: 'free', until: 0 };
 
-const schedule = (ms: number) => { clearTimeout(decideTimer); decideTimer = window.setTimeout(decide, ms); };
+// ---------- battery saver ----------
+// Calmer and sleepier: fewer actions, longer pauses, 8 fps animation, looks at you once a second,
+// checks apps less often. On when chosen, or automatically while unplugged (if that's ticked).
+const saving = () => S?.perfMode === 'battery' || (!!S?.saverUnplugged && !!battery && !battery.charging);
+let tracking = false;
+const track = (v: boolean) => { tracking = v; host.track(v, saving() ? 1000 : 250); };
+let wasSaving: boolean | null = null;
+function applyPerf() {
+  const now = saving();
+  Animator.maxFps = now ? 8 : 60;
+  if (now !== wasSaving && wasSaving !== null) { if (tracking) track(true); host.log(`battery saver ${now ? 'on' : 'off'}`); }
+  wasSaving = now;
+}
+const slow = (ms: number) => (saving() ? ms * 2 : ms);
+
+const schedule = (ms: number) => { clearTimeout(decideTimer); decideTimer = window.setTimeout(decide, ms > 4000 ? slow(ms) : ms); };
 function setFacing(left: boolean) { facingLeft = left; stage.classList.toggle('left', left); }
 
 /** Make sure we are sitting and facing the user. */
@@ -131,14 +146,14 @@ async function toFront(expr = 'smile') {
   }
   anim.setFront({ ...FRONT_REST, expr, shadow: !perch });
   mode = 'front';
-  host.track(true);
+  track(true);
   scheduleBlink();
   idleExprLater();
 }
 
 /** Switch to the side view, standing (or sitting) and ready for an action. */
 async function toSide(stand = true) {
-  host.track(false);
+  track(false);
   clearTimeout(exprTimer);
   if (anim.view === 'front') anim.setSide(SIT);
   if (stand && anim.side.base === 'sit') await anim.play(clips.standUp());
@@ -178,7 +193,7 @@ function scheduleBlink() {
   blinkTimer = window.setTimeout(async () => {
     if (mode === 'front' && !anim.busy) await anim.face([{ s: { blink: 1 }, ms: 70 }, { s: { blink: 1 }, ms: 50 }, { s: { blink: 0 }, ms: 90 }], false, 15);
     if (mode === 'front') scheduleBlink();
-  }, rand(2200, 6000) * (chance(0.15) ? 0.1 : 1)); // sometimes a double blink
+  }, rand(2200, 6000) * (chance(0.15) ? 0.1 : 1) * (saving() ? 1.6 : 1)); // sometimes a double blink
 }
 
 function setExpr(expr: string, ms = 3000) {
@@ -198,7 +213,7 @@ function idleExprLater() {
     else anim.setFront({ expr: e });
     setTimeout(() => { if (mode === 'front' && !anim.busy) anim.setFront({ expr: baseExpr() }); }, rand(1800, 4000));
     idleExprLater();
-  }, rand(5000, 12000));
+  }, slow(rand(5000, 12000)));
 }
 
 // ---------- decisions ----------
@@ -222,7 +237,7 @@ async function decide() {
   if (hold.kind === 'sleep') return sleep();
   if (hold.kind === 'coding' || hold.kind === 'exercise' || hold.kind === 'walk') return holdActivity();
   const awakeFor = Date.now() - awakeSince;
-  const awakeBudget = (isNight() ? 45_000 : rand(90_000, 240_000) * (1.4 - S.sleepiness));
+  const awakeBudget = (isNight() ? 45_000 : rand(90_000, 240_000) * (1.4 - S.sleepiness)) * (saving() ? 0.5 : 1);
   if (hold.kind !== 'awake' && awakeFor > awakeBudget && Date.now() - lastInteraction > 20_000) return sleep();
 
   if (await batteryCheck()) return schedule(rand(8000, 15000));
@@ -246,7 +261,7 @@ async function decide() {
 
   const next = lowBattery
     ? pickW<string>([['nothing', 6], ['walk', hold.pin ? 0 : w('walk', 1)]])
-    : pickW<string>([['nothing', 6], ['walk', hold.pin ? 0 : w('walk', 3)], ['earflap', w('earflap', 1.5)], ['wave', w('wave', 1)], ['coding', w('coding', 1.6)],
+    : pickW<string>([['nothing', saving() ? 16 : 6], ['walk', hold.pin ? 0 : w('walk', 3)], ['earflap', w('earflap', 1.5)], ['wave', w('wave', 1)], ['coding', w('coding', 1.6)],
       ['pushups', w('pushups', .7)], ['rope', w('rope', .7)], ['hideSeek', hold.pin ? 0 : w('hideSeek', .45)]]);
   switch (next) {
     case 'walk': await stroll('walk'); break;
@@ -301,12 +316,12 @@ async function frontEarFlap() {
 // ---------- sleep ----------
 async function sleep(style?: 'doze' | 'curl') {
   mode = 'busy';
-  host.track(false);
+  track(false);
   clearTimeout(exprTimer); clearTimeout(blinkTimer);
   sleepStyle = style ?? (on('curl') && (!on('doze') || chance(0.4)) ? 'curl' : 'doze');
   if (sleepStyle === 'doze') {
     if (anim.view !== 'front') await toFront('neutral');
-    host.track(false);
+    track(false);
     await anim.face([{ s: { expr: 'tired', gaze: [0, 3], blink: 0 }, ms: 700 }, { s: { blink: 1 }, ms: 900 }, { s: { blink: .4 }, ms: 500 }, { s: { blink: 1, expr: 'sleeping', tilt: 9, head: [-2, 10], earAdd: [-6, 6] }, ms: 1400 }], false, 10);
   } else {
     await toSide(false);
@@ -335,7 +350,7 @@ async function settle() {
   const { bounds, workArea } = await host.winInfo();
   if (bounds.y >= workArea.y + workArea.height - bounds.height - 3) return;
   mode = 'busy';
-  host.track(false);
+  track(false);
   anim.setSide(STAND);
   await fallToGround();
   host.savePos();
@@ -574,7 +589,7 @@ function watchApps() {
       if (fg && fg.name !== lastApp) { const prev = lastApp; lastApp = fg.name; if (import.meta.env.DEV) host.log(`app: ${fg.name} ${Math.round(fg.x)},${Math.round(fg.y)} ${Math.round(fg.w)}x${Math.round(fg.h)}${fg.max ? ' max' : ''}`); if (prev) await onAppSwitch(fg); }
     }
     watchApps();
-  }, mode === 'sleep' ? 15_000 : 5000);
+  }, mode === 'sleep' || saving() ? 15_000 : 5000);
 }
 
 async function onAppSwitch(fg: Foreground) {
@@ -730,7 +745,7 @@ function startDrag(ox: number, oy: number) {
   grumpy = mode === 'sleep' || mode === 'side' || mode === 'busy';
   walkStop?.();
   clearTimeout(decideTimer); clearTimeout(exprTimer); clearTimeout(blinkTimer);
-  host.track(false);
+  track(false);
   mode = 'held';
   setOver(true);
   anim.setSide(STAND);
@@ -777,6 +792,7 @@ async function initBattery() {
   try { battery = await (navigator as any).getBattery(); } catch { return; }
   battery!.addEventListener('chargingchange', onChargingChange);
   battery!.addEventListener('levelchange', () => { updateLow(); });
+  applyPerf();
   updateLow();
 }
 function updateLow() {
@@ -789,6 +805,7 @@ function updateLow() {
 async function onChargingChange() {
   if (!battery) return;
   updateLow();
+  applyPerf();
   if (!battery.charging) { flexCount = 0; return; }
   // Plugged in → excited, bounces, runs around, then back to normal life.
   if (mode === 'held' || hold.kind === 'sleep' || game || !on('charged')) return;
@@ -860,7 +877,7 @@ async function hideAndSeek(quick = false) {
   const g: Game = game = { found: false, abort: false, peeking: false };
   if (anim.view !== 'front' || mode !== 'front') await toFront('giggle');
   mode = 'busy';
-  host.track(false); clearTimeout(exprTimer); clearTimeout(blinkTimer);
+  track(false); clearTimeout(exprTimer); clearTimeout(blinkTimer);
   say(pick(LINES.hideStart), 2600);
   await anim.face([{ s: { expr: 'giggle', bounce: 14, earAdd: [16, -16] }, ms: 160 }, { s: { bounce: 0, earAdd: [0, 0] }, ms: 180 }, { s: { expr: 'happy' }, ms: 1100 }]);
   if (g.abort) return;
@@ -933,18 +950,18 @@ async function tryAction(id: ActionId) {
   await interrupt();
   const winTarget = async () => { const fg = await getFg(); return fg && !fg.max ? fg : null; };
   switch (id) {
-    case 'walk': if (hold.pin) say("I'm pinned! 📌", 2000); else await stroll('walk'); break;
+    case 'walk': if (hold.pin) say("I'm pinned!", 2000); else await stroll('walk'); break;
     case 'trip': mode = 'side'; await toSide(true); say(pick(LINES.trip)); await anim.play(clips.trip()); if (mode === 'side') { mode = 'busy'; await toFront('pout'); } break;
     case 'earflap': await frontEarFlap(); break;
     case 'wave': await sideAction(clips.wave()); break;
     case 'coding': say(pick(LINES.coding)); await sideAction(clips.coding(reps('coding', 1, 2)), false); break;
     case 'pushups': say(pick(LINES.exercise)); await sideAction(clips.pushups(reps('pushups', 4, 5))); break;
     case 'rope': say(pick(LINES.exercise)); await sideAction(clips.rope(reps('rope', 5, 6))); break;
-    case 'hideSeek': if (hold.pin) say("I'm pinned! 📌", 2000); else await hideAndSeek(true); break;
+    case 'hideSeek': if (hold.pin) say("I'm pinned!", 2000); else await hideAndSeek(true); break;
     case 'perch': {
       if (perch) { say(pick(LINES.perch), 2000); break; }
       const fg = await winTarget();
-      if (fg && !hold.pin && await canPerch(fg)) await hopOnto(fg); else say(hold.pin ? "I'm pinned! 📌" : pick(LINES.noWindow), 3200);
+      if (fg && !hold.pin && await canPerch(fg)) await hopOnto(fg); else say(hold.pin ? "I'm pinned!" : pick(LINES.noWindow), 3200);
       break;
     }
     case 'peek': say(pick(LINES.peek), 2200); if (perch) await perchedAction(clips.peek()); else await sideAction(clips.peek()); break;
@@ -964,7 +981,7 @@ async function tryAction(id: ActionId) {
     case 'welcome': say(pick(LINES.welcome), 2600); await frontEarFlap(); break;
     case 'stretch': say(pick(LINES.stretch), 3500); await sideAction(clips.rope(5)); say(pick(LINES.stretchDone), 3000); break;
     case 'dance': await dance(); break;
-    case 'run': if (hold.pin) say("I'm pinned! 📌", 2000); else await stroll('run'); break;
+    case 'run': if (hold.pin) say("I'm pinned!", 2000); else await stroll('run'); break;
     case 'charged': await chargedJoy(); break;
     case 'flex': say(pick(LINES.full), 4000); await sideAction(clips.flex()); break;
     case 'tired': say(pick(LINES.lowBattery), 4000); await sideAction(clips.tired(), false); break;
@@ -982,7 +999,7 @@ host.onAction(async a => {
   if (a === 'sleep' && mode !== 'sleep' && mode !== 'held') { abortGame(); walkStop?.(); anim.stop(); clearTimeout(decideTimer); sleep(); }
   if (a === 'wake' && mode === 'sleep') { await wake(true); schedule(rand(6000, 12000)); }
 });
-host.onSettings(s => { S = s; applyTheme(); updateLow(); });
+host.onSettings(s => { S = s; applyTheme(); updateLow(); applyPerf(); });
 host.onHold(h => { applyHold(h).catch(e => host.log(`hold failed: ${e?.stack || e}`)); });
 
 async function applyHold(h: Hold) {
@@ -1016,6 +1033,7 @@ async function boot() {
   S = st.settings; hasBattery = st.hasBattery;
   if (st.hold) hold = st.hold;
   applyTheme();
+  applyPerf();
   setOver(false);
   initBattery();
   mode = 'busy';

@@ -87,6 +87,9 @@ export class Animator {
 
   constructor(private el: HTMLElement) {}
 
+  /** Global frame-rate cap (battery saver lowers it). */
+  static maxFps = 60;
+
   get busy() { return this.job !== null; }
 
   setTheme(theme: Theme) {
@@ -135,7 +138,7 @@ export class Animator {
     const now = performance.now();
     const ms = j.view === 'side' ? j.clip.keys[j.idx].ms : j.keys[j.idx].ms;
     const t = ms <= 0 ? 1 : Math.min(1, (now - j.t0) / ms);
-    if (now - this.lastDraw >= 1000 / j.fps || t >= 1) {
+    if (now - this.lastDraw >= 1000 / Math.min(j.fps, Animator.maxFps) || t >= 1) {
       if (j.view === 'side') this.side = blend(j.from, j.clip.keys[j.idx].p, ease(t));
       else this.front = blendFront(j.from, j.keys[j.idx].s, ease(t));
       this.redraw();

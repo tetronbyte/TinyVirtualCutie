@@ -22,11 +22,19 @@ function seg(id: string, value: string, onPick: (v: string) => void) {
   });
 }
 
+const PERF_HINTS: Record<Settings['perfMode'], string> = {
+  normal: 'Everything on, at his usual pace.',
+  battery: 'Calmer and sleepier: does less, naps more, simpler animation. Saves battery.',
+  memory: 'Uses less memory. Visiting windows and app reactions turn off. He restarts to switch.',
+};
+
 function render() {
   $('title').textContent = `${S.name} settings`;
   document.title = `${S.name} settings`;
   seg('sizeSeg', String(S.size), v => save({ size: Number(v) }));
   seg('themeSeg', S.theme, v => save({ theme: v as Settings['theme'] }));
+  seg('perfSeg', S.perfMode || 'normal', v => save({ perfMode: v as Settings['perfMode'] }));
+  $('perfHint').textContent = PERF_HINTS[S.perfMode || 'normal'];
   $('sizeOut').textContent = `${Math.round(S.size * 100)}%`;
   $('sleepOut').textContent = `${Math.round(S.sleepiness * 100)}%`;
   $('lowOut').textContent = `${S.batteryLow}%`;
@@ -190,6 +198,9 @@ async function init() {
   }
   const auto = $<HTMLInputElement>('startWithWindows'); auto.checked = S.startWithWindows;
   auto.onchange = () => save({ startWithWindows: auto.checked });
+  const unplugged = $<HTMLInputElement>('saverUnplugged'); unplugged.checked = !!S.saverUnplugged;
+  unplugged.onchange = () => save({ saverUnplugged: unplugged.checked });
+  $('unpluggedRow').hidden = !st.hasBattery;
   const upd = $<HTMLInputElement>('autoUpdate'); upd.checked = S.autoUpdate;
   upd.onchange = () => save({ autoUpdate: upd.checked });
   render();

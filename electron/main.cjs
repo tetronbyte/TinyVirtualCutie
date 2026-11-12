@@ -45,6 +45,11 @@ const BASE_W = 240, BASE_H = 220;
 let tray;
 migrateState();
 let state = loadState();
+// Low memory mode: no graphics acceleration (no GPU process) and no window watcher. Decided here,
+// before the app is ready (this file runs at start-up, also when loaded as an update), so changing
+// the mode restarts Dumbo.
+const LOW_MEM = state.settings?.perfMode === 'memory';
+if (LOW_MEM) app.disableHardwareAcceleration();
 
 function loadState() {
   try { return JSON.parse(fs.readFileSync(STATE_FILE(), 'utf8')); } catch { return {}; }
@@ -55,7 +60,7 @@ function saveState() {
 const settings = () => ({
   name: 'Dumbo', theme: 'auto', size: 1, startWithWindows: false,
   batteryLow: 30, batteryHigh: 90, sleepStart: '23:00', sleepEnd: '07:00', sleepiness: 0.6,
-  visitWindows: true, stretchEvery: 50, autoUpdate: true, actions: {}, tune: {},
+  visitWindows: true, stretchEvery: 50, autoUpdate: true, actions: {}, tune: {}, perfMode: 'normal', saverUnplugged: false,
   appReactions: [
     { app: 'Code', action: 'coding' }, { app: 'Cursor', action: 'coding' }, { app: 'devenv', action: 'coding' },
     { app: 'idea64', action: 'coding' }, { app: 'WindowsTerminal', action: 'coding' },
@@ -117,6 +122,11 @@ function applySettings(next) {
   }
   if (s.startWithWindows !== prev.startWithWindows) setAutostart(s.startWithWindows);
   if (s.autoUpdate !== prev.autoUpdate) updater.start(s.autoUpdate);
+  // Low memory mode only takes effect at start-up (graphics acceleration): restart for him.
+  if ((s.perfMode === 'memory') !== LOW_MEM) {
+    pet.webContents.send('say', s.perfMode === 'memory' ? 'restarting to save memory… brb!' : 'restarting… brb!');
+    setTimeout(() => { app.relaunch(); app.quit(); }, 1500);
+  }
   pet.setTitle(s.name);
   tray?.setToolTip(s.name);
   pet.webContents.send('settings', s);
@@ -150,6 +160,10 @@ function buildTrayMenu() {
     ...holdMenu(),
     { type: 'separator' },
     { label: 'Theme', submenu: ['auto', 'light', 'dark'].map(theme) },
+    { label: 'Mode', submenu: [
+      ...[['normal', 'Normal'], ['battery', 'Battery saver'], ['memory', 'Low memory (restarts)']].map(([m, l]) => ({ label: l, type: 'radio', checked: s.perfMode === m, click: () => applySettings({ perfMode: m }) })),
+      ...(hasBattery ? [{ type: 'separator' }, { label: 'Battery saver when unplugged', type: 'checkbox', checked: s.saverUnplugged, click: i => applySettings({ saverUnplugged: i.checked }) }] : []),
+    ] },
     { label: 'Settings…', click: openSettings },
     { type: 'separator' },
     { label: IS_MAC ? 'Open at login' : 'Start with Windows', type: 'checkbox', checked: s.startWithWindows, click: i => applySettings({ startWithWindows: i.checked }) },
@@ -207,7 +221,7 @@ let announced = '';
 function onUpdateStatus(u) {
   const name = settings().name;
   const line =
-    u.state === 'ready' && (u.manual || announced !== u.version) ? `I learned new tricks! Restart me from the tray to get v${u.version} ✨` :
+    u.state === 'ready' && (u.manual || announced !== u.version) ? `I learned new tricks! Restart me from the tray to get v${u.version}` :
     u.state === 'reinstall' && (u.manual || announced !== u.version) ? `${name} v${u.version} is out! It needs a fresh download (tray menu).` :
     u.manual && u.state === 'latest' ? `I'm all up to date! (v${APP_VERSION})` :
     u.manual && u.state === 'checking' ? 'checking for updates…' :
@@ -267,7 +281,7 @@ ipcMain.handle('fg:get', async () => {
     const b = settingsWin.getBounds();
     return { name: 'Dumbo settings', x: b.x, y: b.y, w: b.width, h: b.height, max: settingsWin.isMaximized() || settingsWin.isFullScreen() };
   }
-  if (!IS_WIN) return null; // macOS: window visits / app reactions not built yet (need the Accessibility permission)
+  if (!IS_WIN || LOW_MEM) return null; // low memory: no window watcher process (~tens of MB). macOS: window visits / app reactions not built yet (need the Accessibility permission)
   const r = await winWatch.foreground();
   if (!r.name || r.pid === process.pid || /^(Dumbo|electron)$/i.test(r.name)) return null;
   const d = screen.screenToDipRect(null, { x: r.x, y: r.y, width: r.w, height: r.h });
@@ -289,7 +303,7 @@ ipcMain.on('drag:end', () => { clearInterval(dragTimer); dragTimer = null; });
 
 // Cursor tracking for "looks at you": only runs while the renderer asks for it, ~4 Hz, sends only on change.
 let trackTimer = null, lastCursor = '';
-ipcMain.on('track', (_e, on) => {
+ipcMain.on('track', (_e, on, ms) => {
   clearInterval(trackTimer); trackTimer = null;
   if (!on) return;
   trackTimer = setInterval(() => {
@@ -298,7 +312,7 @@ ipcMain.on('track', (_e, on) => {
     if (key === lastCursor) return;
     lastCursor = key;
     pet.webContents.send('cursor', { x: c.x - b.x, y: c.y - b.y, w: b.width, h: b.height });
-  }, 250);
+  }, Math.max(100, Number(ms) || 250)); // 1 s in battery saver
 });
 
 // Does this machine have a battery? (desktop PCs: no battery reactions)
@@ -337,7 +351,7 @@ app.whenReady().then(() => {
   try {
     const li = IS_MAC ? app.getLoginItemSettings() : app.getLoginItemSettings({ path: process.execPath, args: LAUNCH_ARGS });
     fs.mkdirSync(STATE_DIR, { recursive: true });
-    fs.writeFileSync(path.join(STATE_DIR, 'boot.json'), JSON.stringify({ at: new Date().toISOString(), exe: process.execPath, app: path.resolve(ROOT), selfContained: SELF_CONTAINED, version: APP_VERSION, shippedVersion: app.getVersion(), update: BOOT.overlay, platform: process.platform, dev: !!DEV_URL, startWithWindows: settings().startWithWindows, loginItem: { openAtLogin: li.openAtLogin, executableWillLaunchAtLogin: li.executableWillLaunchAtLogin, launchItems: li.launchItems } }, null, 2));
+    fs.writeFileSync(path.join(STATE_DIR, 'boot.json'), JSON.stringify({ at: new Date().toISOString(), exe: process.execPath, app: path.resolve(ROOT), selfContained: SELF_CONTAINED, version: APP_VERSION, shippedVersion: app.getVersion(), update: BOOT.overlay, platform: process.platform, lowMemory: LOW_MEM, dev: !!DEV_URL, startWithWindows: settings().startWithWindows, loginItem: { openAtLogin: li.openAtLogin, executableWillLaunchAtLogin: li.executableWillLaunchAtLogin, launchItems: li.launchItems } }, null, 2));
   } catch (e) { console.error(e); }
 });
 app.on('second-instance', () => pet?.showInactive());

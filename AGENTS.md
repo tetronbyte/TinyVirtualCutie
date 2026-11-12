@@ -46,3 +46,8 @@ TypeScript strict, ES modules, no UI framework. Electron main/preload are Common
 - Host code branches on `IS_MAC` / `IS_WIN` in `electron/main.cjs`. Windows-only: winwatch (PowerShell UIA), shortcuts, NSIS. macOS: menu-bar tray (`assets/tray.png` as 2x), `pmset` battery, `app.dock.hide()` + `LSUIElement`, state in `~/Library/Application Support/Dumbo`.
 - No Apple Developer account: the app is ad-hoc signed in CI; users click "Open Anyway" once. Don't add notarization/hardened-runtime steps without a paid account.
 - Nobody on the team can run macOS locally; every Mac change is verified only by CI + a real Mac user.
+
+## Performance modes
+- Anything that must be decided before `app.whenReady()` goes at the top of `electron/main.cjs`, not `boot.cjs`: copies updated over the internet keep running their originally shipped `boot.cjs`.
+- Battery saver checks go through `saving()` / `slow()` / `track()` in `src/main.ts`; don't call `host.track` directly.
+- Speech bubbles: no emoji (owner preference).

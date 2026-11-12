@@ -17,7 +17,7 @@ contextBridge.exposeInMainWorld('host', {
   savePos: () => ipcRenderer.send('win:save'),
   dragStart: (ox, oy) => ipcRenderer.send('drag:start', ox, oy),
   dragEnd: () => ipcRenderer.send('drag:end'),
-  track: (on) => ipcRenderer.send('track', !!on),
+  track: (on, ms) => ipcRenderer.send('track', !!on, Number(ms) || 250),
   openSettings: () => ipcRenderer.send('open:settings'),
   foreground: () => ipcRenderer.invoke('fg:get'),
   idleSeconds: () => ipcRenderer.invoke('idle:get'),
