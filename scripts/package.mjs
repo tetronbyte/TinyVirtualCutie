@@ -59,7 +59,7 @@ const electronVersion = JSON.parse(readFileSync(path.join(root, 'node_modules', 
 writeFileSync(path.join(release, 'update.json'), JSON.stringify({
   version: pkg.version, electron: electronVersion.split('.')[0], asar: asarName,
   sha512: createHash('sha512').update(readFileSync(path.join(release, asarName))).digest('base64'),
-  notes: process.env.DUMBO_RELEASE_NOTES || '',
+  notes: (process.env.DUMBO_RELEASE_NOTES || '').split('\n').filter(l => !/^Co-Authored-By:/i.test(l)).join('\n').trim(),
 }, null, 2));
 
 console.log('4/5 zipping…');
