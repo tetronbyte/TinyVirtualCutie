@@ -62,6 +62,9 @@ let state = loadState();
 // the mode restarts Dumbo.
 const LOW_MEM = state.settings?.perfMode === 'memory';
 if (LOW_MEM) app.disableHardwareAcceleration();
+// Restarted by himself after the laptop woke up (see restartAfterSleep): he says "hello again".
+const WOKE = !!state.helloAgain;
+if (WOKE) { delete state.helloAgain; saveState(); }
 
 function loadState() {
   try { return JSON.parse(fs.readFileSync(STATE_FILE(), 'utf8')); } catch { return {}; }
@@ -291,7 +294,7 @@ function togglePet() {
 }
 
 // ---------- IPC ----------
-ipcMain.handle('state:get', () => ({ settings: settings(), hasBattery, platform: process.platform, hold: { ...hold, reason: 'restore' } }));
+ipcMain.handle('state:get', e => ({ settings: settings(), hasBattery, platform: process.platform, hold: { ...hold, reason: 'restore' }, wokeUp: WOKE && alive() && e.sender === pet.webContents }));
 ipcMain.handle('settings:get', () => settings());
 ipcMain.on('settings:set', (_e, next) => applySettings(next));
 ipcMain.on('log', (_e, msg) => console.log('[pet]', msg));
@@ -372,6 +375,17 @@ function resyncPet(why) {
   else sendPet('mouse:reset');
   if (pet.isVisible()) startHoverPoll();
 }
+// After sleep, Windows can leave his window unable to receive mouse presses (seen on the owner's laptop:
+// the release arrives, the press never does; reloading the page or re-showing the window didn't help,
+// a fresh process did). So on wake he restarts himself, a couple of seconds later, and says hello again.
+let restarting = false;
+function restartAfterSleep() {
+  if (restarting) return;
+  if (DEV_URL || process.env.DUMBO_NO_WAKE_RESTART) { resyncSoon('resume'); return; } // dev (vite hot reload): no relaunch
+  restarting = true;
+  console.log('[host] woke from sleep: restarting for a fresh window');
+  setTimeout(() => { state.helloAgain = true; saveState(); app.relaunch(); app.quit(); }, 2500);
+}
 function resyncSoon(why) { resyncPet(why); setTimeout(() => resyncPet(why + ' (again)'), 3000); } // displays settle late
 
 // Cursor tracking for "looks at you": only runs while the renderer asks for it, ~4 Hz, sends only on change.
@@ -425,7 +439,7 @@ app.whenReady().then(() => {
   try {
     const li = IS_MAC ? app.getLoginItemSettings() : app.getLoginItemSettings({ path: process.execPath, args: LAUNCH_ARGS });
     fs.mkdirSync(STATE_DIR, { recursive: true });
-    fs.writeFileSync(path.join(STATE_DIR, 'boot.json'), JSON.stringify({ at: new Date().toISOString(), exe: process.execPath, app: path.resolve(ROOT), selfContained: SELF_CONTAINED, version: APP_VERSION, shippedVersion: app.getVersion(), update: BOOT.overlay, platform: process.platform, lowMemory: LOW_MEM, dev: !!DEV_URL, startWithWindows: settings().startWithWindows, loginItem: { openAtLogin: li.openAtLogin, executableWillLaunchAtLogin: li.executableWillLaunchAtLogin, launchItems: li.launchItems } }, null, 2));
+    fs.writeFileSync(path.join(STATE_DIR, 'boot.json'), JSON.stringify({ at: new Date().toISOString(), exe: process.execPath, app: path.resolve(ROOT), selfContained: SELF_CONTAINED, version: APP_VERSION, shippedVersion: app.getVersion(), update: BOOT.overlay, platform: process.platform, lowMemory: LOW_MEM, wokeUp: WOKE, dev: !!DEV_URL, startWithWindows: settings().startWithWindows, loginItem: { openAtLogin: li.openAtLogin, executableWillLaunchAtLogin: li.executableWillLaunchAtLogin, launchItems: li.launchItems } }, null, 2));
   } catch (e) { console.error(e); }
 });
 app.on('second-instance', () => { if (alive()) { pet.showInactive(); rescueIfLost(); buildTrayMenu(); } });
@@ -433,9 +447,10 @@ app.on('window-all-closed', () => app.quit());
 app.on('before-quit', stopTimers);
 app.on('will-quit', () => { stopTimers(); winWatch.stop(); updater.stop(); });
 app.whenReady().then(() => {
-  for (const ev of ['resume', 'unlock-screen']) powerMonitor.on(ev, () => resyncSoon(ev));
+  powerMonitor.on('resume', restartAfterSleep);
+  powerMonitor.on('unlock-screen', () => resyncSoon('unlock-screen'));
   for (const ev of ['display-metrics-changed', 'display-added', 'display-removed']) screen.on(ev, () => resyncSoon(ev));
   app.on('child-process-gone', (_e, d) => { if (d.type === 'GPU') setTimeout(() => resyncPet('graphics reset'), 1500); });
-  if (process.env.DUMBO_TEST_RESUME) setTimeout(() => powerMonitor.emit('resume'), Number(process.env.DUMBO_TEST_RESUME));
+  if (process.env.DUMBO_TEST_RESUME && !WOKE) setTimeout(() => powerMonitor.emit('resume'), Number(process.env.DUMBO_TEST_RESUME)); // once, not again after the restart
   if (process.env.DUMBO_TEST_QUIT) setTimeout(() => app.quit(), Number(process.env.DUMBO_TEST_QUIT));
 });

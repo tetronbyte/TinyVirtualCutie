@@ -27,6 +27,7 @@
 - The Browser pane can stall when the app window is hidden; use `scripts/snap.cjs` for visual checks. GDI screen capture can't see the pet window.
 - Click-through (`setIgnoreMouseEvents` + forward): never rely only on forwarded mousemove; the host hover poll covers him moving under a still cursor. `DUMBO_BENCH` runs log `over true/false`.
 - Host timers and late messages must use `alive()` / `sendPet()` in `electron/main.cjs` (window may be destroyed while quitting). Test env: `DUMBO_TEST_RESUME=<ms>` fakes wake-from-sleep, `DUMBO_TEST_QUIT=<ms>` quits.
+- Wake from sleep = full restart (`restartAfterSleep` in `electron/main.cjs`): after resume Windows left the window unable to receive mouse presses; nothing short of a new process fixed it. Dev runs (`DUMBO_DEV_URL`) and `DUMBO_NO_WAKE_RESTART=1` only resync.
 - Renderer errors and `host.log()` print to the Electron main stdout as `[pet] ...`.
 
 ## Rules

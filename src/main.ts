@@ -61,6 +61,7 @@ function say(text: string, ms = 3200) {
 }
 const LINES = {
   hello: () => [`hi! I'm ${S.name}`, 'hello hello!', 'hiii'],
+  helloAgain: ['hello again!', "I'm awake! hi again", 'oh hi, welcome back!'],
   wake: ['*yawn*', 'mm… morning?', '5 more minutes…'],
   petted: ['hehe', 'more pls', 'mmm nice'],
   tickled: ['hehehe stop!', 'ahaha!', 'tickles!!'],
@@ -734,6 +735,7 @@ document.addEventListener('mousemove', e => {
 document.addEventListener('mouseleave', () => { if (!dragging && !down) setOver(false); });
 
 document.addEventListener('mousedown', e => {
+  if ((window.host as any)?.bench) host.log(`mousedown ${Math.round(e.clientX)},${Math.round(e.clientY)} hit=${hitPet(e.clientX, e.clientY)}`);
   if (e.button === 0 && hitPet(e.clientX, e.clientY)) down = { x: e.clientX, y: e.clientY };
   if (e.button === 2 && hitPet(e.clientX, e.clientY)) host.openSettings();
 });
@@ -774,6 +776,7 @@ async function tickled() {
 
 let grumpy = false;
 function startDrag(ox: number, oy: number) {
+  if ((window.host as any)?.bench) host.log('drag start');
   motion++;
   abortGame(false); // you've got him: no need to put him back first
   dragging = true;
@@ -1077,6 +1080,7 @@ async function boot() {
   const st = await host.getState();
   S = st.settings; hasBattery = st.hasBattery;
   if (st.hold) hold = st.hold;
+  if (st.wokeUp) host.log('woke up: hello again');
   applyTheme();
   applyPerf();
   setOver(false);
@@ -1085,7 +1089,7 @@ async function boot() {
   anim.setFront({ ...FRONT_REST, expr: 'happy' });
   if (!(await fallToGround())) { /* already on the ground */ }
   await toFront('happy');
-  say(pick(LINES.hello()), 2800);
+  say(pick(st.wokeUp ? LINES.helloAgain : LINES.hello()), 2800);
   await frontEarFlap();
   watchApps();
   watchActivity();
@@ -1111,7 +1115,7 @@ if (BENCH) {
           const g = game as Game | null; // (read fresh: changes while we wait)
           if (g?.peeking) {
             const { bounds } = await host.winInfo();
-            if (!peeks++) host.log(`  peek: y=${bounds.y} upside=${document.body.classList.contains('upside')}`);
+            if (!peeks++) host.log(`  peek: x=${bounds.x} y=${bounds.y} upside=${document.body.classList.contains('upside')}`);
             else { g.found = true; g.wake?.(); }
             while (g.peeking) await wait(100);
           }

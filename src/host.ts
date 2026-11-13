@@ -30,7 +30,7 @@ export interface Rect { x: number; y: number; width: number; height: number }
 export interface Cursor { x: number; y: number; w: number; h: number }
 
 interface Host {
-  getState(): Promise<{ settings: Settings; hasBattery: boolean; platform?: string; hold?: Hold }>;
+  getState(): Promise<{ settings: Settings; hasBattery: boolean; platform?: string; hold?: Hold; wokeUp?: boolean }>;
   getSettings(): Promise<Settings>;
   setSettings(s: Partial<Settings>): void;
   log(m: string): void;
