@@ -41,6 +41,16 @@ function migrateState() {
 const BASE_W = 240, BASE_H = 220;
 
 /** @type {BrowserWindow} */ let pet;
+// His window can be gone (quitting) while timers or late messages still fire: check before touching it.
+const alive = () => !!pet && !pet.isDestroyed();
+function sendPet(ch, v) { if (alive() && !pet.webContents.isDestroyed()) pet.webContents.send(ch, v); }
+
+// A pet shouldn't pop up error boxes: an uncaught error in the host is logged next to state.json instead.
+// (The error box also blocked quitting.)
+process.on('uncaughtException', e => {
+  console.error(e);
+  try { fs.mkdirSync(STATE_DIR, { recursive: true }); fs.appendFileSync(path.join(STATE_DIR, 'errors.log'), `${new Date().toISOString()} ${APP_VERSION} ${e && e.stack || e}\n`); } catch {}
+});
 /** @type {BrowserWindow|null} */ let settingsWin = null;
 let tray;
 migrateState();
@@ -96,7 +106,12 @@ function createPet() {
   if (!process.env.DUMBO_NOFWD) pet.setIgnoreMouseEvents(true, { forward: true }); // renderer turns this off while the cursor is over Dumbo
   load(pet, 'index.html');
   pet.once('ready-to-show', () => { pet.showInactive(); updater.markGood(); startHoverPoll(); });
-  pet.on('closed', () => app.quit());
+  pet.on('closed', () => { stopTimers(); app.quit(); });
+  // Renderer crashed (can happen after sleep/resume or a graphics driver reset): bring him back.
+  pet.webContents.on('render-process-gone', (_e, d) => {
+    console.error('pet renderer gone:', d.reason);
+    if (d.reason !== 'clean-exit') setTimeout(() => { if (alive()) pet.reload(); }, 1000);
+  });
 }
 
 function openSettings() {
@@ -124,12 +139,12 @@ function applySettings(next) {
   if (s.autoUpdate !== prev.autoUpdate) updater.start(s.autoUpdate);
   // Low memory mode only takes effect at start-up (graphics acceleration): restart for him.
   if ((s.perfMode === 'memory') !== LOW_MEM) {
-    pet.webContents.send('say', s.perfMode === 'memory' ? 'restarting to save memory… brb!' : 'restarting… brb!');
+    sendPet('say', s.perfMode === 'memory' ? 'restarting to save memory… brb!' : 'restarting… brb!');
     setTimeout(() => { app.relaunch(); app.quit(); }, 1500);
   }
   pet.setTitle(s.name);
   tray?.setToolTip(s.name);
-  pet.webContents.send('settings', s);
+  sendPet('settings', s);
   buildTrayMenu();
 }
 
@@ -153,9 +168,9 @@ function buildTrayMenu() {
   const s = settings();
   const theme = t => ({ label: { auto: IS_MAC ? 'Auto (follow macOS)' : 'Auto (follow Windows)', light: 'Light', dark: 'Dark' }[t], type: 'radio', checked: s.theme === t, click: () => applySettings({ theme: t }) });
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: pet.isVisible() ? `Hide ${s.name}` : `Show ${s.name}`, click: togglePet },
-    { label: 'Sleep', click: () => pet.webContents.send('action', 'sleep') },
-    { label: 'Wake up', click: () => { if (hold.kind === 'sleep') setHold({ kind: 'free' }); pet.webContents.send('action', 'wake'); } },
+    { label: alive() && pet.isVisible() ? `Hide ${s.name}` : `Show ${s.name}`, click: togglePet },
+    { label: 'Sleep', click: () => sendPet('action', 'sleep') },
+    { label: 'Wake up', click: () => { if (hold.kind === 'sleep') setHold({ kind: 'free' }); sendPet('action', 'wake'); } },
     { type: 'separator' },
     ...holdMenu(),
     { type: 'separator' },
@@ -190,7 +205,7 @@ function setHold(patch, reason = 'user') {
   hold.until = holdActive() && min ? Date.now() + min * 60e3 : 0;
   state.hold = hold; saveState();
   armHoldTimer();
-  pet?.webContents.send('hold', { ...hold, reason });
+  sendPet('hold', { ...hold, reason });
   if (tray) buildTrayMenu();
 }
 function armHoldTimer() {
@@ -199,7 +214,7 @@ function armHoldTimer() {
   holdTimer = setTimeout(() => {
     hold = { ...FREE }; state.hold = hold; saveState();
     clearInterval(holdTick);
-    pet?.webContents.send('hold', { ...hold, reason: 'timer' });
+    sendPet('hold', { ...hold, reason: 'timer' });
     if (tray) buildTrayMenu();
   }, Math.max(0, hold.until - Date.now()));
   holdTick = setInterval(() => tray && buildTrayMenu(), 60e3); // keeps "N min left" fresh
@@ -228,7 +243,7 @@ function onUpdateStatus(u) {
     u.manual && u.state === 'error' ? "couldn't reach the update shelf. later!" :
     u.manual && u.state === 'off' ? 'updates are not set up in this copy' : '';
   if (u.version) announced = u.version;
-  if (line) pet?.webContents.send('say', line);
+  if (line) sendPet('say', line);
   if (u.state === 'error') console.error('[update]', u.error);
   if (tray) buildTrayMenu();
 }
@@ -252,6 +267,7 @@ function trayImage() {
 }
 
 function togglePet() {
+  if (!alive()) return;
   if (pet.isVisible()) pet.hide(); else pet.showInactive();
   buildTrayMenu();
 }
@@ -261,16 +277,16 @@ ipcMain.handle('state:get', () => ({ settings: settings(), hasBattery, platform:
 ipcMain.handle('settings:get', () => settings());
 ipcMain.on('settings:set', (_e, next) => applySettings(next));
 ipcMain.on('log', (_e, msg) => console.log('[pet]', msg));
-ipcMain.on('mouse:ignore', (_e, ignore) => { if (!process.env.DUMBO_NOFWD) pet.setIgnoreMouseEvents(ignore, { forward: true }); });
-ipcMain.handle('win:info', () => { const b = pet.getBounds(); return { bounds: { x: b.x, y: b.y, ...petSize() }, workArea: screen.getDisplayMatching(b).workArea }; });
+ipcMain.on('mouse:ignore', (_e, ignore) => { if (alive() && !process.env.DUMBO_NOFWD) pet.setIgnoreMouseEvents(ignore, { forward: true }); });
+ipcMain.handle('win:info', () => { const b = alive() ? pet.getBounds() : screen.getPrimaryDisplay().workArea; return { bounds: { x: b.x, y: b.y, ...petSize() }, workArea: screen.getDisplayMatching(b).workArea }; });
 // Always pass the intended size: reusing getBounds() size on scaled displays (150%) lets rounding
 // grow the window a few px on every move.
-const moveTo = (x, y) => pet.setBounds({ x: Math.round(x), y: Math.round(y), ...petSize() });
+const moveTo = (x, y) => alive() && pet.setBounds({ x: Math.round(x), y: Math.round(y), ...petSize() });
 ipcMain.on('win:move', (_e, x, y) => moveTo(x, y));
-ipcMain.on('win:save', () => { const b = pet.getBounds(); state.pos = { x: b.x, y: b.y }; saveState(); });
+ipcMain.on('win:save', () => { if (!alive()) return; const b = pet.getBounds(); state.pos = { x: b.x, y: b.y }; saveState(); });
 ipcMain.on('open:settings', openSettings);
 // Settings page ▶ buttons: play one action now.
-ipcMain.on('try', (_e, id) => { if (!pet.isVisible()) { pet.showInactive(); buildTrayMenu(); } pet.webContents.send('try', id); });
+ipcMain.on('try', (_e, id) => { if (!alive()) return; if (!pet.isVisible()) { pet.showInactive(); buildTrayMenu(); } sendPet('try', id); });
 
 // Foreground app (name + rect in DIPs). Never titles or content. Our own windows are ignored.
 const winWatch = new WinWatch();
@@ -295,6 +311,7 @@ let dragTimer = null;
 ipcMain.on('drag:start', (_e, ox, oy) => {
   clearInterval(dragTimer);
   dragTimer = setInterval(() => {
+    if (!alive()) return;
     const c = screen.getCursorScreenPoint();
     moveTo(c.x - ox, c.y - oy);
   }, 16);
@@ -309,13 +326,34 @@ let hoverTimer = null, hoverInside = false;
 function startHoverPoll() {
   clearInterval(hoverTimer);
   hoverTimer = setInterval(() => {
-    if (!pet || pet.isDestroyed() || !pet.isVisible() || dragTimer) return;
+    if (!alive() || !pet.isVisible() || dragTimer) return;
     const c = screen.getCursorScreenPoint(), b = pet.getBounds();
     const inside = c.x >= b.x && c.y >= b.y && c.x < b.x + b.width && c.y < b.y + b.height;
-    if (inside || hoverInside) pet.webContents.send('hover', inside ? { x: c.x - b.x, y: c.y - b.y } : null);
+    if (inside || hoverInside) sendPet('hover', inside ? { x: c.x - b.x, y: c.y - b.y } : null);
     hoverInside = inside;
   }, 200);
 }
+
+function stopTimers() {
+  for (const t of [dragTimer, hoverTimer, trackTimer, holdTick]) clearInterval(t);
+  clearTimeout(holdTimer);
+  dragTimer = hoverTimer = trackTimer = holdTick = holdTimer = null;
+}
+
+// After sleep/resume, unlock or a display change Windows can leave his window click-through for good
+// (the mouse-forwarding hook and topmost state don't always survive). Re-apply both and tell the
+// renderer to forget what it thought, so the next hover check turns grabbing back on.
+function resyncPet(why) {
+  if (!alive()) return;
+  console.log('[host] resync after', why);
+  pet.setAlwaysOnTop(true, 'floating');
+  if (!process.env.DUMBO_NOFWD) { pet.setIgnoreMouseEvents(false); pet.setIgnoreMouseEvents(true, { forward: true }); }
+  clearInterval(dragTimer); dragTimer = null;
+  if (pet.webContents.isCrashed()) pet.reload();
+  else sendPet('mouse:reset');
+  if (pet.isVisible()) startHoverPoll();
+}
+function resyncSoon(why) { resyncPet(why); setTimeout(() => resyncPet(why + ' (again)'), 3000); } // displays settle late
 
 // Cursor tracking for "looks at you": only runs while the renderer asks for it, ~4 Hz, sends only on change.
 let trackTimer = null, lastCursor = '';
@@ -323,11 +361,12 @@ ipcMain.on('track', (_e, on, ms) => {
   clearInterval(trackTimer); trackTimer = null;
   if (!on) return;
   trackTimer = setInterval(() => {
+    if (!alive()) return;
     const c = screen.getCursorScreenPoint(), b = pet.getBounds();
     const key = `${c.x},${c.y},${b.x},${b.y}`;
     if (key === lastCursor) return;
     lastCursor = key;
-    pet.webContents.send('cursor', { x: c.x - b.x, y: c.y - b.y, w: b.width, h: b.height });
+    sendPet('cursor', { x: c.x - b.x, y: c.y - b.y, w: b.width, h: b.height });
   }, Math.max(100, Number(ms) || 250)); // 1 s in battery saver
 });
 
@@ -337,13 +376,13 @@ function detectBattery() {
   if (IS_MAC) {
     execFile('/usr/bin/pmset', ['-g', 'batt'], { timeout: 15000 }, (err, out) => {
       hasBattery = !err && /InternalBattery/.test(String(out));
-      pet?.webContents.send('battery:present', hasBattery);
+      sendPet('battery:present', hasBattery);
     });
     return;
   }
   execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', '(Get-CimInstance Win32_Battery | Measure-Object).Count'], { windowsHide: true, timeout: 15000 }, (err, out) => {
     hasBattery = !err && parseInt(String(out).trim(), 10) > 0;
-    pet?.webContents.send('battery:present', hasBattery);
+    sendPet('battery:present', hasBattery);
   });
 }
 
@@ -372,4 +411,12 @@ app.whenReady().then(() => {
 });
 app.on('second-instance', () => pet?.showInactive());
 app.on('window-all-closed', () => app.quit());
-app.on('will-quit', () => { winWatch.stop(); updater.stop(); });
+app.on('before-quit', stopTimers);
+app.on('will-quit', () => { stopTimers(); winWatch.stop(); updater.stop(); });
+app.whenReady().then(() => {
+  for (const ev of ['resume', 'unlock-screen']) powerMonitor.on(ev, () => resyncSoon(ev));
+  for (const ev of ['display-metrics-changed', 'display-added', 'display-removed']) screen.on(ev, () => resyncSoon(ev));
+  app.on('child-process-gone', (_e, d) => { if (d.type === 'GPU') setTimeout(() => resyncPet('graphics reset'), 1500); });
+  if (process.env.DUMBO_TEST_RESUME) setTimeout(() => powerMonitor.emit('resume'), Number(process.env.DUMBO_TEST_RESUME));
+  if (process.env.DUMBO_TEST_QUIT) setTimeout(() => app.quit(), Number(process.env.DUMBO_TEST_QUIT));
+});

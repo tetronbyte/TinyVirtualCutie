@@ -25,6 +25,7 @@
 - Measure CPU with `Get-Counter '\Process(electron*)\% Processor Time'` (bench script). `Get-Process` CPU deltas gave wrong (zero) numbers.
 - The Browser pane can stall when the app window is hidden; use `scripts/snap.cjs` for visual checks. GDI screen capture can't see the pet window.
 - Click-through (`setIgnoreMouseEvents` + forward): never rely only on forwarded mousemove; the host hover poll covers him moving under a still cursor. `DUMBO_BENCH` runs log `over true/false`.
+- Host timers and late messages must use `alive()` / `sendPet()` in `electron/main.cjs` (window may be destroyed while quitting). Test env: `DUMBO_TEST_RESUME=<ms>` fakes wake-from-sleep, `DUMBO_TEST_QUIT=<ms>` quits.
 - Renderer errors and `host.log()` print to the Electron main stdout as `[pet] ...`.
 
 ## Rules

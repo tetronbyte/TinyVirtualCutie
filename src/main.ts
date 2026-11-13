@@ -678,6 +678,13 @@ function setOver(v: boolean) {
   overPet = v; host.ignoreMouse(!v);
   if ((window.host as any)?.bench) host.log(`over ${v}`);
 }
+// Host re-applied click-through after sleep/unlock/display change: forget our idea of it, drop any
+// press or drag that can't still be real; the next hover check turns grabbing back on.
+host.onMouseReset(() => {
+  overPet = false; down = null;
+  if (dragging) endDrag();
+  if ((window.host as any)?.bench) host.log('mouse reset');
+});
 // Host says where the cursor is while it's inside his window (see startHoverPoll in electron/main.cjs).
 host.onHover(p => {
   if (dragging || down) return;
