@@ -456,6 +456,9 @@ async function fallToGround() {
 // ---------- windows: perch on top, peek, nibble, fake-push ----------
 /** Foreground app source (swappable by the dev 'perch' scenario test). */
 let getFg = () => host.foreground();
+/** Foreground window, but never wait long (a drop shouldn't hang in the air): falls back to the last one seen. */
+let lastFg: Foreground | null = null;
+const fgQuick = (ms = 400) => Promise.race([getFg().then(f => (lastFg = f)), wait(ms).then(() => lastFg)]);
 interface Perch { name: string; x: number; y: number; w: number; h: number; since: number; stay: number }
 let perch: Perch | null = null;
 let perchWatch = 0;
@@ -599,7 +602,7 @@ function watchApps() {
   clearTimeout(appTimer);
   appTimer = window.setTimeout(async () => {
     if (mode !== 'sleep' && mode !== 'held') {
-      const fg = await getFg();
+      const fg = lastFg = await getFg();
       if (fg && fg.name !== lastApp) { const prev = lastApp; lastApp = fg.name; if (import.meta.env.DEV) host.log(`app: ${fg.name} ${Math.round(fg.x)},${Math.round(fg.y)} ${Math.round(fg.w)}x${Math.round(fg.h)}${fg.max ? ' max' : ''}`); if (prev) await onAppSwitch(fg); }
     }
     watchApps();
@@ -801,9 +804,11 @@ async function endDrag() {
   // Dropped onto the top edge of the window you're using? He sits on it.
   perch = null; clearInterval(perchWatch);
   if (S.visitWindows && !hold.pin) {
-    const [fg, { bounds }] = await Promise.all([getFg(), host.winInfo()]);
+    const [fg, { bounds, workArea }] = await Promise.all([fgQuick(), host.winInfo()]);
+    if (dragging) return; // grabbed again meanwhile
     const feetY = bounds.y + bounds.height - 3, cx = bounds.x + bounds.width / 2;
-    if (fg && !fg.max && cx > fg.x + 20 && cx < fg.x + fg.w - 20 && feetY > fg.y - 70 && feetY < fg.y + 25) {
+    // (Not on a window whose top is at the very top of the screen: he'd sit mostly above the screen.)
+    if (fg && !fg.max && cx > fg.x + 20 && cx < fg.x + fg.w - 20 && feetY > fg.y - 70 && feetY < fg.y + 25 && fg.y - bounds.height * 0.55 > workArea.y) {
       perch = { ...fg, since: Date.now(), stay: rand(60_000, 180_000) };
       host.move(bounds.x, perchY(bounds));
       watchPerch();
@@ -1134,6 +1139,14 @@ if (BENCH) {
     const at = async () => { const { bounds, workArea } = await host.winInfo(); return { x: bounds.x, y: bounds.y, ground: workArea.y + workArea.height - bounds.height }; };
     (async () => {
       await boot(); clearTimeout(decideTimer);
+      // 0. dropped at the very top of the screen (real window watcher): how long until he's down?
+      for (let k = 0; k < 2; k++) {
+        host.move(700, 0); await wait(150);
+        startDrag(10, 10); host.dragEnd(); await wait(300);
+        const t0 = performance.now(); await endDrag(); const d = await at();
+        host.log(`edge drop-from-top #${k + 1}: ${Math.round(performance.now() - t0)}ms onGround=${Math.abs(d.y - d.ground) <= 3} perch=${!!perch}`);
+        clearTimeout(decideTimer);
+      }
       // 1. grabbed while falling: the fall must stop moving him; after the drop he's on the ground, front
       host.move(600, 100); await wait(100);
       const f = fallToGround(); await wait(120);
