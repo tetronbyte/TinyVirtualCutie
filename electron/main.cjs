@@ -47,10 +47,12 @@ function sendPet(ch, v) { if (alive() && !pet.webContents.isDestroyed()) pet.web
 
 // A pet shouldn't pop up error boxes: an uncaught error in the host is logged next to state.json instead.
 // (The error box also blocked quitting.)
-process.on('uncaughtException', e => {
+function logError(e) {
   console.error(e);
   try { fs.mkdirSync(STATE_DIR, { recursive: true }); fs.appendFileSync(path.join(STATE_DIR, 'errors.log'), `${new Date().toISOString()} ${APP_VERSION} ${e && e.stack || e}\n`); } catch {}
-});
+}
+process.on('uncaughtException', logError);
+process.on('unhandledRejection', logError);
 /** @type {BrowserWindow|null} */ let settingsWin = null;
 let tray;
 migrateState();
@@ -84,6 +86,20 @@ function load(win, page) {
   else win.loadFile(path.join(ROOT, 'dist', page));
 }
 
+/** Is enough of this rect (his body, bottom-centre) on some connected screen to see and grab him? */
+function onScreen(r) {
+  const cx = r.x + r.width / 2, by = r.y + r.height * 0.75;
+  return screen.getAllDisplays().some(d => { const a = d.bounds; return cx >= a.x && cx < a.x + a.width && by >= a.y && by < a.y + a.height; });
+}
+/** Off every screen (monitor unplugged, resolution changed): bring him back bottom-right of the main one. */
+function rescueIfLost() {
+  if (!alive() || onScreen(pet.getBounds())) return;
+  const wa = screen.getPrimaryDisplay().workArea, { width, height } = petSize();
+  console.log('[host] he was off-screen, bringing him back');
+  moveTo(wa.x + wa.width - width - 30, wa.y + wa.height - height);
+  state.pos = { x: pet.getBounds().x, y: pet.getBounds().y }; saveState();
+}
+
 function petSize() {
   const s = settings().size;
   return { width: Math.round(BASE_W * s), height: Math.round(BASE_H * s) };
@@ -92,8 +108,10 @@ function petSize() {
 function createPet() {
   const { width, height } = petSize();
   const wa = screen.getPrimaryDisplay().workArea;
-  const x = state.pos?.x ?? wa.x + wa.width - width - 30;
-  const y = state.pos?.y ?? wa.y + wa.height - height;
+  // Saved spot on a monitor that isn't connected any more? Start bottom-right of the main screen.
+  const p = state.pos && onScreen({ x: state.pos.x, y: state.pos.y, width, height }) ? state.pos : null;
+  const x = p?.x ?? wa.x + wa.width - width - 30;
+  const y = p?.y ?? wa.y + wa.height - height;
   pet = new BrowserWindow({
     width, height, x, y,
     transparent: !process.env.DUMBO_OPAQUE, frame: false, resizable: false, maximizable: false, minimizable: false, fullscreenable: false,
@@ -115,7 +133,7 @@ function createPet() {
 }
 
 function openSettings() {
-  if (settingsWin) { settingsWin.show(); settingsWin.focus(); return; }
+  if (settingsWin) { if (settingsWin.isMinimized()) settingsWin.restore(); settingsWin.show(); settingsWin.focus(); return; }
   settingsWin = new BrowserWindow({
     width: 600, height: Math.min(820, screen.getPrimaryDisplay().workArea.height - 40), minWidth: 420, minHeight: 400, title: `${settings().name} settings`, icon: ICON, autoHideMenuBar: true, resizable: true,
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#15121f' : '#f4f1f7',
@@ -346,6 +364,7 @@ function stopTimers() {
 function resyncPet(why) {
   if (!alive()) return;
   console.log('[host] resync after', why);
+  rescueIfLost();
   pet.setAlwaysOnTop(true, 'floating');
   if (!process.env.DUMBO_NOFWD) { pet.setIgnoreMouseEvents(false); pet.setIgnoreMouseEvents(true, { forward: true }); }
   clearInterval(dragTimer); dragTimer = null;
@@ -409,7 +428,7 @@ app.whenReady().then(() => {
     fs.writeFileSync(path.join(STATE_DIR, 'boot.json'), JSON.stringify({ at: new Date().toISOString(), exe: process.execPath, app: path.resolve(ROOT), selfContained: SELF_CONTAINED, version: APP_VERSION, shippedVersion: app.getVersion(), update: BOOT.overlay, platform: process.platform, lowMemory: LOW_MEM, dev: !!DEV_URL, startWithWindows: settings().startWithWindows, loginItem: { openAtLogin: li.openAtLogin, executableWillLaunchAtLogin: li.executableWillLaunchAtLogin, launchItems: li.launchItems } }, null, 2));
   } catch (e) { console.error(e); }
 });
-app.on('second-instance', () => pet?.showInactive());
+app.on('second-instance', () => { if (alive()) { pet.showInactive(); rescueIfLost(); buildTrayMenu(); } });
 app.on('window-all-closed', () => app.quit());
 app.on('before-quit', stopTimers);
 app.on('will-quit', () => { stopTimers(); winWatch.stop(); updater.stop(); });

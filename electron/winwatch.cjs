@@ -35,8 +35,13 @@ class WinWatch {
   start() {
     if (this.proc) return;
     this.proc = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', '-'], { windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] });
-    this.proc.stdin.write(PS + '\n');
-    this.proc.stdout.on('data', d => {
+    const proc = this.proc;
+    proc.on('error', () => {});
+    proc.stdin.on('error', () => {}); // process gone mid-write: 'exit' cleans up
+    proc.stdin.write(PS + '\n');
+    this.buf = '';
+    proc.stdout.on('data', d => {
+      if (this.proc !== proc) return; // an old, replaced watcher
       this.buf += d.toString();
       let i;
       while ((i = this.buf.indexOf('\n')) >= 0) {
@@ -46,22 +51,26 @@ class WinWatch {
         try { cb?.(JSON.parse(line)); } catch { cb?.({}); }
       }
     });
-    this.proc.on('exit', () => { this.proc = null; for (const cb of this.queue.splice(0)) cb({}); });
+    proc.on('exit', () => { if (this.proc !== proc) return; this.proc = null; for (const cb of this.queue.splice(0)) cb({}); });
   }
 
   /** @returns {Promise<{name?:string,pid?:number,x?:number,y?:number,w?:number,h?:number,max?:boolean}>} physical-pixel rect */
   foreground() {
     this.start();
     return new Promise(resolve => {
-      const t = setTimeout(() => { const i = this.queue.indexOf(done); if (i >= 0) this.queue.splice(i, 1); resolve({}); }, this.warm ? 3000 : 10000);
+      // On timeout answer "nothing" but keep the slot: the late reply still arrives and must be consumed
+      // by it, or every later reply would be matched to the wrong question.
+      const t = setTimeout(() => resolve({}), this.warm ? 3000 : 10000);
       this.warm = true;
       const done = v => { clearTimeout(t); resolve(v); };
+      // Stuck watcher (many unanswered questions): start a fresh one.
+      if (this.queue.length >= 5) { this.stop(); this.start(); }
       this.queue.push(done);
-      this.proc.stdin.write('fg\n');
+      if (this.proc) this.proc.stdin.write('fg\n'); else done({});
     });
   }
 
-  stop() { this.proc?.kill(); this.proc = null; }
+  stop() { this.proc?.kill(); this.proc = null; for (const cb of this.queue.splice(0)) cb({}); }
 }
 
 module.exports = { WinWatch };

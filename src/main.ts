@@ -136,14 +136,19 @@ function applyPerf() {
 }
 const slow = (ms: number) => (saving() ? ms * 2 : ms);
 
+// Bumped when you grab him: any fall / jump / hide-and-seek slide still running stops moving the window.
+let motion = 0;
+
 const schedule = (ms: number) => { clearTimeout(decideTimer); decideTimer = window.setTimeout(decide, ms > 4000 ? slow(ms) : ms); };
 function setFacing(left: boolean) { facingLeft = left; stage.classList.toggle('left', left); }
 
 /** Make sure we are sitting and facing the user. */
 async function toFront(expr = 'smile') {
+  if (dragging) return; // grabbed meanwhile: the drop decides what comes next
   if (anim.view === 'side') {
     if (anim.side.base !== 'sit') await anim.play(clips.sitDown());
   }
+  if (dragging) return;
   anim.setFront({ ...FRONT_REST, expr, shadow: !perch });
   mode = 'front';
   track(true);
@@ -315,6 +320,7 @@ async function frontEarFlap() {
 
 // ---------- sleep ----------
 async function sleep(style?: 'doze' | 'curl') {
+  if (dragging) return;
   mode = 'busy';
   track(false);
   clearTimeout(exprTimer); clearTimeout(blinkTimer);
@@ -346,9 +352,9 @@ async function wake(byUser: boolean) {
 
 /** If he's up in the air (pin just released), drop to the ground. */
 async function settle() {
-  if (hold.pin || perch || mode !== 'front') return;
+  if (perch || mode !== 'front') return;
   const { bounds, workArea } = await host.winInfo();
-  if (bounds.y >= workArea.y + workArea.height - bounds.height - 3) return;
+  if (bounds.y >= workArea.y + workArea.height - bounds.height - 3 || hold.pin) { await fallToGround(); return; } // just steps back into view if needed
   mode = 'busy';
   track(false);
   anim.setSide(STAND);
@@ -422,13 +428,19 @@ async function fallToGround() {
   if (hold.pin) return false; // pinned: stays exactly where you put him, even mid-air
   const { bounds, workArea } = await host.winInfo();
   const groundY = perch ? perchY(bounds) : workArea.y + workArea.height - bounds.height;
-  if (bounds.y >= groundY - 3) return false;
   // Clamp horizontally inside the screen too.
   const x = clamp(bounds.x, workArea.x - bounds.width * 0.25, workArea.x + workArea.width - bounds.width * 0.75);
+  if (bounds.y >= groundY - 3) {
+    // Below the ground or off the side (taskbar moved, resolution or monitor changed): step back into view.
+    if (bounds.y > groundY + 3 || x !== bounds.x) host.move(x, Math.min(bounds.y, groundY));
+    return false;
+  }
   anim.play(clips.fall());
+  const my = motion;
   let y = bounds.y, v = 0, last = performance.now();
   await new Promise<void>(resolve => {
     const iv = window.setInterval(() => {
+      if (my !== motion) { clearInterval(iv); return resolve(); } // grabbed mid-fall
       const now = performance.now(), dt = (now - last) / 1000; last = now;
       v = Math.min(v + 2600 * dt, 1800);
       y = Math.min(groundY, y + v * dt);
@@ -436,7 +448,7 @@ async function fallToGround() {
       if (y >= groundY) { clearInterval(iv); resolve(); }
     }, 16);
   });
-  await anim.play(clips.land());
+  if (my === motion) await anim.play(clips.land());
   return true;
 }
 
@@ -468,9 +480,10 @@ async function jumpTo(tx: number, ty: number, ms = 750) {
   const x0 = bounds.x, y0 = bounds.y, peak = Math.min(y0, ty) - 70;
   setFacing(tx < x0);
   anim.play(clips.hop());
-  const t0 = performance.now();
+  const t0 = performance.now(), my = motion;
   await new Promise<void>(resolve => {
     const iv = window.setInterval(() => {
+      if (my !== motion) { clearInterval(iv); return resolve(); } // grabbed mid-jump
       const t = Math.min(1, (performance.now() - t0) / ms);
       const x = x0 + (tx - x0) * t;
       const y = (1 - t) * (1 - t) * y0 + 2 * (1 - t) * t * peak + t * t * ty; // quadratic Bézier through the peak
@@ -478,7 +491,7 @@ async function jumpTo(tx: number, ty: number, ms = 750) {
       if (t >= 1) { clearInterval(iv); resolve(); }
     }, 16);
   });
-  await anim.play(clips.land());
+  if (my === motion) await anim.play(clips.land());
 }
 
 async function hopOnto(fg: Foreground) {
@@ -683,6 +696,7 @@ function setOver(v: boolean) {
 host.onMouseReset(() => {
   overPet = false; down = null;
   if (dragging) endDrag();
+  else if (mode === 'front') settle().catch(() => {}); // screen layout may have changed: back on the ground, in view
   if ((window.host as any)?.bench) host.log('mouse reset');
 });
 // Host says where the cursor is while it's inside his window (see startHoverPoll in electron/main.cjs).
@@ -760,7 +774,8 @@ async function tickled() {
 
 let grumpy = false;
 function startDrag(ox: number, oy: number) {
-  abortGame();
+  motion++;
+  abortGame(false); // you've got him: no need to put him back first
   dragging = true;
   grumpy = mode === 'sleep' || mode === 'side' || mode === 'busy';
   walkStop?.();
@@ -791,9 +806,12 @@ async function endDrag() {
       watchPerch();
     }
   }
+  if (dragging) return;
   const fell = await fallToGround();
+  if (dragging) return; // grabbed again mid-fall
   if (fell && !grumpy && chance(0.5)) say(pick(LINES.happyDrop), 1800);
   if (!fell) await anim.play(clips.toStand());
+  if (dragging) return;
   host.savePos();
   awakeSince = Date.now();
   if (hold.kind === 'sleep') { await toFront('pout'); return sleep(); } // put down → back to his nap
@@ -873,18 +891,23 @@ async function batteryCheck(): Promise<boolean> {
 // He vanishes, then peeks upside down from the top edge of the screen (up to 3 spots). Click him while
 // he peeks to find him; otherwise he gives up and drops down. The window just goes invisible and
 // moves: no extra drawing while hidden.
-interface Game { found: boolean; abort: boolean; peeking: boolean; wake?: () => void }
+interface Game { found: boolean; abort: boolean; peeking: boolean; wake?: () => void; home?: { x: number; y: number } }
 let game: Game | null = null;
 const gameWait = (g: Game, ms: number) => new Promise<void>(r => { const t = setTimeout(r, ms); g.wake = () => { clearTimeout(t); r(); }; });
-function abortGame() {
+/** Stop hide and seek. `putBack`: return him to where the game started (he may be hidden above the screen). */
+function abortGame(putBack = true) {
   if (!game) return;
+  const home = game.home;
   game.abort = true; game.wake?.(); game = null;
+  motion++; // stop a slide in progress
   document.body.classList.remove('upside', 'hiding');
+  if (putBack && home) host.move(home.x, home.y);
 }
 function slide(x: number, from: number, to: number, ms: number) {
-  const t0 = performance.now();
+  const t0 = performance.now(), my = motion;
   return new Promise<void>(resolve => {
     const iv = window.setInterval(() => {
+      if (my !== motion) { clearInterval(iv); return resolve(); }
       const t = Math.min(1, (performance.now() - t0) / ms), e = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
       host.move(x, from + (to - from) * e);
       if (t >= 1) { clearInterval(iv); resolve(); }
@@ -904,6 +927,7 @@ async function hideAndSeek(quick = false) {
   bubbleEl.classList.remove('show');
   document.body.classList.add('hiding');
   const { bounds, workArea } = await host.winInfo();
+  g.home = { x: bounds.x, y: bounds.y };
   const stageH = bounds.height * 0.5273;
   const hidden = workArea.y - stageH - 4, peekY = workArea.y - stageH * 0.32;
   let x = bounds.x;
@@ -1015,10 +1039,11 @@ async function tryAction(id: ActionId) {
 }
 
 // ---------- tray / settings ----------
-host.onAction(async a => {
-  if (a === 'sleep' && mode !== 'sleep' && mode !== 'held') { abortGame(); walkStop?.(); anim.stop(); clearTimeout(decideTimer); sleep(); }
+async function trayAction(a: string) {
+  if (a === 'sleep' && mode !== 'sleep' && mode !== 'held') { abortGame(); walkStop?.(); anim.stop(); clearTimeout(decideTimer); await sleep(); }
   if (a === 'wake' && mode === 'sleep') { await wake(true); schedule(rand(6000, 12000)); }
-});
+}
+host.onAction(a => { trayAction(a).catch(e => host.log(`${a} failed: ${e?.stack || e}`)); });
 host.onSettings(s => { S = s; applyTheme(); updateLow(); applyPerf(); });
 host.onHold(h => { applyHold(h).catch(e => host.log(`hold failed: ${e?.stack || e}`)); });
 
@@ -1100,6 +1125,32 @@ if (BENCH) {
       }
       host.log('tryall done');
     })().catch(e => host.log(`tryall failed: ${e?.stack || e}`));
+  } else if (BENCH === 'edge') {
+    // Scenario test for tricky moments: grabbed mid-fall, tray Sleep during hide and seek, stuck below the screen.
+    const at = async () => { const { bounds, workArea } = await host.winInfo(); return { x: bounds.x, y: bounds.y, ground: workArea.y + workArea.height - bounds.height }; };
+    (async () => {
+      await boot(); clearTimeout(decideTimer);
+      // 1. grabbed while falling: the fall must stop moving him; after the drop he's on the ground, front
+      host.move(600, 100); await wait(100);
+      const f = fallToGround(); await wait(120);
+      startDrag(10, 10); host.dragEnd(); // (don't follow the real cursor in a test)
+      const a1 = await at(); await wait(400); const a2 = await at();
+      host.log(`edge grab-mid-fall: still while held=${a1.y === a2.y} mode=${mode}`);
+      await f; await endDrag(); const a3 = await at();
+      host.log(`edge after drop: mode=${mode} onGround=${Math.abs(a3.y - a3.ground) <= 3}`);
+      // 2. tray Sleep while hidden in hide and seek: he must come back to where he was
+      const home = await at();
+      const hs = hideAndSeek(true); await wait(4500);
+      const hid = await at();
+      await trayAction('sleep'); await hs; const back = await at();
+      host.log(`edge sleep-during-hide: was y=${hid.y} now y=${back.y} home=${home.y} mode=${mode} hidden=${document.body.classList.contains('hiding')}`);
+      await trayAction('wake');
+      // 3. below the screen (e.g. taskbar moved): back into view
+      host.move(back.x, back.ground + 150); await wait(100);
+      mode = 'front'; await settle(); const s3 = await at();
+      host.log(`edge below-screen: onGround=${Math.abs(s3.y - s3.ground) <= 3}`);
+      host.log('edge done');
+    })().catch(e => host.log(`edge failed: ${e?.stack || e}`));
   } else if (BENCH === 'perch') {
     // Scenario test: a simulated 500×300 window; Dumbo hops on, nibbles, gets knocked off when it "moves".
     let fake: Foreground | null = { name: 'FakeApp', x: 400, y: 380, w: 500, h: 300, max: false };

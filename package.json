@@ -2,8 +2,8 @@
   "name": "tinyvirtualcutie",
   "productName": "Dumbo",
   "private": true,
-  "version": "0.3.4",
-  "description": "Dumbo — a tiny desktop pet",
+  "version": "0.3.5",
+  "description": "Dumbo",
   "main": "electron/boot.cjs",
   "updates": {
     "repo": "tetronbyte/tinyvirtualcutie-releases"
