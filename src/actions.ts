@@ -1,10 +1,11 @@
 /** Everything Dumbo can do, for the settings page (tick on/off + ▶ try) and the brain (src/main.ts). */
 export type ActionId =
   | 'walk' | 'trip' | 'earflap' | 'wave' | 'coding' | 'pushups' | 'rope' | 'hideSeek'
-  | 'perch' | 'peek' | 'nibble' | 'push'
+  | 'perch' | 'climb' | 'peek' | 'nibble' | 'push'
   | 'petted' | 'tickled' | 'click' | 'welcome'
   | 'stretch' | 'dance' | 'run' | 'flex' | 'tired' | 'charged'
-  | 'doze' | 'curl';
+  | 'doze' | 'curl'
+  | 'greeting' | 'birthday' | 'water';
 
 /** Tuning knobs (settings ⚙). Value 0 = Auto: the recommended mix, with a little randomness. */
 export type KnobKey = 'often' | 'distance' | 'speed' | 'length' | 'hide';
@@ -42,6 +43,7 @@ export const ACTION_GROUPS: ActionGroup[] = [
     note: 'Uses the window in front. ▶ uses this settings window.',
     items: [
       { id: 'perch', label: 'Hops onto your window', hint: 'Sits on its top edge; falls off if it moves', knobs: ['often'] },
+      { id: 'climb', label: 'Climbs up your window', hint: 'Walks to its side, climbs up and sits on top (windows that reach the bottom of the screen)', knobs: ['often', 'speed'] },
       { id: 'peek', label: 'Peeks over the edge', hint: 'While sitting on a window', knobs: ['often'] },
       { id: 'nibble', label: 'Nibbles the corner', hint: 'While sitting on a window', knobs: ['often'] },
       { id: 'push', label: 'Tries to push your window', hint: "It never actually moves", knobs: ['often'] },
@@ -59,7 +61,10 @@ export const ACTION_GROUPS: ActionGroup[] = [
   {
     title: 'Moods & reminders',
     items: [
-      { id: 'stretch', label: 'Stretch reminder', hint: 'After a long active stretch (time is set above)' },
+      { id: 'greeting', label: 'Says good morning', hint: 'Once a day, and counts your days together' },
+      { id: 'birthday', label: 'Celebrates his birthday', hint: 'Party hat and confetti all day (set the date in Daily life)' },
+      { id: 'stretch', label: 'Stretch reminder', hint: 'After a long active stretch (time is set in Daily life)' },
+      { id: 'water', label: 'Water reminder', hint: 'Drinks from a tiny cup and asks you to drink too (time is set in Daily life)' },
       { id: 'dance', label: 'Dances', hint: 'App reactions ("Dances")', knobs: ['length'] },
       { id: 'run', label: 'Runs around', hint: 'App reactions ("Runs around") and charger joy', knobs: ['distance', 'speed'] },
       { id: 'charged', label: 'Excited when you plug in', hint: 'Bounces and runs when charging starts' },

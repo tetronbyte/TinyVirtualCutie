@@ -72,10 +72,21 @@ function loadState() {
 function saveState() {
   try { fs.mkdirSync(path.dirname(STATE_FILE()), { recursive: true }); fs.writeFileSync(STATE_FILE(), JSON.stringify(state, null, 2)); } catch (e) { console.error(e); }
 }
+// Custom modes (tray Modes / settings): work for N minutes, break for M, repeat.
+const DEFAULT_ROUTINES = [
+  { id: 'focus', name: 'Focus', work: 'coding', workMin: 25, rest: 'stretch', restMin: 5, rounds: 4 },
+  { id: 'deep', name: 'Deep work', work: 'coding', workMin: 50, rest: 'stretch', restMin: 10, rounds: 2 },
+];
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+// The day you met: first start (older installs: the first start of this version).
+if (!state.settings?.metOn) { state.settings = { ...(state.settings || {}), metOn: today() }; saveState(); }
 const settings = () => ({
   name: 'Dumbo', theme: 'auto', size: 1, startWithWindows: false,
   batteryLow: 30, batteryHigh: 90, sleepStart: '23:00', sleepEnd: '07:00', sleepiness: 0.6,
   visitWindows: true, stretchEvery: 50, autoUpdate: true, actions: {}, tune: {}, perfMode: 'normal', saverUnplugged: false,
+  // Daily life: birthday ("MM-DD", empty = the day you met), days-together counter, water + night look + quiet.
+  birthday: '', metOn: '', daysTogether: 0, lastDay: '', waterEvery: 60, nightLook: true, quietInMeetings: true,
+  routines: DEFAULT_ROUTINES,
   appReactions: [
     { app: 'Code', action: 'coding' }, { app: 'Cursor', action: 'coding' }, { app: 'devenv', action: 'coding' },
     { app: 'idea64', action: 'coding' }, { app: 'WindowsTerminal', action: 'coding' },
@@ -158,6 +169,7 @@ function applySettings(next) {
   }
   if (s.startWithWindows !== prev.startWithWindows) setAutostart(s.startWithWindows);
   if (s.autoUpdate !== prev.autoUpdate) updater.start(s.autoUpdate);
+  if (s.quietInMeetings !== prev.quietInMeetings) checkQuiet().catch(() => {});
   // Low memory mode only takes effect at start-up (graphics acceleration): restart for him.
   if ((s.perfMode === 'memory') !== LOW_MEM) {
     sendPet('say', s.perfMode === 'memory' ? 'restarting to save memory… brb!' : 'restarting… brb!');
@@ -220,6 +232,14 @@ let holdTimer = null, holdTick = null;
 const holdActive = () => hold.pin || hold.kind !== 'free';
 /** Any change restarts the timer from now (if one is chosen). */
 function setHold(patch, reason = 'user') {
+  if (routine) {
+    if (!('kind' in patch)) { // pin on/off or timer pick during a mode: keep the mode's own timing
+      if ('pin' in patch) { hold = { ...hold, pin: !!patch.pin }; state.hold = hold; saveState(); sendPet('hold', { ...hold, reason, routine: routineInfo() }); }
+      if (tray) buildTrayMenu();
+      return;
+    }
+    endRoutine(); // you picked another "Keep him…": the mode stops
+  }
   hold = { ...hold, ...patch };
   if (hold.pin && hold.kind === 'walk') hold.kind = 'free'; // can't stay put and walk around
   const min = state.holdMinutes || 0;
@@ -231,6 +251,7 @@ function setHold(patch, reason = 'user') {
 }
 function armHoldTimer() {
   clearTimeout(holdTimer); clearInterval(holdTick);
+  if (routine) return; // the mode runs its own timer
   if (!hold.until) return;
   holdTimer = setTimeout(() => {
     hold = { ...FREE }; state.hold = hold; saveState();
@@ -243,12 +264,111 @@ function armHoldTimer() {
 function holdMenu() {
   const min = state.holdMinutes || 0;
   const left = hold.until ? Math.max(1, Math.ceil((hold.until - Date.now()) / 60e3)) : 0;
+  const r = routineInfo();
+  const modes = { label: r ? `Mode: ${r.name}` : 'Modes', submenu: r
+    ? [{ label: `${r.phase === 'work' ? 'Working' : 'Break'} · round ${r.round} of ${r.rounds} · ${left} min left`, enabled: false }, { label: `Stop ${r.name}`, click: () => stopRoutine('stopped') }]
+    : [...routineDefs().map(d => ({ label: `${d.name} (${d.workMin} min${Number(d.restMin) > 0 ? ` + ${d.restMin} min break` : ''}${Number(d.rounds) > 1 ? ` × ${d.rounds}` : ''})`, click: () => startRoutine(d.id) })),
+       { type: 'separator' }, { label: 'Edit modes…', click: openSettings }] };
+  if (r) return [modes, { label: 'Stay here', type: 'checkbox', checked: hold.pin, click: i => setHold({ pin: i.checked }) }];
   return [
+    modes,
     { label: 'Stay here', type: 'checkbox', checked: hold.pin, click: i => setHold({ pin: i.checked }) },
     { label: 'Keep him…', submenu: HOLD_KINDS.map(([k, l]) => ({ label: l, type: 'radio', checked: hold.kind === k, enabled: !(k === 'walk' && hold.pin), click: () => setHold({ kind: k }) })) },
     { label: left ? `Timer (${left} min left)` : 'Timer', submenu: TIMERS.map(([m, l]) => ({ label: l, type: 'radio', checked: min === m, click: () => { state.holdMinutes = m; saveState(); if (holdActive()) setHold({}); else buildTrayMenu(); } })) },
   ];
 }
+
+// ---------- custom modes: work N min → break M min → … × rounds (runs on top of the hold) ----------
+let routine = null; // { def, phase: 'work'|'rest', round, until }
+const MINUTE = Number(process.env.DUMBO_TEST_MINUTE) || 60e3; // tests: shorter minutes
+let routineTimer = null;
+const routineDefs = () => (Array.isArray(settings().routines) ? settings().routines : []);
+const phaseKind = k => (k === 'stretch' ? 'exercise' : HOLD_KINDS.some(h => h[0] === k) ? k : 'free');
+function routineInfo() {
+  if (!routine) return null;
+  const d = routine.def;
+  return { id: d.id, name: d.name, phase: routine.phase, round: routine.round, rounds: Number(d.rounds) || 1, work: d.work, rest: d.rest, min: Number(routine.phase === 'work' ? d.workMin : d.restMin) || 1, until: routine.until };
+}
+function armRoutine() { clearTimeout(routineTimer); routineTimer = setTimeout(nextPhase, Math.max(0, routine.until - Date.now())); clearInterval(holdTick); holdTick = setInterval(() => tray && buildTrayMenu(), 60e3); }
+function enterPhase(phase, event) {
+  const d = routine.def, min = Math.max(1, Number(phase === 'work' ? d.workMin : d.restMin) || 1);
+  routine.phase = phase; routine.until = Date.now() + min * MINUTE;
+  hold = { pin: hold.pin, kind: phaseKind(phase === 'work' ? d.work : d.rest), until: routine.until };
+  state.hold = hold; state.routine = { id: d.id, def: d, phase, round: routine.round, until: routine.until }; saveState();
+  clearTimeout(holdTimer); armRoutine();
+  sendPet('hold', { ...hold, reason: 'routine', event, routine: routineInfo() });
+  if (tray) buildTrayMenu();
+}
+function nextPhase() {
+  if (!routine) return;
+  const d = routine.def;
+  if (routine.phase === 'work' && Number(d.restMin) > 0) return enterPhase('rest', 'rest');
+  if (routine.round >= (Number(d.rounds) || 1)) return stopRoutine('done');
+  routine.round++;
+  enterPhase('work', 'work');
+}
+function startRoutine(id) {
+  const def = routineDefs().find(r => r.id === id);
+  if (!def) return;
+  if (!alive() || !pet.isVisible()) togglePet();
+  routine = { def: { ...def }, round: 1 };
+  enterPhase('work', 'start');
+}
+/** Forget the mode (no hold change). */
+function endRoutine() { routine = null; clearTimeout(routineTimer); routineTimer = null; delete state.routine; }
+function stopRoutine(event = 'stopped') {
+  if (!routine) return;
+  const info = routineInfo();
+  endRoutine();
+  hold = { pin: hold.pin, kind: 'free', until: 0 }; state.hold = hold; saveState(); armHoldTimer();
+  sendPet('hold', { ...hold, reason: 'routine', event, routine: info });
+  if (tray) buildTrayMenu();
+}
+/** After a restart (sleep, update): carry on with the mode if its phase isn't over yet. */
+function resumeRoutine() {
+  const r = state.routine;
+  if (!r || !r.def || !(r.until > Date.now())) { if (r) { delete state.routine; saveState(); } return false; }
+  routine = { def: r.def, phase: r.phase, round: r.round, until: r.until };
+  armRoutine();
+  return true;
+}
+
+// ---------- meeting manners: quiet while the camera or microphone is in use, or a full-screen app is in front ----------
+// Windows keeps "which app last used the camera / mic, and is it still using it" under CapabilityAccessManager.
+// Only a yes/no is kept here: no app names are stored or sent anywhere.
+let quiet = false, quietWhy = '', quietTimer = null;
+const CAP = k => `HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\${k}`;
+function deviceInUse(kind) {
+  return new Promise(res => execFile('reg.exe', ['query', CAP(kind), '/s'], { windowsHide: true, timeout: 8000 }, (err, out) => {
+    if (err) return res(false);
+    let start = '0', stop = '', busy = false;
+    const flush = () => { if (stop === '0' && start !== '0') busy = true; start = '0'; stop = ''; };
+    for (const line of String(out).split(/\r?\n/)) {
+      if (/^HKEY_/.test(line)) { flush(); continue; }
+      const m = /^\s+LastUsedTime(Start|Stop)\s+REG_QWORD\s+0x([0-9a-f]+)/i.exec(line);
+      if (m) { if (m[1] === 'Start') start = m[2]; else stop = m[2]; }
+    }
+    flush();
+    res(busy);
+  }));
+}
+async function fullscreenApp() {
+  if (LOW_MEM) return false; // no window watcher in low memory mode
+  const r = await winWatch.foreground();
+  if (!r.name || r.pid === process.pid || /^(Dumbo|electron|explorer|ShellExperienceHost|SearchHost|StartMenuExperienceHost|LockApp)$/i.test(r.name)) return false;
+  const d = screen.screenToDipRect(null, { x: r.x, y: r.y, width: r.w, height: r.h }), b = screen.getDisplayMatching(d).bounds;
+  return d.x <= b.x + 1 && d.y <= b.y + 1 && d.x + d.width >= b.x + b.width - 1 && d.y + d.height >= b.y + b.height - 1;
+}
+async function checkQuiet() {
+  let why = '';
+  if (process.env.DUMBO_TEST_QUIET) why = 'test';
+  else if (IS_WIN && settings().quietInMeetings) {
+    const [cam, mic] = await Promise.all([deviceInUse('webcam'), deviceInUse('microphone')]);
+    why = cam ? 'camera' : mic ? 'microphone' : (await fullscreenApp()) ? 'fullscreen' : '';
+  }
+  if (!!why !== quiet || why !== quietWhy) { quiet = !!why; quietWhy = why; console.log('[host] quiet', quiet, why); sendPet('quiet', { on: quiet, why }); }
+}
+function startQuietWatch() { clearInterval(quietTimer); quietTimer = setInterval(() => checkQuiet().catch(() => {}), 15000); checkQuiet().catch(() => {}); }
 
 // ---------- updates (electron/updater.cjs) ----------
 const PKG = (() => { try { return require(path.join(ROOT, 'package.json')); } catch { return {}; } })();
@@ -294,7 +414,7 @@ function togglePet() {
 }
 
 // ---------- IPC ----------
-ipcMain.handle('state:get', e => ({ settings: settings(), hasBattery, platform: process.platform, hold: { ...hold, reason: 'restore' }, wokeUp: WOKE && alive() && e.sender === pet.webContents }));
+ipcMain.handle('state:get', e => ({ settings: settings(), hasBattery, platform: process.platform, hold: { ...hold, reason: 'restore', routine: routineInfo() }, quiet: { on: quiet, why: quietWhy }, wokeUp: WOKE && alive() && e.sender === pet.webContents }));
 ipcMain.handle('settings:get', () => settings());
 ipcMain.on('settings:set', (_e, next) => applySettings(next));
 ipcMain.on('log', (_e, msg) => console.log('[pet]', msg));
@@ -306,6 +426,8 @@ const moveTo = (x, y) => alive() && pet.setBounds({ x: Math.round(x), y: Math.ro
 ipcMain.on('win:move', (_e, x, y) => moveTo(x, y));
 ipcMain.on('win:save', () => { if (!alive()) return; const b = pet.getBounds(); state.pos = { x: b.x, y: b.y }; saveState(); });
 ipcMain.on('open:settings', openSettings);
+ipcMain.on('routine:start', (_e, id) => startRoutine(String(id)));
+ipcMain.on('routine:stop', () => stopRoutine('stopped'));
 // Settings page ▶ buttons: play one action now.
 ipcMain.on('try', (_e, id) => { if (!alive()) return; if (!pet.isVisible()) { pet.showInactive(); buildTrayMenu(); } sendPet('try', id); });
 
@@ -356,8 +478,8 @@ function startHoverPoll() {
 }
 
 function stopTimers() {
-  for (const t of [dragTimer, hoverTimer, trackTimer, holdTick]) clearInterval(t);
-  clearTimeout(holdTimer);
+  for (const t of [dragTimer, hoverTimer, trackTimer, holdTick, quietTimer]) clearInterval(t);
+  clearTimeout(holdTimer); clearTimeout(routineTimer);
   dragTimer = hoverTimer = trackTimer = holdTick = holdTimer = null;
 }
 
@@ -428,7 +550,8 @@ app.whenReady().then(() => {
   if (!IS_MAC) tray.on('click', togglePet); // macOS: a click opens the menu, as menu-bar apps do
   buildTrayMenu();
   if (!DEV_URL) updater.start(settings().autoUpdate);
-  armHoldTimer();
+  if (!resumeRoutine()) armHoldTimer();
+  startQuietWatch();
   setAutostart(settings().startWithWindows); // always reconcile: repairs or removes stale entries from older installs
   // Installer build (electron-builder NSIS) makes and removes its own shortcuts; only the portable copy makes them itself.
   const INSTALLED = fs.existsSync(path.join(path.dirname(process.execPath), 'Uninstall Dumbo.exe'));
@@ -453,4 +576,5 @@ app.whenReady().then(() => {
   app.on('child-process-gone', (_e, d) => { if (d.type === 'GPU') setTimeout(() => resyncPet('graphics reset'), 1500); });
   if (process.env.DUMBO_TEST_RESUME && !WOKE) setTimeout(() => powerMonitor.emit('resume'), Number(process.env.DUMBO_TEST_RESUME)); // once, not again after the restart
   if (process.env.DUMBO_TEST_QUIT) setTimeout(() => app.quit(), Number(process.env.DUMBO_TEST_QUIT));
+  if (process.env.DUMBO_TEST_ROUTINE) setTimeout(() => startRoutine(process.env.DUMBO_TEST_ROUTINE), 8000);
 });

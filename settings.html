@@ -59,6 +59,16 @@
       .knob { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
       .knob .seg button { font-size: 12.5px; padding: 4px 9px; }
       body.painting, body.painting * { cursor: crosshair !important; }
+      /* Daily life + Modes */
+      .pair { display: flex; gap: 6px; }
+      .together { color: var(--muted); font-size: 12.5px; margin: 0; padding: 0 0 12px; }
+      .routine { border-top: 1px solid var(--line); padding: 10px 0; display: grid; gap: 8px; }
+      .routine .top { display: flex; gap: 8px; align-items: center; }
+      .routine .top input { flex: 1; min-width: 0; width: auto !important; font-weight: 600; }
+      .routine .steps { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: 13px; color: var(--muted); }
+      .routine input[type=number] { font: inherit; width: 58px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 5px 6px; }
+      .routine button { font: inherit; border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 8px; padding: 5px 10px; cursor: pointer; }
+      .routine button.start { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
       .saved { color: var(--muted); font-size: 12px; text-align: center; min-height: 1.4em; }
     </style>
   </head>
@@ -94,6 +104,23 @@
       </section>
 
       <section>
+        <h2>Daily life</h2>
+        <div class="row"><label>Birthday<small>Party hat and confetti all day</small></label><span class="pair"><select id="bdayMonth" aria-label="Birthday month"></select><select id="bdayDay" aria-label="Birthday day"></select></span></div>
+        <div class="row"><label for="waterEvery">Water reminder<small>After this many active minutes (0 = off)</small></label><input id="waterEvery" type="range" min="0" max="120" step="15" /><output id="waterOut"></output></div>
+        <div class="row"><label for="stretchEvery">Stretch reminder<small>After this many active minutes (0 = off)</small></label><input id="stretchEvery" type="range" min="0" max="120" step="5" /><output id="stretchOut"></output></div>
+        <div class="row"><label for="nightLook">Night look<small>A little sleepier after bedtime, and a nightcap when he naps</small></label><input id="nightLook" type="checkbox" /></div>
+        <div class="row" id="quietRow"><label for="quietInMeetings">Quiet in meetings<small>No talking or tricks while your camera or microphone is on, or a full-screen app is in front</small></label><input id="quietInMeetings" type="checkbox" /></div>
+        <p class="together" id="together"></p>
+      </section>
+
+      <section>
+        <h2>Modes</h2>
+        <p class="intro">He works, then takes a break, and repeats. Start one here or from the tray (Modes). Picking something else in the tray stops it.</p>
+        <div id="routines"></div>
+        <div class="bulk"><button id="addRoutine">+ Add mode</button><button id="stopRoutine">Stop the running mode</button></div>
+      </section>
+
+      <section>
         <h2>Sleep</h2>
         <div class="row"><label for="sleepiness">Sleepiness<small>How much of the day he naps</small></label><input id="sleepiness" type="range" min="0" max="1" step="0.05" /><output id="sleepOut"></output></div>
         <div class="row"><label for="sleepStart">Bedtime</label><input id="sleepStart" type="time" /></div>
@@ -109,7 +136,6 @@
       <section id="appsSection">
         <h2>Your windows &amp; apps</h2>
         <div class="row"><label for="visitWindows">Visit windows<small>Hops onto, peeks at, nibbles and (pretends to) push your windows</small></label><input id="visitWindows" type="checkbox" /></div>
-        <div class="row"><label for="stretchEvery">Stretch reminder<small>After this many active minutes (0 = off)</small></label><input id="stretchEvery" type="range" min="0" max="120" step="5" /><output id="stretchOut"></output></div>
         <div class="row" style="display:block"><label>When you open an app…<small>App = its process name, e.g. Code, chrome, Spotify, Discord</small></label>
           <div id="reactions"></div>
           <button id="addReaction" class="add">+ Add app</button></div>

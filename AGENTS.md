@@ -26,6 +26,8 @@
 - Measure CPU with `Get-Counter '\Process(electron*)\% Processor Time'` (bench script). `Get-Process` CPU deltas gave wrong (zero) numbers.
 - The Browser pane can stall when the app window is hidden; use `scripts/snap.cjs` for visual checks. GDI screen capture can't see the pet window.
 - Click-through (`setIgnoreMouseEvents` + forward): never rely only on forwarded mousemove; the host hover poll covers him moving under a still cursor. `DUMBO_BENCH` runs log `over true/false`.
+- Test env for daily-life features: `DUMBO_TEST_MINUTE=<ms>` (shorter minutes for modes), `DUMBO_TEST_ROUTINE=<mode id>` (starts it after 8 s), `DUMBO_TEST_QUIET=1` (forces meeting quiet). In `DUMBO_BENCH` runs every speech line is logged as `say: …` and hat changes as `hat: …`.
+- Props (party hat, nightcap, cup) are our own art in `src/art/extras.ts`, drawn over the front view only (hidden in side poses). Never edit the design generators for them.
 - Host timers and late messages must use `alive()` / `sendPet()` in `electron/main.cjs` (window may be destroyed while quitting). Test env: `DUMBO_TEST_RESUME=<ms>` fakes wake-from-sleep, `DUMBO_TEST_QUIT=<ms>` quits.
 - Wake from sleep = full restart (`restartAfterSleep` in `electron/main.cjs`): after resume Windows left the window unable to receive mouse presses; nothing short of a new process fixed it. Dev runs (`DUMBO_DEV_URL`) and `DUMBO_NO_WAKE_RESTART=1` only resync.
 - Renderer errors and `host.log()` print to the Electron main stdout as `[pet] ...`.

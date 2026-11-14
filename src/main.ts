@@ -2,7 +2,8 @@ import type { Theme } from './art/dumbo.js';
 import { Animator, FRONT_REST, type FrontState } from './engine/animator';
 import { clips, STAND, SIT } from './engine/clips';
 import { actionOn, tuneOf, ALL_ACTIONS, type ActionId, type KnobKey } from './actions';
-import { host, type Settings, type Cursor, type Foreground, type ReactionAction, type Hold, type HoldKind } from './host';
+import { host, type Settings, type Cursor, type Foreground, type ReactionAction, type Hold, type HoldKind, type Quiet } from './host';
+import type { Hat } from './art/extras';
 
 // ======================================================================
 //  Dumbo's brain. Event-driven: timers + input events, no polling loops.
@@ -54,6 +55,8 @@ darkMq.addEventListener('change', () => S && applyTheme());
 // ---------- speech bubble ----------
 let bubbleTimer = 0;
 function say(text: string, ms = 3200) {
+  if ((window.host as any)?.bench) host.log(`${quiet ? '(quiet, not said) ' : ''}say: ${text}`);
+  if (quiet) return; // meeting manners: no speech bubbles while you're on a call / full screen
   bubbleEl.textContent = text;
   bubbleEl.classList.add('show');
   clearTimeout(bubbleTimer);
@@ -90,7 +93,13 @@ const LINES = {
   found: ['you found me!', 'aww, found me!', 'again again!'],
   notFound: ['you never found me hehe', "I win!", 'too good at hiding'],
   noWindow: ["bring a window to the front (not too high) and I'll hop on!", 'no window to sit on…'],
+  climb: ['up I go!', 'climbing time!', 'hup hup hup'],
+  climbTop: ['made it!', 'top of the world!', 'nice view up here'],
+  water: ['sip sip…', 'gulp gulp', 'water break!'],
+  waterYou: ['your turn! drink some water', 'drink some water too!', 'stay hydrated!'],
+  birthday: ["it's my birthday!", 'party time!', 'birthday boy!'],
 };
+const GREET_MILESTONES: Record<number, string> = { 7: 'a whole week!', 30: 'a whole month!', 100: '100 days!!', 365: 'one whole year!!' };
 const HOLD_LINES: Record<HoldKind, string[]> = {
   free: ['back to normal!'],
   sleep: ['nap time'],
@@ -108,6 +117,24 @@ const REACT_LINES: Record<ReactionAction, (a: string) => string[]> = {
   run: () => ['zoom zoom!'],
   none: () => [],
 };
+
+// ---------- meeting manners (host: camera / mic in use, or a full-screen app in front) ----------
+let quiet = false;
+
+// ---------- hats: party hat on his birthday, nightcap for night naps (front view only) ----------
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
+const birthdayMD = () => (S?.birthday || (S?.metOn || '').slice(5));
+const isBirthday = () => {
+  const d = new Date();
+  if (!on('birthday') || birthdayMD() !== `${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`) return false;
+  return !!S.birthday || Number((S.metOn || '').slice(0, 4)) < d.getFullYear(); // the day you met isn't his birthday yet
+};
+/** The hat he wears when awake: party hat all of his birthday, otherwise none. */
+const dayHat = (): Hat => (isBirthday() ? 'party' : null);
+function setHat(h: Hat) { if (anim.extras.hat === h) return; anim.setExtras({ hat: h }); if ((window.host as any)?.bench) host.log(`hat: ${h} night=${document.body.classList.contains('night')}`); }
+const nightLook = () => !!S?.nightLook && isNight();
+function applyNight() { document.body.classList.toggle('night', nightLook()); }
 
 // ---------- modes ----------
 // front: sitting, facing you (idle home state) · side: doing a side-view action
@@ -240,14 +267,20 @@ async function decide() {
     await wake(false);
     return schedule(rand(6000, 12000));
   }
+  applyNight();
+  if (anim.extras.hat === 'party' && !isBirthday()) setHat(null); // birthday's over
   if (hold.kind === 'sleep') return sleep();
   if (hold.kind === 'coding' || hold.kind === 'exercise' || hold.kind === 'walk') return holdActivity();
   const awakeFor = Date.now() - awakeSince;
   const awakeBudget = (isNight() ? 45_000 : rand(90_000, 240_000) * (1.4 - S.sleepiness)) * (saving() ? 0.5 : 1);
   if (hold.kind !== 'awake' && awakeFor > awakeBudget && Date.now() - lastInteraction > 20_000) return sleep();
 
+  // Meeting manners: no actions, reminders or greetings until you're off the call / out of full screen.
+  if (quiet) return schedule(rand(20_000, 40_000));
+  if (await dayCheck()) return schedule(rand(8000, 15000));
   if (await batteryCheck()) return schedule(rand(8000, 15000));
   if (await stretchCheck()) return schedule(rand(10_000, 20_000));
+  if (await waterCheck()) return schedule(rand(10_000, 20_000));
 
   if (perch) {
     // Up on a window: look around, peek over the edge, nibble the corner, then hop down.
@@ -261,6 +294,7 @@ async function decide() {
 
   if (S.visitWindows && !hold.pin && !lowBattery && chance(0.35)) {
     const fg = await getFg();
+    if (fg && on('climb') && await canClimb(fg) && chance(Math.min(1, 0.35 * often('climb')))) { await climbOnto(fg); return schedule(rand(8000, 15_000)); }
     if (fg && on('perch') && await canPerch(fg) && chance(Math.min(1, 0.6 * often('perch')))) { await hopOnto(fg); return schedule(rand(8000, 15_000)); }
     if (fg && on('push') && await canPush(fg) && chance(Math.min(1, 0.5 * often('push')))) { await pushWindow(fg); return schedule(rand(10_000, 20_000)); }
   }
@@ -325,7 +359,10 @@ async function sleep(style?: 'doze' | 'curl') {
   mode = 'busy';
   track(false);
   clearTimeout(exprTimer); clearTimeout(blinkTimer);
-  sleepStyle = style ?? (on('curl') && (!on('doze') || chance(0.4)) ? 'curl' : 'doze');
+  // Night naps (night look on): sits and dozes in his nightcap, if dozing is allowed.
+  sleepStyle = style ?? (nightLook() && on('doze') ? 'doze' : on('curl') && (!on('doze') || chance(0.4)) ? 'curl' : 'doze');
+  applyNight();
+  if (sleepStyle === 'doze' && nightLook()) setHat('night');
   if (sleepStyle === 'doze') {
     if (anim.view !== 'front') await toFront('neutral');
     track(false);
@@ -341,6 +378,7 @@ async function sleep(style?: 'doze' | 'curl') {
 
 async function wake(byUser: boolean) {
   mode = 'busy';
+  setHat(dayHat());
   if (anim.view === 'side') { await anim.play(clips.uncurl()); }
   anim.setFront({ ...FRONT_REST, expr: 'sleeping' });
   await anim.face([{ s: { expr: 'tired', blink: .5 }, ms: 500 }, { s: { blink: 0, expr: byUser ? 'happy' : 'smile' }, ms: 400 }]);
@@ -537,6 +575,59 @@ function watchPerch() {
   }, 2000);
 }
 
+/** Climbing: only windows that come down to the taskbar (so he can reach their side) and aren't too high. */
+async function canClimb(fg: Foreground) {
+  if (hold.pin || perch || !(await canPerch(fg))) return false;
+  const { workArea } = await host.winInfo();
+  return !fg.max && fg.y + fg.h > workArea.y + workArea.height - 60 && fg.h > 180;
+}
+/** Walks to the window's side, turns sideways and climbs up its edge, then hops onto the top. */
+async function climbOnto(fg: Foreground) {
+  const { bounds, workArea } = await host.winInfo();
+  const W = bounds.width, H = bounds.height, stageH = H * 0.5273;
+  const fromLeft = bounds.x + W / 2 < fg.x + fg.w / 2;
+  // 1. walk along the ground to the window's side (nose to the edge, like pushing)
+  await walk(20_000, 40, clips.walk(), fromLeft ? fg.x - W * 0.68 : fg.x + fg.w - W * 0.32, false);
+  if (mode !== 'side' || hold.pin) return;
+  // 2. turn: feet on the window edge. Rotated, the stage is stageH wide and W/2 tall.
+  setFacing(!fromLeft);
+  document.body.classList.add(fromLeft ? 'climbL' : 'climbR');
+  const x = fromLeft ? fg.x - (W * 0.5 + stageH / 2) + 4 : fg.x + fg.w - (W * 0.5 - stageH / 2) - 4;
+  const bottom = workArea.y + workArea.height;
+  const y0 = bottom - H + stageH / 2 - W / 4, y1 = fg.y - H + stageH / 2 + W / 4; // feet at ground → head at the top edge
+  say(pick(LINES.climb), 2000);
+  const clip = clips.walk(); clip.fps = 8;
+  anim.play(clip);
+  const speed = 45 * (tune('climb', 'speed') || 1), my = motion;
+  if ((window.host as any)?.bench) host.log(`climb: side=${fromLeft ? 'left' : 'right'} x=${Math.round(x)} y0=${Math.round(y0)} y1=${Math.round(y1)} window=${fg.x},${fg.y} ${fg.w}x${fg.h}`);
+  let y = y0, last = performance.now();
+  host.move(x, y);
+  await new Promise<void>(resolve => {
+    const iv = window.setInterval(() => {
+      if (my !== motion || mode !== 'side') { clearInterval(iv); return resolve(); } // grabbed / interrupted
+      const now = performance.now();
+      y = Math.max(y1, y - speed * (now - last) / 1000); last = now;
+      host.move(x, y);
+      if (y <= y1) { clearInterval(iv); resolve(); }
+    }, 40);
+  });
+  document.body.classList.remove('climbL', 'climbR');
+  if (my !== motion || mode !== 'side') return;
+  // 3. still the same window, in the same place? hop onto its top edge; otherwise let go
+  const now = await getFg();
+  anim.setSide(STAND);
+  if (!now || now.name !== fg.name || !sameRect(now, fg)) { await fallToGround(); host.savePos(); mode = 'busy'; await toFront('confused'); return; }
+  const b2 = (await host.winInfo()).bounds;
+  perch = { ...fg, since: Date.now(), stay: rand(40_000, 120_000) };
+  await jumpTo(fromLeft ? fg.x + 30 - W * 0.3 : fg.x + fg.w - 30 - W * 0.7, perchY(b2), 450);
+  host.savePos();
+  if (mode !== 'side') return;
+  say(pick(LINES.climbTop), 2400);
+  mode = 'busy';
+  await toFront('happy');
+  watchPerch();
+}
+
 async function hopDown() {
   if (!perch) return;
   mode = 'side';
@@ -612,6 +703,7 @@ function watchApps() {
 async function onAppSwitch(fg: Foreground) {
   const rule = S.appReactions.find(r => r.app && r.app.toLowerCase() === fg.name.toLowerCase());
   const now = Date.now();
+  if (quiet) return;
   if (rule && rule.action !== 'none' && mode === 'front' && (hold.kind === 'free' || hold.kind === 'awake') && now - (reactedAt[fg.name] ?? 0) > 10 * 60_000) {
     reactedAt[fg.name] = now;
     return appReaction(rule.action, appName(fg.name));
@@ -654,12 +746,13 @@ async function dance() {
 
 // ---------- your activity: "let's stretch" + "welcome back" ----------
 // Uses only Windows' "seconds since last input" — no keys or clicks are recorded.
-let activeMin = 0, wasAway = false, stretchDue = false;
+let activeMin = 0, wasAway = false, stretchDue = false, waterMin = 0, waterDue = false;
 function watchActivity() {
   setInterval(async () => {
     const idle = await host.idleSeconds();
     if (idle >= 300) { activeMin = 0; wasAway = true; return; }
-    if (idle < 120) activeMin++;
+    if (idle < 120) { activeMin++; waterMin++; }
+    if (S.waterEvery > 0 && waterMin >= S.waterEvery) { waterDue = true; waterMin = 0; if (mode === 'front') schedule(300); }
     if (S.stretchEvery > 0 && activeMin >= S.stretchEvery) { stretchDue = true; activeMin = 0; if (mode === 'front' || mode === 'sleep') schedule(300); }
   }, 60_000);
   // Notice you coming back (only checks while you're away).
@@ -668,7 +761,7 @@ function watchActivity() {
     if ((await host.idleSeconds()) < 5) {
       wasAway = false;
       if (mode === 'sleep' && hold.kind !== 'sleep' && chance(0.5)) { await wake(true); schedule(rand(6000, 12000)); }
-      if (mode === 'front' && on('welcome')) { say(pick(LINES.welcome), 2600); frontEarFlap(); }
+      if (mode === 'front' && on('welcome') && !quiet) { say(pick(LINES.welcome), 2600); frontEarFlap(); }
     }
   }, 4000);
 }
@@ -681,6 +774,83 @@ async function stretchCheck(): Promise<boolean> {
   await sideAction(chance(0.5) ? clips.rope(6) : clips.pushups(5));
   say(pick(LINES.stretchDone), 3000);
   return true;
+}
+
+// ---------- water ----------
+async function waterCheck(): Promise<boolean> {
+  if (!waterDue) return false;
+  waterDue = false;
+  if (!on('water')) return false;
+  await drink();
+  return true;
+}
+/** Holds up a tiny cup and sips (front view), then asks you to drink too. */
+async function drink() {
+  mode = 'busy';
+  if (anim.view !== 'front') await toFront('happy');
+  if (dragging) return;
+  mode = 'busy';
+  track(false); clearTimeout(exprTimer); clearTimeout(blinkTimer);
+  anim.setExtras({ cup: true });
+  say(pick(LINES.water), 2400);
+  const sip = [{ s: { expr: 'happy', tilt: -8, head: [0, -4] as [number, number], blink: 0.6 }, ms: 450 }, { s: { blink: 1 }, ms: 350 }, { s: { tilt: -3, head: [0, 0] as [number, number], blink: 0 }, ms: 400 }];
+  await anim.face([...sip, ...sip, ...sip]);
+  anim.setExtras({ cup: false });
+  if (mode !== 'busy') return;
+  say(pick(LINES.waterYou), 3200);
+  await anim.face([{ s: { expr: 'laugh', bounce: 8, tilt: 0 }, ms: 160 }, { s: { bounce: 0, expr: 'happy' }, ms: 220 }]);
+  if (mode === 'busy') { mode = 'front'; setExpr('happy', 2500); track(true); scheduleBlink(); }
+}
+
+// ---------- daily greeting ("day 12 together") + birthday ----------
+/** Once a day, the first time he's up while you're around. Returns true if he greeted. */
+async function dayCheck(): Promise<boolean> {
+  const t = todayStr();
+  if (!S || S.lastDay === t) return false;
+  if (quiet || (await host.idleSeconds()) > 120) return false; // wait until you're actually here
+  const days = (S.daysTogether || 0) + 1;
+  S = { ...S, lastDay: t, daysTogether: days };
+  host.setSettings({ lastDay: t, daysTogether: days });
+  if (isBirthday()) { await birthdayParty(); return true; }
+  if (!on('greeting')) return false;
+  await greet(days);
+  return true;
+}
+async function greet(days: number) {
+  const h = new Date().getHours();
+  const hi = h < 5 ? 'up late!' : h < 12 ? 'good morning!' : h < 17 ? 'good afternoon!' : 'good evening!';
+  const extra = GREET_MILESTONES[days];
+  say(days <= 1 ? `${hi} nice to meet you` : `${hi} day ${days} together${extra ? `, ${extra}` : ''}`, 3800);
+  await frontEarFlap();
+}
+/** Party hat (all day), confetti, a happy bounce. `demo`: ▶ Try — the hat comes off again after a bit. */
+async function birthdayParty(demo = false) {
+  mode = 'busy';
+  if (anim.view !== 'front') await toFront('excited');
+  if (dragging) return;
+  mode = 'busy';
+  setHat('party');
+  const met = Number((S.metOn || '').slice(0, 4)), age = met ? new Date().getFullYear() - met : 0;
+  say(age > 0 && !S.birthday ? `it's my birthday! I'm ${age} today` : pick(LINES.birthday), 3500);
+  confetti();
+  const hop = [{ s: { expr: 'excited', bounce: 16, earAdd: [16, -16] as [number, number] }, ms: 170 }, { s: { bounce: 0, earAdd: [0, 0] as [number, number] }, ms: 170 }];
+  await anim.face([...hop, ...hop, ...hop, { s: { expr: 'laugh' }, ms: 400 }]);
+  if (mode === 'busy') { mode = 'front'; setExpr('happy', 3000); }
+  if (demo && !isBirthday()) setTimeout(() => { if (anim.extras.hat === 'party' && !isBirthday()) setHat(null); }, 10_000);
+}
+/** A short burst of confetti over him (a few DOM pieces, one fall each, then removed). */
+function confetti() {
+  const colors = ['#ff8fb8', '#ffe27a', '#8fd6ff', '#b9a6ff', '#9ff0c0'];
+  for (let i = 0; i < 22; i++) {
+    const el = document.createElement('div');
+    el.className = 'confetti';
+    el.style.left = `${rand(18, 82)}%`;
+    el.style.background = pick(colors);
+    document.body.append(el);
+    const dx = rand(-30, 30), rot = rand(-540, 540);
+    el.animate([{ transform: 'translate(0, 0) rotate(0deg)', opacity: 1 }, { transform: `translate(${dx}px, ${rand(150, 210)}px) rotate(${rot}deg)`, opacity: 0.2 }],
+      { duration: rand(1300, 2000), delay: rand(0, 300), easing: 'cubic-bezier(.2,.6,.4,1)', fill: 'forwards' }).onfinish = () => el.remove();
+  }
 }
 
 // ---------- interactions ----------
@@ -782,6 +952,7 @@ function startDrag(ox: number, oy: number) {
   if ((window.host as any)?.bench) host.log('drag start');
   motion++;
   abortGame(false); // you've got him: no need to put him back first
+  document.body.classList.remove('climbL', 'climbR');
   dragging = true;
   grumpy = mode === 'sleep' || mode === 'side' || mode === 'busy';
   walkStop?.();
@@ -822,6 +993,7 @@ async function endDrag() {
   if (dragging) return;
   host.savePos();
   awakeSince = Date.now();
+  setHat(dayHat()); // picked up from a nap: nightcap off
   if (hold.kind === 'sleep') { await toFront('pout'); return sleep(); } // put down → back to his nap
   await toFront(grumpy ? 'pout' : 'happy');
   if (grumpy) setExpr('pout', 3000);
@@ -854,7 +1026,7 @@ async function onChargingChange() {
   applyPerf();
   if (!battery.charging) { flexCount = 0; return; }
   // Plugged in → excited, bounces, runs around, then back to normal life.
-  if (mode === 'held' || hold.kind === 'sleep' || game || !on('charged')) return;
+  if (mode === 'held' || hold.kind === 'sleep' || game || !on('charged') || quiet) return;
   await chargedJoy();
   schedule(rand(6000, 10000));
 }
@@ -1010,6 +1182,14 @@ async function tryAction(id: ActionId) {
     case 'pushups': say(pick(LINES.exercise)); await sideAction(clips.pushups(reps('pushups', 4, 5))); break;
     case 'rope': say(pick(LINES.exercise)); await sideAction(clips.rope(reps('rope', 5, 6))); break;
     case 'hideSeek': if (hold.pin) say("I'm pinned!", 2000); else await hideAndSeek(true); break;
+    case 'climb': {
+      const fg = await winTarget();
+      if (fg && await canClimb(fg)) await climbOnto(fg); else say(hold.pin ? "I'm pinned!" : 'I need a window that reaches the bottom of the screen', 3200);
+      break;
+    }
+    case 'greeting': await greet(S.daysTogether || 1); break;
+    case 'birthday': await birthdayParty(true); break;
+    case 'water': await drink(); break;
     case 'perch': {
       if (perch) { say(pick(LINES.perch), 2000); break; }
       const fg = await winTarget();
@@ -1052,12 +1232,13 @@ async function trayAction(a: string) {
   if (a === 'wake' && mode === 'sleep') { await wake(true); schedule(rand(6000, 12000)); }
 }
 host.onAction(a => { trayAction(a).catch(e => host.log(`${a} failed: ${e?.stack || e}`)); });
-host.onSettings(s => { S = s; applyTheme(); updateLow(); applyPerf(); });
+host.onSettings(s => { S = s; applyTheme(); updateLow(); applyPerf(); applyNight(); if (anim.extras.hat === 'party' && !isBirthday()) setHat(null); });
 host.onHold(h => { applyHold(h).catch(e => host.log(`hold failed: ${e?.stack || e}`)); });
 
 async function applyHold(h: Hold) {
   const prev = hold;
   hold = h;
+  if (h.reason === 'routine') routineSays(h);
   if (game && (h.pin !== prev.pin || h.kind !== prev.kind)) { abortGame(); mode = 'busy'; await toFront('smile'); }
   if (h.pin && !prev.pin) {
     walkStop?.();
@@ -1076,6 +1257,24 @@ async function applyHold(h: Hold) {
   else if (!h.pin && prev.pin && h.kind === prev.kind) say(pick(LINES.unpinned), 2000);
   if (!h.pin && prev.pin && mode !== 'held') await settle();
 }
+/** What he says when a custom mode (tray Modes) starts, switches between work and break, or ends. */
+function routineSays(h: Hold) {
+  const r = h.routine;
+  if (!r) return;
+  const what: Record<string, string> = { coding: 'focus', exercise: 'exercise', walk: 'walking', awake: 'awake time', sleep: 'nap', free: 'free time', stretch: 'stretch' };
+  if (h.event === 'start') say(`${r.name}! ${r.min} min of ${what[r.work || 'free'] || 'focus'}. let's go!`, 3600);
+  else if (h.event === 'work') say(`back to it! round ${r.round} of ${r.rounds}`, 3000);
+  else if (h.event === 'rest') say(r.rest === 'stretch' ? 'break time! stretch with me' : `break time! ${r.min} min`, 3400);
+  else if (h.event === 'done') { say(`${r.name} done! great work`, 3600); if (mode === 'front') frontEarFlap(); }
+  else if (h.event === 'stopped') say(`${r.name} stopped`, 2200);
+}
+host.onQuiet(q => {
+  const was = quiet;
+  quiet = q.on;
+  host.log(`quiet ${q.on} ${q.why}`);
+  if (quiet && !was) { bubbleEl.classList.remove('show'); if (game) { abortGame(); mode = 'busy'; toFront('smile'); } }
+  if (!quiet && was && mode === 'front') schedule(rand(3000, 6000));
+});
 host.onBatteryPresent(b => { hasBattery = b; initBattery(); });
 host.onSay(t => say(t, 5000)); // host messages (updates)
 host.onTry(id => { tryAction(id).catch(e => host.log(`try ${id} failed: ${e?.stack || e}`)); });
@@ -1086,16 +1285,22 @@ async function boot() {
   S = st.settings; hasBattery = st.hasBattery;
   if (st.hold) hold = st.hold;
   if (st.wokeUp) host.log('woke up: hello again');
+  if (st.quiet) quiet = st.quiet.on;
   applyTheme();
   applyPerf();
+  applyNight();
   setOver(false);
   initBattery();
   mode = 'busy';
   anim.setFront({ ...FRONT_REST, expr: 'happy' });
   if (!(await fallToGround())) { /* already on the ground */ }
   await toFront('happy');
-  say(pick(st.wokeUp ? LINES.helloAgain : LINES.hello()), 2800);
-  await frontEarFlap();
+  if (isBirthday() && S.lastDay === todayStr()) setHat('party'); // already celebrated today: keep the hat on
+  // First start today: the daily greeting (or birthday) instead of a plain hello.
+  if (!(S.lastDay !== todayStr() && !st.wokeUp && await dayCheck())) {
+    say(pick(st.wokeUp ? LINES.helloAgain : LINES.hello()), 2800);
+    await frontEarFlap();
+  }
   watchApps();
   watchActivity();
   schedule(hold.kind !== 'free' ? 1500 : rand(6000, 12000));

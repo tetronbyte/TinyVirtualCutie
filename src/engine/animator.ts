@@ -1,5 +1,6 @@
 import { poseSVG, POSES, type PoseParams, type Theme } from '../art/dumbo.js';
-import { frontSVG } from '../art/front.js';
+import { frontSVG, EXPRESSIONS } from '../art/front.js';
+import { hatSVG, cupSVG, NO_EXTRAS, type Extras } from '../art/extras';
 
 /**
  * Two views, both generated from the Claude Design code:
@@ -84,6 +85,8 @@ export class Animator {
   private lastDraw = 0;
   private lastSvg = '';
   private done: (() => void) | null = null;
+  /** Hat / cup drawn over the front view (birthday, nightcap, water). Hidden in the side view. */
+  extras: Extras = { ...NO_EXTRAS };
 
   constructor(private el: HTMLElement) {}
 
@@ -97,6 +100,8 @@ export class Animator {
     this.theme = theme;
     this.redraw();
   }
+
+  setExtras(e: Partial<Extras>) { this.extras = { ...this.extras, ...e }; this.redraw(); }
 
   /** Show a side pose immediately. */
   setSide(p: PoseParams) { this.stop(); this.view = 'side'; this.side = p; this.redraw(); }
@@ -158,10 +163,20 @@ export class Animator {
     this.raf = requestAnimationFrame(this.tick);
   };
 
+  /** Front view + props: the hat follows the head (same transform as front.js), the cup the body. */
+  private withExtras(svg: string) {
+    const { hat, cup } = this.extras;
+    if (!hat && !cup) return svg;
+    const s = this.front, tilt = ((EXPRESSIONS as any)[s.expr]?.tilt || 0) + (s.tilt || 0);
+    const headT = `translate(${s.head[0]} ${s.head[1]}) rotate(${tilt} 205 245)`;
+    const add = `<g transform="translate(0 ${-(s.bounce || 0)})">${hat ? `<g transform="${headT}">${hatSVG(this.theme, hat, 'x')}</g>` : ''}${cup ? cupSVG(this.theme) : ''}</g>`;
+    return svg.replace(/<\/svg>$/, add + '</svg>');
+  }
+
   private redraw() {
     const svg = this.view === 'side'
       ? poseSVG(this.theme, this.side, 'd').replace('viewBox="-60 -110 700 560"', `viewBox="${SIDE_VIEWBOX}"`)
-      : frontSVG(this.theme, this.front, 'f');
+      : this.withExtras(frontSVG(this.theme, this.front, 'f'));
     if (svg === this.lastSvg) return;
     this.lastSvg = svg;
     this.el.innerHTML = svg;

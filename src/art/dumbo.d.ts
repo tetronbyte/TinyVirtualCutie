@@ -28,3 +28,4 @@ export type PoseSet = [key: string, title: string, note: string, frames: Array<[
 export function poseSVG(theme: Theme, P: PoseParams, uid: string): string;
 export const POSES: PoseSet[];
 export const TH: Record<Theme, Record<string, unknown>>;
+export const SW: number;

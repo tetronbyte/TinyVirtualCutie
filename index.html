@@ -28,6 +28,13 @@
       body.upside #stage.left { transform: scale(-1, -1); }
       body.upside #bubble { bottom: auto; top: 57%; }
       body.upside #bubble::after { bottom: auto; top: -.62em; transform: translateX(-50%) rotate(225deg); }
+      /* Night look (settings: Daily life): a little dimmer and sleepier at night. Static filter, no animation. */
+      body.night #art { filter: brightness(.86) saturate(.78); }
+      /* Climbing a window's side: turned 90° so his feet are on the window edge (left side / right side). */
+      body.climbL #stage { transform: rotate(-90deg); }
+      body.climbR #stage.left { transform: rotate(90deg) scaleX(-1); }
+      /* Birthday confetti: a few pieces, one short fall, then removed. */
+      .confetti { position: absolute; top: -4%; width: 2.6%; height: 3.8%; border-radius: 1px; pointer-events: none; }
       body.dark #bubble { background: #221d33; color: #f2ecff; border-color: #7e6bff; box-shadow: 0 0 .9em rgba(126,107,255,.45); }
     </style>
   </head>

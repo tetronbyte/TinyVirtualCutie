@@ -1,4 +1,4 @@
-import { host, type Settings, type AppReaction, type ReactionAction } from './host';
+import { host, type Settings, type AppReaction, type ReactionAction, type Routine, type HoldKind } from './host';
 import { ACTION_GROUPS, ALL_ACTIONS, KNOBS, actionOn, type ActionId, type ActionInfo, type Tune } from './actions';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -40,7 +40,59 @@ function render() {
   $('lowOut').textContent = `${S.batteryLow}%`;
   $('highOut').textContent = `${S.batteryHigh}%`;
   $('stretchOut').textContent = S.stretchEvery ? `${S.stretchEvery} min` : 'off';
+  $('waterOut').textContent = S.waterEvery ? `${S.waterEvery} min` : 'off';
+  const met = S.metOn ? new Date(`${S.metOn}T12:00`) : null, days = S.daysTogether || 0;
+  $('together').textContent = met ? `You met on ${met.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}${days ? ` · ${days} day${days === 1 ? '' : 's'} together` : ''}` : '';
 }
+
+// ---------- birthday (month + day; empty = the day you met) ----------
+const MONTHS = Array.from({ length: 12 }, (_, i) => new Date(2000, i, 1).toLocaleString(undefined, { month: 'long' }));
+function renderBirthday() {
+  const md = S.birthday || (S.metOn || '').slice(5) || '01-01';
+  const [m, d] = md.split('-').map(Number);
+  const ms = $<HTMLSelectElement>('bdayMonth'), ds = $<HTMLSelectElement>('bdayDay');
+  ms.innerHTML = MONTHS.map((n, i) => `<option value="${i + 1}"${i + 1 === m ? ' selected' : ''}>${n}</option>`).join('');
+  const fill = (month: number, day: number) => {
+    const max = new Date(2000, month, 0).getDate(); // 2000: leap year, so 29 Feb is allowed
+    ds.innerHTML = Array.from({ length: max }, (_, i) => `<option value="${i + 1}"${i + 1 === Math.min(day, max) ? ' selected' : ''}>${i + 1}</option>`).join('');
+  };
+  fill(m, d);
+  const commit = () => save({ birthday: `${String(ms.value).padStart(2, '0')}-${String(ds.value).padStart(2, '0')}` });
+  ms.onchange = () => { fill(Number(ms.value), Number(ds.value)); commit(); };
+  ds.onchange = commit;
+}
+
+// ---------- modes (work → break × rounds) ----------
+const WORK: Array<[HoldKind, string]> = [['coding', 'Coding'], ['exercise', 'Exercising'], ['awake', 'Staying awake'], ['walk', 'Walking around'], ['free', 'Whatever he likes'], ['sleep', 'Sleeping']];
+const REST: Array<[Routine['rest'], string]> = [['stretch', 'Stretching with you'], ['free', 'Whatever he likes'], ['walk', 'Walking around'], ['sleep', 'Napping'], ['awake', 'Staying awake']];
+const opts = <T extends string>(list: Array<[T, string]>, v: string) => list.map(([k, l]) => `<option value="${k}"${k === v ? ' selected' : ''}>${l}</option>`).join('');
+function renderRoutines() {
+  const box = $('routines');
+  box.innerHTML = '';
+  (S.routines || []).forEach((r, i) => {
+    const row = document.createElement('div'); row.className = 'routine';
+    row.innerHTML = `<div class="top"><input type="text" maxlength="24" aria-label="Mode name" value=""><button class="start">Start</button><button class="del" aria-label="Remove mode">✕</button></div>
+      <div class="steps"><select class="work" aria-label="Work activity">${opts(WORK, r.work)}</select> for <input type="number" class="wmin" min="1" max="240" aria-label="Work minutes"> min,
+      then <select class="rest" aria-label="Break activity">${opts(REST, r.rest)}</select> for <input type="number" class="rmin" min="0" max="120" aria-label="Break minutes"> min,
+      <input type="number" class="rounds" min="1" max="12" aria-label="Rounds"> times</div>`;
+    const q = <T extends HTMLElement>(sel: string) => row.querySelector(sel) as T;
+    q<HTMLInputElement>('.top input').value = r.name;
+    q<HTMLInputElement>('.wmin').value = String(r.workMin);
+    q<HTMLInputElement>('.rmin').value = String(r.restMin);
+    q<HTMLInputElement>('.rounds').value = String(r.rounds);
+    const num = (sel: string, lo: number, hi: number) => Math.max(lo, Math.min(hi, Math.round(Number(q<HTMLInputElement>(sel).value) || lo)));
+    const commit = () => saveRoutines((S.routines || []).map((x, j) => j !== i ? x : {
+      ...x, name: q<HTMLInputElement>('.top input').value.trim() || 'Mode',
+      work: q<HTMLSelectElement>('.work').value as HoldKind, rest: q<HTMLSelectElement>('.rest').value as Routine['rest'],
+      workMin: num('.wmin', 1, 240), restMin: num('.rmin', 0, 120), rounds: num('.rounds', 1, 12),
+    }));
+    row.querySelectorAll('input, select').forEach(el => ((el as HTMLInputElement).onchange = commit));
+    q<HTMLButtonElement>('.start').onclick = () => { host.routineStart(r.id); const b = q<HTMLButtonElement>('.start'); b.textContent = 'Started'; setTimeout(() => (b.textContent = 'Start'), 1500); };
+    q<HTMLButtonElement>('.del').onclick = () => saveRoutines((S.routines || []).filter((_, j) => j !== i));
+    box.append(row);
+  });
+}
+function saveRoutines(list: Routine[]) { save({ routines: list }); renderRoutines(); }
 
 const ACTIONS: Array<[ReactionAction, string]> = [['coding', 'Codes with you'], ['dance', 'Dances'], ['wave', 'Waves'], ['exercise', 'Works out'], ['run', 'Runs around'], ['none', 'Nothing']];
 function renderReactions() {
@@ -174,6 +226,7 @@ async function init() {
   S = st.settings;
   if (st.platform === 'darwin') {
     $('appsSection').hidden = true; // window visits / app reactions: Windows only for now
+    $('quietRow').hidden = true; // camera / mic / full-screen check: Windows only for now
     $('autostartLabel').textContent = 'Open at login';
   }
   actions = { ...(S.actions || {}) };
@@ -188,6 +241,15 @@ async function init() {
     el.onchange = () => save({ [key]: num(el.value) } as Partial<Settings>);
   };
   range('size', 'size'); range('sleepiness', 'sleepiness'); range('batteryLow', 'batteryLow'); range('batteryHigh', 'batteryHigh'); range('stretchEvery', 'stretchEvery');
+  range('waterEvery', 'waterEvery');
+  renderBirthday();
+  renderRoutines();
+  $('addRoutine').onclick = () => saveRoutines([...(S.routines || []), { id: `m${Date.now().toString(36)}`, name: 'New mode', work: 'coding', workMin: 25, rest: 'stretch', restMin: 5, rounds: 2 }]);
+  $('stopRoutine').onclick = () => host.routineStop();
+  for (const id of ['nightLook', 'quietInMeetings'] as const) {
+    const el = $<HTMLInputElement>(id); el.checked = !!S[id];
+    el.onchange = () => save({ [id]: el.checked } as Partial<Settings>);
+  }
   const visit = $<HTMLInputElement>('visitWindows'); visit.checked = S.visitWindows;
   visit.onchange = () => save({ visitWindows: visit.checked });
   $('addReaction').onclick = () => { saveReactions([...S.appReactions, { app: '', action: 'coding' }]); ($('reactions').lastElementChild?.querySelector('input') as HTMLInputElement | null)?.focus(); };
